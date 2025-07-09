@@ -7,7 +7,7 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      fhs = pkgs.buildFHSUserEnv {
+      fhs = pkgs.buildFHSEnv {
         name = "fhs-shell";
         targetPkgs = pkgs: [ pkgs.yarn ];
       };
