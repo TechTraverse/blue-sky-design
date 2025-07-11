@@ -2,10 +2,14 @@
   display: inline-block;
   cursor: pointer;
   border: 0;
-  border-radius: 3em;
   font-weight: 700;
   line-height: 1;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  svg {
+    color: white;
+    transform: scale(1.7);
+  }
 }
 .storybook-button--primary {
   background-color: #555ab9;
