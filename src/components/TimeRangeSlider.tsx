@@ -74,16 +74,23 @@ const HorizontalCalendarGrid = ({ offset }: {
 }) => (
   <CalendarGrid offset={offset}>
     <CalendarGridBody className="horizontal-calendar-grid-body">
-      {date => <td>
-        <div className="horizontal-day-column">
-          <div>
-            {getDayOfWeek(date)}
+      {date => {
+        const dayOfWeek = getDayOfWeek(date);
+        const isFirstDayOfMonth = date.day === 1;
+        return <td>
+          <div className="horizontal-day-column">
+            {isFirstDayOfMonth ? <div>
+              {date.month.toString()}/{date.year}
+            </div> : <div />}
+            <div>
+              {dayOfWeek}
+            </div>
+            <div>
+              {date.day}
+            </div>
           </div>
-          <div>
-            {date.day}
-          </div>
-        </div>
-      </td>}
+        </td>
+      }}
     </CalendarGridBody>
   </CalendarGrid>);
 
@@ -129,7 +136,7 @@ export const TimeRangeSlider = ({
           end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
         }}
         aria-label="Trip dates"
-        visibleDuration={{ weeks: 1 }}>
+        visibleDuration={{ months: 1 }}>
         {/* <header>
           <Button slot="previous">◀</Button>
           <Heading />
