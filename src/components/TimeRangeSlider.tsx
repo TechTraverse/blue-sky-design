@@ -5,24 +5,29 @@ import { Button } from './Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 
 export interface TimeRangeSliderProps {
-  providedDate?: Date;
-  onDateSelect?: () => void;
+  initialStartDate?: Date;
+  initialEndDate?: Date;
   onDateRangeSelect?: () => void;
 }
 
 type State = {
-  selectedDateOrEndDate: DateTime.Utc;
-  maybeSelectedStartDate: O.Option<DateTime.Utc>;
+  initEndDateTime: DateTime.Utc;
+  initStartDateTime: DateTime.Utc;
+  endDateTime: DateTime.Utc;
+  startDateTime: DateTime.Utc;
 };
 
 type Action = D.TaggedEnum<{
-  SelectDate: { date: DateTime.Utc };
+  SetInitialDates: {
+    initStartDateTime: DateTime.Utc;
+    initEndDateTime: DateTime.Utc;
+  };
   SelectDateRange: { start: DateTime.Utc; end: DateTime.Utc };
   Reset: object;
 }>;
 
 const {
-  SelectDate,
+  SetInitialDates,
   SelectDateRange,
   Reset,
   $match,
@@ -30,36 +35,49 @@ const {
 
 const reducer = (state: State, action: Action): State =>
   $match({
-    SelectDate: ({ date }) => ({
+    SetInitialDates: ({ initStartDateTime, initEndDateTime }) => ({
       ...state,
-      selectedDateOrEndDate: date,
+      initStartDateTime,
+      initEndDateTime,
     }),
     SelectDateRange: ({ start, end }) => ({
       ...state,
-      selectedDateOrEndDate: end,
-      maybeSelectedStartDate: O.some(start),
+      endDateTime: end,
+      startDateTime: start,
     }),
     Reset: () => ({
-      selectedDateOrEndDate: DateTime.unsafeMake(new Date()),
-      maybeSelectedStartDate: O.none(),
+      ...state,
+      endDateTime: state.initEndDateTime,
+      startDateTime: state.initStartDateTime,
     }),
   })(action);
 
 export const TimeRangeSlider = ({
-  providedDate,
-  onDateSelect,
-  onDateRangeSelect }: TimeRangeSliderProps) => {
+  initialStartDate,
+  initialEndDate,
+  onDateRangeSelect,
+}: TimeRangeSliderProps) => {
 
-  const selectedDateTime = O.fromNullable(providedDate).pipe(
+  const initialEndDateTime = O.fromNullable(initialEndDate).pipe(
     O.flatMap(DateTime.make),
     O.getOrElse(() => {
-      console.warn("No date or invalide date provided, using current date instead.");
+      console.warn(
+        "No end date or invalide date provided, using current date instead.");
       return DateTime.unsafeMake(new Date());
+    }));
+  const initialStartDateTime = O.fromNullable(initialStartDate).pipe(
+    O.flatMap(DateTime.make),
+    O.getOrElse(() => {
+      console.warn(
+        "No start date for range or invalide date provided, using 1 hour date range.");
+      return DateTime.subtract(initialEndDateTime, { hours: 1 });
     }));
 
   const [s, d] = useReducer(reducer, {
-    selectedDateOrEndDate: selectedDateTime,
-    maybeSelectedStartDate: O.none(),
+    initEndDateTime: initialEndDateTime,
+    initStartDateTime: initialStartDateTime,
+    endDateTime: initialEndDateTime,
+    startDateTime: initialStartDateTime,
   });
 
   return (
