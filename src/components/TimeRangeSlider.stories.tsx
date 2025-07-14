@@ -12,6 +12,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    user: {}
+    user: {},
+    initialStartDate: 1752991200000,
+    initialEndDate: 1753164000000
   }
 };

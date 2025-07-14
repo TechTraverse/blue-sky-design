@@ -1,6 +1,5 @@
 .time-range-slider {
   height: 60px;
-  background-color: black;
   position: fixed;
   width: 100%;
   display: flex;
@@ -16,4 +15,23 @@
   height: 100%;
   border: 1px solid white;
   padding: 0 20px;
+}
+
+.horizontal-calendar-grid-body {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+
+.horizontal-day-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px; /* Adjust as needed */
+}
+
+.bottom-calendar-container {
+  margin-bottom: 80px;
 }

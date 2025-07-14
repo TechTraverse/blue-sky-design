@@ -3,6 +3,8 @@ import { useReducer } from 'react';
 import { DateTime, Option as O, Data as D } from 'effect';
 import { Button } from './Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
+import { RangeCalendar, CalendarGrid, CalendarCell, CalendarGridHeader, CalendarGridBody } from 'react-aria-components';
+import { CalendarDate, getDayOfWeek as _getDayOfWeek, parseDate } from '@internationalized/date';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -52,6 +54,39 @@ const reducer = (state: State, action: Action): State =>
     }),
   })(action);
 
+const getDayOfWeek = (date: CalendarDate): string => {
+  const weekDayIndex = _getDayOfWeek(date, 'en-US');
+  switch (weekDayIndex) {
+    case 0: return 'S';
+    case 1: return 'M';
+    case 2: return 'T';
+    case 3: return 'W';
+    case 4: return 'T';
+    case 5: return 'F';
+    case 6: return 'S';
+    default: return '';
+  }
+};
+
+
+const HorizontalCalendarGrid = ({ offset }: {
+  offset: { months: number };
+}) => (
+  <CalendarGrid offset={offset}>
+    <CalendarGridBody className="horizontal-calendar-grid-body">
+      {date => <td>
+        <div className="horizontal-day-column">
+          <div>
+            {getDayOfWeek(date)}
+          </div>
+          <div>
+            {date.day}
+          </div>
+        </div>
+      </td>}
+    </CalendarGridBody>
+  </CalendarGrid>);
+
 export const TimeRangeSlider = ({
   initialStartDate,
   initialEndDate,
@@ -88,6 +123,20 @@ export const TimeRangeSlider = ({
           title="Select Date"
         />
       </Button>
+      <RangeCalendar
+        defaultValue={{
+          start: parseDate(DateTime.formatIsoDate(s.startDateTime)),
+          end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
+        }}
+        aria-label="Trip dates"
+        visibleDuration={{ weeks: 1 }}>
+        {/* <header>
+          <Button slot="previous">◀</Button>
+          <Heading />
+          <Button slot="next">▶</Button>
+        </header> */}
+        <HorizontalCalendarGrid offset={{ months: 0 }} />
+      </RangeCalendar>
       <Button primary={true} className="next-prev-date-range">
         <IoIosArrowForward
           onClick={() => console.log("Next date range")}
