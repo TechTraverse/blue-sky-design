@@ -1,11 +1,14 @@
 import './timeRangeSlider.css';
+import _ from 'lodash';
+import f from 'lodash/fp';
+import type { RangeValue } from "@react-types/shared";
 import { useEffect, useReducer, useState } from 'react';
 import { DateTime, Option as O, Data as D } from 'effect';
 import { Button } from './Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar, CalendarGrid, CalendarCell, CalendarGridHeader, CalendarGridBody } from 'react-aria-components';
 import { CalendarDate, getDayOfWeek as _getDayOfWeek, createCalendar, parseDate } from '@internationalized/date';
-import { useCalendarGrid, useLocale } from 'react-aria';
+import { useCalendar, useCalendarGrid, useLocale } from 'react-aria';
 import { useCalendarState, type CalendarState } from 'react-stately';
 
 
@@ -72,35 +75,53 @@ const getDayOfWeek = (date: CalendarDate): string => {
   }
 };
 
+type DayData = Pick<CalendarDate, 'year' | 'month' | 'day'> & {
+  dayOfWeek: string;
+}
+
+const getDayData = (date: CalendarDate): DayData => ({
+  ...date,
+  dayOfWeek: getDayOfWeek(date),
+});
+
+const getDaysForMonth = (state: CalendarState) => _.flow([
+  ({ start, end }: RangeValue<CalendarDate>) => {
+    const entries: CalendarDate[] = [];
+    for (let date = start; date <= end; date = date.add({ days: 1 })) {
+      entries.push(date);
+    }
+    return entries;
+  },
+  f.map(getDayData)
+])(state.visibleRange);
+
 const CustomCalendarGrid = ({ state }: { state: CalendarState }) => {
-  const { gridProps, headerProps, weekDays, weeksInMonth } = useCalendarGrid(
+  const { /* gridProps, headerProps, */ weekDays, weeksInMonth } = useCalendarGrid(
     {},
     state
   );
+  console.log("CustomCalendarGrid", state, weekDays, weeksInMonth);
+  console.log("Visible range", state.visibleRange);
 
   return (
-    <table {...gridProps}>
-      <thead {...headerProps}>
-        <tr>
-          {weekDays.map((day, index) => <th key={index}>{day}</th>)}
+    <table>
+      <tbody className="horizontal-calendar-grid-body">
+        <tr key={1}>
+          {getDaysForMonth(state).map((d: DayData) =>
+          (<td>
+            <div className="horizontal-day-column">
+              {/* {isFirstDayOfMonth ? <div>
+                {date.month.toString()}/{date.year}
+              </div> : <div />} */}
+              <div>
+                {d.dayOfWeek}
+              </div>
+              <div>
+                {d.day}
+              </div>
+            </div>
+          </td>))}
         </tr>
-      </thead>
-      <tbody>
-        {[...new Array(weeksInMonth).keys()].map((weekIndex) => (
-          <tr key={weekIndex}>
-            {state.getDatesInWeek(weekIndex).map((date, i) => (
-              date
-                ? (
-                  <CalendarCell
-                    key={i}
-                    state={state}
-                    date={date}
-                  />
-                )
-                : <td key={i} />
-            ))}
-          </tr>
-        ))}
       </tbody>
     </table>
   );
@@ -156,6 +177,11 @@ export const TimeRangeSlider = ({
     locale
   });
 
+  let { calendarProps, prevButtonProps, nextButtonProps, title } = useCalendar(
+    {},
+    state
+  );
+
 
   const initialEndDateTime = O.fromNullable(initialEndDate).pipe(
     O.flatMap(DateTime.make),
@@ -180,7 +206,7 @@ export const TimeRangeSlider = ({
   });
 
   return (
-    <div className="time-range-slider">
+    <div {...calendarProps} className="time-range-slider">
       <Button primary={true} className="next-prev-date-range">
         <IoIosArrowBack
           onClick={() => console.log("Last date range")}
@@ -199,7 +225,8 @@ export const TimeRangeSlider = ({
           <Heading />
           <Button slot="next">▶</Button>
         </header> */}
-        <HorizontalCalendarGrid offset={{ months: 0 }} />
+        {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
+        <CustomCalendarGrid state={state} />
       </RangeCalendar>
       <Button primary={true} className="next-prev-date-range">
         <IoIosArrowForward
