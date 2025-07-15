@@ -1,10 +1,14 @@
 import './timeRangeSlider.css';
-import { useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { DateTime, Option as O, Data as D } from 'effect';
 import { Button } from './Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar, CalendarGrid, CalendarCell, CalendarGridHeader, CalendarGridBody } from 'react-aria-components';
-import { CalendarDate, getDayOfWeek as _getDayOfWeek, parseDate } from '@internationalized/date';
+import { CalendarDate, getDayOfWeek as _getDayOfWeek, createCalendar, parseDate } from '@internationalized/date';
+import { useCalendarGrid, useLocale } from 'react-aria';
+import { useCalendarState, type CalendarState } from 'react-stately';
+
+
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -68,37 +72,90 @@ const getDayOfWeek = (date: CalendarDate): string => {
   }
 };
 
+const CustomCalendarGrid = ({ state }: { state: CalendarState }) => {
+  const { gridProps, headerProps, weekDays, weeksInMonth } = useCalendarGrid(
+    {},
+    state
+  );
+
+  return (
+    <table {...gridProps}>
+      <thead {...headerProps}>
+        <tr>
+          {weekDays.map((day, index) => <th key={index}>{day}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {[...new Array(weeksInMonth).keys()].map((weekIndex) => (
+          <tr key={weekIndex}>
+            {state.getDatesInWeek(weekIndex).map((date, i) => (
+              date
+                ? (
+                  <CalendarCell
+                    key={i}
+                    state={state}
+                    date={date}
+                  />
+                )
+                : <td key={i} />
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 const HorizontalCalendarGrid = ({ offset }: {
   offset: { months: number };
-}) => (
-  <CalendarGrid offset={offset}>
-    <CalendarGridBody className="horizontal-calendar-grid-body">
-      {date => {
-        const dayOfWeek = getDayOfWeek(date);
-        const isFirstDayOfMonth = date.day === 1;
-        return <td>
-          <div className="horizontal-day-column">
-            {isFirstDayOfMonth ? <div>
-              {date.month.toString()}/{date.year}
-            </div> : <div />}
-            <div>
-              {dayOfWeek}
+}) => {
+  const [currentMonth, setCurrentMonth] = useState(0);
+
+  return (
+    <CalendarGrid offset={offset}>
+      <CalendarGridBody className="horizontal-calendar-grid-body">
+        {date => {
+          const dayOfWeek = getDayOfWeek(date);
+          const isFirstDayOfMonth = date.day === 1;
+
+          if (!currentMonth && isFirstDayOfMonth) {
+            setCurrentMonth(date.month);
+          }
+
+          if (currentMonth && isFirstDayOfMonth) {
+            setCurrentMonth(0);
+          }
+
+          return currentMonth ? (<td>
+            <div className="horizontal-day-column">
+              {isFirstDayOfMonth ? <div>
+                {date.month.toString()}/{date.year}
+              </div> : <div />}
+              <div>
+                {dayOfWeek}
+              </div>
+              <div>
+                {date.day}
+              </div>
             </div>
-            <div>
-              {date.day}
-            </div>
-          </div>
-        </td>
-      }}
-    </CalendarGridBody>
-  </CalendarGrid>);
+          </td>) : <></>;
+        }}
+      </CalendarGridBody>
+    </CalendarGrid>);
+}
 
 export const TimeRangeSlider = ({
   initialStartDate,
   initialEndDate,
   onDateRangeSelect,
 }: TimeRangeSliderProps) => {
+
+  const { locale } = useLocale();
+  const state = useCalendarState({
+    createCalendar,
+    locale
+  });
+
 
   const initialEndDateTime = O.fromNullable(initialEndDate).pipe(
     O.flatMap(DateTime.make),
