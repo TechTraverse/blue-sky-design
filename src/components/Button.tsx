@@ -10,7 +10,7 @@ export interface ButtonProps {
   /** Button contents */
   children?: React.ReactNode;
   /** Optional click handler */
-  onClick?: () => void;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 /** Primary UI component for user interaction */
