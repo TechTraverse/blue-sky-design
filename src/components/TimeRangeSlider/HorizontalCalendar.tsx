@@ -2,7 +2,7 @@ import _ from "lodash";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { CalendarDate, getDayOfWeek as _getDayOfWeek, type DateValue } from "@internationalized/date";
-import { DateTime, type Duration } from "effect";
+import { DateTime, Duration } from "effect";
 import { useCalendarGrid } from 'react-aria';
 import type { RangeCalendarState } from "react-stately";
 
@@ -46,16 +46,15 @@ export const HorizontalCalendar = ({ state, duration, viewStartDateTime }: { sta
   const start = new CalendarDate(
     DateTime.getPart(viewStartDateTime, 'year'),
     DateTime.getPart(viewStartDateTime, 'month'),
-    DateTime.getPart(viewStartDateTime, 'day')
-  );
+    DateTime.getPart(viewStartDateTime, 'day'));
+
   const _end = DateTime.addDuration(viewStartDateTime, duration);
   const end = new CalendarDate(
     DateTime.getPart(_end, 'year'),
     DateTime.getPart(_end, 'month'),
-    DateTime.getPart(viewStartDateTime, 'day')
-  );
+    DateTime.getPart(_end, 'day'));
+
   const rangeValue: RangeValue<DateValue> = { start, end };
-  console.log('HorizontalCalendar', { duration, rangeValue });
 
   return (<>
     <div className="month-header">{`${month}/${year}`}</div>
