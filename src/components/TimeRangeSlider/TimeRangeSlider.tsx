@@ -17,6 +17,7 @@ export interface TimeRangeSliderProps {
 
 type State = {
   viewDuration: { days: number };
+  viewStartDateTime: DateTime.Utc;
   initEndDateTime: DateTime.Utc;
   initStartDateTime: DateTime.Utc;
   endDateTime: DateTime.Utc;
@@ -24,6 +25,9 @@ type State = {
 };
 
 type Action = D.TaggedEnum<{
+  SetViewStartTime: {
+    viewStartDateTime: DateTime.Utc;
+  }
   SetViewDuration: { days: number };
   SetInitialDates: {
     initStartDateTime: DateTime.Utc;
@@ -37,6 +41,10 @@ const { $match, SetViewDuration } = D.taggedEnum<Action>();
 
 const reducer = (state: State, action: Action): State =>
   $match({
+    SetViewStartTime: ({ viewStartDateTime }) => ({
+      ...state,
+      viewStartDateTime,
+    }),
     SetViewDuration: ({ days }) => ({
       ...state,
       viewDuration: { days },
@@ -70,30 +78,37 @@ export const TimeRangeSlider = ({
    * Initialize the start and end dates for the range calendar.
    * If no dates are provided, use the current date and a 1 hour range.
    */
-  const initialEndDateTime = O.fromNullable(initialEndDate).pipe(
+  const initEndDateTime = O.fromNullable(initialEndDate).pipe(
     O.flatMap(DateTime.make),
     O.getOrElse(() => {
       console.warn(
         "No end date or invalide date provided, using current date instead.");
       return DateTime.unsafeMake(new Date());
     }));
-  const initialStartDateTime = O.fromNullable(initialStartDate).pipe(
+  const initStartDateTime = O.fromNullable(initialStartDate).pipe(
     O.flatMap(DateTime.make),
     O.getOrElse(() => {
       console.warn(
         "No start date for range or invalide date provided, using 1 hour date range.");
-      return DateTime.subtract(initialEndDateTime, { hours: 1 });
+      return DateTime.subtract(initEndDateTime, { hours: 1 });
     }));
+
+  /**
+   *  State defaults
+   */
+  const viewDuration = { days: 7 };
+  const viewStartDateTime = initStartDateTime;
 
   /**
    * Update local state with initial start and end dates.
    */
   const [s, d] = useReducer(reducer, {
-    viewDuration: { days: 7 }, // Default
-    initEndDateTime: initialEndDateTime,
-    initStartDateTime: initialStartDateTime,
-    endDateTime: initialEndDateTime,
-    startDateTime: initialStartDateTime,
+    viewDuration,
+    viewStartDateTime,
+    initEndDateTime,
+    initStartDateTime,
+    endDateTime: initEndDateTime,
+    startDateTime: initStartDateTime,
   });
 
   /**
@@ -102,8 +117,8 @@ export const TimeRangeSlider = ({
   const rangeCalendarRef = useRef<HTMLDivElement>(null);
   const rangeCalendarState: RangeCalendarState = useRangeCalendarState({
     value: {
-      start: parseDate(DateTime.formatIsoDate(initialStartDateTime)),
-      end: parseDate(DateTime.formatIsoDate(initialEndDateTime)),
+      start: parseDate(DateTime.formatIsoDate(initStartDateTime)),
+      end: parseDate(DateTime.formatIsoDate(initEndDateTime)),
     },
     createCalendar,
     locale
@@ -160,7 +175,7 @@ export const TimeRangeSlider = ({
         aria-label="Trip dates"
         visibleDuration={s.viewDuration}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
-        <HorizontalCalendar state={rangeCalendarState} duration={Duration.days(s.viewDuration.days)} />
+        <HorizontalCalendar state={rangeCalendarState} viewStartDateTime={s.viewStartDateTime} duration={Duration.days(s.viewDuration.days)} />
       </RangeCalendar>
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward

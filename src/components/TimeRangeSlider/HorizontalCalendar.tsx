@@ -1,8 +1,8 @@
 import _ from "lodash";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
-import { CalendarDate, getDayOfWeek as _getDayOfWeek } from "@internationalized/date";
-import type { Duration } from "effect";
+import { CalendarDate, getDayOfWeek as _getDayOfWeek, type DateValue } from "@internationalized/date";
+import { DateTime, type Duration } from "effect";
 import { useCalendarGrid } from 'react-aria';
 import type { RangeCalendarState } from "react-stately";
 
@@ -29,7 +29,7 @@ const getDayData = (date: CalendarDate): DayData => ({
   dayOfWeek: getDayOfWeek(date),
 });
 
-const getDaysForMonth = (state: RangeCalendarState, duration: Duration.Duration) => _.flow([
+const getDaysForMonth = (range: RangeValue<DateValue> | null) => _.flow([
   ({ start, end }: RangeValue<CalendarDate>) => {
     const entries: CalendarDate[] = [];
     for (let date = start; date <= end; date = date.add({ days: 1 })) {
@@ -38,22 +38,31 @@ const getDaysForMonth = (state: RangeCalendarState, duration: Duration.Duration)
     return entries;
   },
   f.map(getDayData)
-])(state.value);
+])(range);
 
-export const HorizontalCalendar = ({ state, duration }: { state: RangeCalendarState, duration: Duration.Duration }) => {
-  const { /* gridProps, headerProps, */ weekDays, weeksInMonth } = useCalendarGrid(
-    {},
-    state
+export const HorizontalCalendar = ({ state, duration, viewStartDateTime }: { state: RangeCalendarState, duration: Duration.Duration, viewStartDateTime: DateTime.DateTime }) => {
+  // const calendarGrid = useCalendarGrid({}, state);
+  const { month, year } = state.visibleRange.start;
+  const start = new CalendarDate(
+    DateTime.getPart(viewStartDateTime, 'year'),
+    DateTime.getPart(viewStartDateTime, 'month'),
+    DateTime.getPart(viewStartDateTime, 'day')
   );
-  const month = state.visibleRange.start.month;
-  const year = state.visibleRange.start.year;
+  const _end = DateTime.addDuration(viewStartDateTime, duration);
+  const end = new CalendarDate(
+    DateTime.getPart(_end, 'year'),
+    DateTime.getPart(_end, 'month'),
+    DateTime.getPart(viewStartDateTime, 'day')
+  );
+  const rangeValue: RangeValue<DateValue> = { start, end };
+  console.log('HorizontalCalendar', { duration, rangeValue });
 
   return (<>
     <div className="month-header">{`${month}/${year}`}</div>
     <table>
       <tbody className="horizontal-calendar-grid-body">
         <tr>
-          {getDaysForMonth(state, duration).map((d: DayData) =>
+          {getDaysForMonth(rangeValue).map((d: DayData) =>
           (<td key={`${d.year}-${d.month}-${d.day}`}>
             <div className="horizontal-day-column">
               <div>
