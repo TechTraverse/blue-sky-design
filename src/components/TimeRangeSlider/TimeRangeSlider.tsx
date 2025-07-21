@@ -6,10 +6,8 @@ import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar } from 'react-aria-components';
 import { createCalendar, parseDate } from '@internationalized/date';
 import { useLocale, useRangeCalendar } from 'react-aria';
-import { useRangeCalendarState } from 'react-stately';
+import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
-
-
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -18,6 +16,7 @@ export interface TimeRangeSliderProps {
 }
 
 type State = {
+  viewDuration: { days: number };
   initEndDateTime: DateTime.Utc;
   initStartDateTime: DateTime.Utc;
   endDateTime: DateTime.Utc;
@@ -25,6 +24,7 @@ type State = {
 };
 
 type Action = D.TaggedEnum<{
+  SetViewDuration: { days: number };
   SetInitialDates: {
     initStartDateTime: DateTime.Utc;
     initEndDateTime: DateTime.Utc;
@@ -33,15 +33,14 @@ type Action = D.TaggedEnum<{
   Reset: object;
 }>;
 
-const {
-  SetInitialDates,
-  SelectDateRange,
-  Reset,
-  $match,
-} = D.taggedEnum<Action>();
+const { $match, SetViewDuration } = D.taggedEnum<Action>();
 
 const reducer = (state: State, action: Action): State =>
   $match({
+    SetViewDuration: ({ days }) => ({
+      ...state,
+      viewDuration: { days },
+    }),
     SetInitialDates: ({ initStartDateTime, initEndDateTime }) => ({
       ...state,
       initStartDateTime,
@@ -65,47 +64,12 @@ export const TimeRangeSlider = ({
   onDateRangeSelect,
 }: TimeRangeSliderProps) => {
 
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const rangeCalendarRef = useRef<HTMLDivElement>(null);
-  const [viewDuration, setViewDuration] = useState({ days: 7 });
-
-
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        if (width < 600) {
-          setViewDuration({ days: 7 });
-        } else {
-          setViewDuration({ days: 5 * 7 });
-        }
-      }
-    });
-
-    if (sliderRef.current) {
-      resizeObserver.observe(sliderRef.current);
-    }
-
-    return () => {
-      if (sliderRef.current) {
-        resizeObserver.unobserve(sliderRef.current);
-      }
-    };
-  }, []);
-
   const { locale } = useLocale();
-  const state: RangeCalendarState = useRangeCalendarState({
-    createCalendar,
-    locale
-  });
 
-  let { calendarProps, prevButtonProps, nextButtonProps, title } = useRangeCalendar(
-    {},
-    state,
-    rangeCalendarRef
-  );
-
-
+  /**
+   * Initialize the start and end dates for the range calendar.
+   * If no dates are provided, use the current date and a 1 hour range.
+   */
   const initialEndDateTime = O.fromNullable(initialEndDate).pipe(
     O.flatMap(DateTime.make),
     O.getOrElse(() => {
@@ -121,17 +85,63 @@ export const TimeRangeSlider = ({
       return DateTime.subtract(initialEndDateTime, { hours: 1 });
     }));
 
+  /**
+   * Update local state with initial start and end dates.
+   */
   const [s, d] = useReducer(reducer, {
+    viewDuration: { days: 7 }, // Default
     initEndDateTime: initialEndDateTime,
     initStartDateTime: initialStartDateTime,
     endDateTime: initialEndDateTime,
     startDateTime: initialStartDateTime,
   });
 
-  state.setValue({
-    start: parseDate(DateTime.formatIsoDate(s.startDateTime)),
-    end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
+  /**
+   * Calendar ref, state, and props for the range calendar.
+   */
+  const rangeCalendarRef = useRef<HTMLDivElement>(null);
+  const rangeCalendarState: RangeCalendarState = useRangeCalendarState({
+    value: {
+      start: parseDate(DateTime.formatIsoDate(initialStartDateTime)),
+      end: parseDate(DateTime.formatIsoDate(initialEndDateTime)),
+    },
+    createCalendar,
+    locale
   });
+  const { calendarProps, prevButtonProps, nextButtonProps } = useRangeCalendar({}, rangeCalendarState, rangeCalendarRef);
+  useEffect(() => {
+    rangeCalendarState.setValue({
+      start: parseDate(DateTime.formatIsoDate(s.startDateTime)),
+      end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
+    });
+  }, [s.startDateTime, s.endDateTime, rangeCalendarState]);
+
+  /**
+   * Update view duration based on the width of the slider.
+   */
+  const sliderRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        if (width < 600) {
+          d(SetViewDuration({ days: 7 }));
+        } else {
+          d(SetViewDuration({ days: 5 * 7 }));
+        }
+      }
+    });
+
+    if (sliderRef.current) {
+      resizeObserver.observe(sliderRef.current);
+    }
+
+    return () => {
+      if (sliderRef.current) {
+        resizeObserver.unobserve(sliderRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div {...calendarProps} ref={sliderRef} className="time-range-slider">
@@ -148,14 +158,9 @@ export const TimeRangeSlider = ({
           end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
         }}
         aria-label="Trip dates"
-        visibleDuration={viewDuration}>
-        {/* <header>
-          <Button slot="previous">◀</Button>
-          <Heading />
-          <Button slot="next">▶</Button>
-        </header> */}
+        visibleDuration={s.viewDuration}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
-        <HorizontalCalendar state={state} duration={Duration.days(viewDuration.days)} />
+        <HorizontalCalendar state={rangeCalendarState} duration={Duration.days(s.viewDuration.days)} />
       </RangeCalendar>
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
