@@ -9,6 +9,12 @@
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   bottom: 0;
   left: 0;
+  > div {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+  }
 }
 
 .month-header {
@@ -32,6 +38,10 @@
 }
 
 .horizontal-day-column {
+  display: flex;
+  align-items: start;
+  flex-direction: column;
+
   >:first-child {
     height: 20px;
   }
@@ -39,10 +49,6 @@
     font-size: 12px;
     color: #555;
   }
-  display: flex;
-  align-items: start;
-  flex-direction: column;
-  width: 26px; /* Adjust as needed */
 }
 
 .bottom-calendar-container {

@@ -1,4 +1,17 @@
 .horizontal-calendar-grid {
     display: flex;
     flex-direction: row;
+    width: 100%;
+
+    tbody {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+}
+
+.month-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 }
