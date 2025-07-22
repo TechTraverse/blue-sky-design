@@ -1,4 +1,5 @@
-import _ from "lodash";
+import "./horizontalCalendar.css";
+import _, { chunk } from "lodash";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { CalendarDate, getDayOfWeek as _getDayOfWeek, type DateValue } from "@internationalized/date";
@@ -29,7 +30,7 @@ const getDayData = (date: CalendarDate): DayData => ({
   dayOfWeek: getDayOfWeek(date),
 });
 
-const getDaysForMonth = (range: RangeValue<DateValue> | null) => _.flow([
+const getDaysInRange = (range: RangeValue<DateValue> | null) => _.flow([
   ({ start, end }: RangeValue<CalendarDate>) => {
     const entries: CalendarDate[] = [];
     for (let date = start; date <= end; date = date.add({ days: 1 })) {
@@ -37,12 +38,20 @@ const getDaysForMonth = (range: RangeValue<DateValue> | null) => _.flow([
     }
     return entries;
   },
-  f.map(getDayData)
+  f.map(getDayData),
 ])(range);
 
-export const HorizontalCalendar = ({ state, duration, viewStartDateTime }: { state: RangeCalendarState, duration: Duration.Duration, viewStartDateTime: DateTime.DateTime }) => {
+const chunkDaysByMonth = (days: DayData[]) => {
+  const grouped = _.groupBy(days, (d: DayData) => `${d.year}-${d.month}`);
+  const sortedKVArr = _.sortBy(Object.entries(grouped), ["0"]);
+  return sortedKVArr.map(([, value]) => value);
+}
+
+export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
+  duration: Duration.Duration,
+  viewStartDateTime: DateTime.DateTime
+}) => {
   // const calendarGrid = useCalendarGrid({}, state);
-  const { month, year } = state.visibleRange.start;
   const start = new CalendarDate(
     DateTime.getPart(viewStartDateTime, 'year'),
     DateTime.getPart(viewStartDateTime, 'month'),
@@ -55,25 +64,36 @@ export const HorizontalCalendar = ({ state, duration, viewStartDateTime }: { sta
     DateTime.getPart(_end, 'day'));
 
   const rangeValue: RangeValue<DateValue> = { start, end };
+  const daysInRange = getDaysInRange(rangeValue);
+  const daysByMonth = chunkDaysByMonth(daysInRange);
 
-  return (<>
-    <div className="month-header">{`${month}/${year}`}</div>
-    <table>
-      <tbody className="horizontal-calendar-grid-body">
-        <tr>
-          {getDaysForMonth(rangeValue).map((d: DayData) =>
-          (<td key={`${d.year}-${d.month}-${d.day}`}>
-            <div className="horizontal-day-column">
-              <div>
-                {d.dayOfWeek}
-              </div>
-              <div>
-                {d.day}
-              </div>
-            </div>
-          </td>))}
-        </tr>
-      </tbody>
-    </table>
-  </>);
+
+  return (
+    <div className="horizontal-calendar-grid">
+      {daysByMonth.map(x => {
+        const { month, year } = x[0];
+
+        return (<div className="month-column">
+          <div className="month-header">{`${month}/${year}`}</div>
+          <table>
+            <tbody className="horizontal-calendar-grid-body">
+              <tr>
+                {x.map((d: DayData) =>
+                (<td key={`${d.year}-${d.month}-${d.day}`}>
+                  <div className="horizontal-day-column">
+                    <div>
+                      {d.dayOfWeek}
+                    </div>
+                    <div>
+                      {d.day}
+                    </div>
+                  </div>
+                </td>))}
+              </tr>
+            </tbody>
+          </table>
+        </div>)
+      })
+      }
+    </div>);
 }

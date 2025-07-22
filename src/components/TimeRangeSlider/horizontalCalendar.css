@@ -1,0 +1,4 @@
+.horizontal-calendar-grid {
+    display: flex;
+    flex-direction: row;
+}
