@@ -140,13 +140,17 @@ export const TimeRangeSlider = ({
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        match(width)
-          .with(P.number.lt(350), () => d(SetViewDuration({ days: 7 })))
-          .with(P.number.lt(700), () => d(SetViewDuration({ days: 14 })))
-          .with(P.number.lt(1050), () => d(SetViewDuration({ days: 21 })))
-          .with(P.number.lt(1400), () => d(SetViewDuration({ days: 28 })))
-          .with(P.number.lt(1750), () => d(SetViewDuration({ days: 35 })))
-          .otherwise(() => d(SetViewDuration({ days: 42 })));
+        const newDuration = match(width)
+          .with(P.number.lt(350), () => ({ days: 7 }))
+          .with(P.number.lt(700), () => ({ days: 14 }))
+          .with(P.number.lt(1050), () => ({ days: 21 }))
+          .with(P.number.lt(1400), () => ({ days: 28 }))
+          .with(P.number.lt(1750), () => ({ days: 35 }))
+          .otherwise(() => ({ days: 42 }));
+
+        d(SetViewDuration(newDuration))
+        const newEnd = DateTime.add(s.startDateTime, newDuration);
+        d(SelectDateRange({ start: s.startDateTime, end: newEnd }));
       }
     });
 
