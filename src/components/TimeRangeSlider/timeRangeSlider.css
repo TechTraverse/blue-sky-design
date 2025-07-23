@@ -21,6 +21,7 @@
   margin-left: 4px;
   font-size: 14px;
   color: #555;
+  min-height: 20px;
 }
 
 .next-prev-date-range {

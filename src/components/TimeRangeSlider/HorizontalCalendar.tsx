@@ -69,8 +69,6 @@ export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
   duration: Duration.Duration,
   viewStartDateTime: DateTime.DateTime
 }) => {
-
-  // const calendarGrid = useCalendarGrid({}, state);
   const start = new CalendarDate(
     DateTime.getPart(viewStartDateTime, 'year'),
     DateTime.getPart(viewStartDateTime, 'month'),
@@ -86,19 +84,21 @@ export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
   const daysInRange = getDaysInRange(rangeValue);
   const daysByMonth = chunkDaysByMonth(daysInRange);
 
-
   return (
     <div
       className="horizontal-calendar-grid"
-      style={{ gridTemplateColumns: `${daysByMonth.map(x => x.length).join('fr ')}fr` }}
-    >
+      style={{
+        gridTemplateColumns:
+          `${daysByMonth.map(x => x.length).join('fr ')}fr`
+      }}>
       {daysByMonth.map((x => {
         const { month, year } = x[0];
-        // Plain english month name
         const plainEnglishMonth = getMonth(month);
 
         return (<div className="month-column">
-          <div className="month-header">{`${plainEnglishMonth} ${year}`}</div>
+          <div className="month-header">
+            {x.length > 3 ? `${plainEnglishMonth} ${year}` : ""}
+          </div>
           <table>
             <tbody className="horizontal-calendar-grid-body">
               <tr>

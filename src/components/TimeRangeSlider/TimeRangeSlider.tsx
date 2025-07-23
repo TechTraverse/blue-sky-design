@@ -38,7 +38,7 @@ type Action = D.TaggedEnum<{
   Reset: object;
 }>;
 
-const { $match, SetViewDuration } = D.taggedEnum<Action>();
+const { $match, SetViewDuration, SetViewStartTime, SelectDateRange } = D.taggedEnum<Action>();
 
 const reducer = (state: State, action: Action): State =>
   $match({
@@ -165,7 +165,15 @@ export const TimeRangeSlider = ({
     <div {...calendarProps} ref={sliderRef} className="time-range-slider">
       <Button primary={true} className="next-prev-date-range" {...prevButtonProps}>
         <IoIosArrowBack
-          onClick={() => console.log("Last date range")}
+          onClick={() => {
+            const newStart = DateTime.subtract(s.startDateTime, { days: s.viewDuration.days });
+            const newEnd = DateTime.subtract(s.endDateTime, { days: s.viewDuration.days });
+            d(SetViewStartTime({ viewStartDateTime: newStart }));
+            d(SelectDateRange({ start: newStart, end: newEnd }));
+            if (onDateRangeSelect) {
+              onDateRangeSelect();
+            }
+          }}
           title='Previous'
         />
       </Button>
@@ -182,7 +190,15 @@ export const TimeRangeSlider = ({
       </RangeCalendar>
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
-          onClick={() => console.log("Next date range")}
+          onClick={() => {
+            const newStart = DateTime.add(s.startDateTime, { days: s.viewDuration.days });
+            const newEnd = DateTime.add(s.endDateTime, { days: s.viewDuration.days });
+            d(SetViewStartTime({ viewStartDateTime: newStart }));
+            d(SelectDateRange({ start: newStart, end: newEnd }));
+            if (onDateRangeSelect) {
+              onDateRangeSelect();
+            }
+          }}
           title='Next'
         />
       </Button>
