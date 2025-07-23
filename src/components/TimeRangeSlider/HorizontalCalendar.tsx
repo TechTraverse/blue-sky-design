@@ -60,7 +60,7 @@ const getDaysInRange = (range: RangeValue<DateValue> | null) => _.flow([
 ])(range);
 
 const chunkDaysByMonth = (days: DayData[]) => {
-  const grouped = _.groupBy(days, (d: DayData) => `${d.year}-${d.month}`);
+  const grouped = _.groupBy(days, (d: DayData) => `${d.year}-${d.month < 10 ? "0" : ""}${d.month}`);
   const sortedKVArr = _.sortBy(Object.entries(grouped), ["0"]);
   return sortedKVArr.map(([, value]) => value);
 }
@@ -95,7 +95,7 @@ export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
         const { month, year } = x[0];
         const plainEnglishMonth = getMonth(month);
 
-        return (<div className="month-column">
+        return (<div className="month-column" key={`${year}-${month}`}>
           <div className="month-header">
             {x.length > 3 ? `${plainEnglishMonth} ${year}` : ""}
           </div>
