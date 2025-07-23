@@ -1,6 +1,6 @@
 .horizontal-calendar-grid {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    /* flex-direction: row; */
     width: 100%;
 
     tbody {

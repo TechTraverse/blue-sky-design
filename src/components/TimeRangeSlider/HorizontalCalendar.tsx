@@ -88,8 +88,11 @@ export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
 
 
   return (
-    <div className="horizontal-calendar-grid">
-      {daysByMonth.map(x => {
+    <div
+      className="horizontal-calendar-grid"
+      style={{ gridTemplateColumns: `${daysByMonth.map(x => x.length).join('fr ')}fr` }}
+    >
+      {daysByMonth.map((x => {
         const { month, year } = x[0];
         // Plain english month name
         const plainEnglishMonth = getMonth(month);
@@ -114,7 +117,6 @@ export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
             </tbody>
           </table>
         </div>)
-      })
-      }
+      }))}
     </div>);
 }
