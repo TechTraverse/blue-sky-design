@@ -1,11 +1,9 @@
 import "./horizontalCalendar.css";
-import _, { chunk } from "lodash";
+import _ from "lodash";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { CalendarDate, getDayOfWeek as _getDayOfWeek, type DateValue } from "@internationalized/date";
 import { DateTime, Duration } from "effect";
-import { useCalendarGrid, useLocale } from 'react-aria';
-import type { RangeCalendarState } from "react-stately";
 
 type DayData = Pick<CalendarDate, 'year' | 'month' | 'day'> & {
   dayOfWeek: string;
@@ -59,11 +57,13 @@ const getDaysInRange = (range: RangeValue<DateValue> | null) => _.flow([
   f.map(getDayData),
 ])(range);
 
-const chunkDaysByMonth = (days: DayData[]) => {
-  const grouped = _.groupBy(days, (d: DayData) => `${d.year}-${d.month < 10 ? "0" : ""}${d.month}`);
-  const sortedKVArr = _.sortBy(Object.entries(grouped), ["0"]);
-  return sortedKVArr.map(([, value]) => value);
-}
+const chunkDaysByMonth: (d: DayData[]) => DayData[][] =
+  f.flow([
+    f.groupBy((d: DayData) => `${d.year}-${d.month < 10 ? "0" : ""}${d.month}`),
+    Object.entries,
+    f.sortBy(["0"]),
+    f.map(([, value]: [string, DayData[]]) => value)
+  ]);
 
 export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
   duration: Duration.Duration,
