@@ -65,10 +65,11 @@ const chunkDaysByMonth: (d: DayData[]) => DayData[][] =
     f.map(([, value]: [string, DayData[]]) => value)
   ]);
 
-export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
-  duration: Duration.Duration,
-  viewStartDateTime: DateTime.DateTime
-}) => {
+export const HorizontalCalendar = ({
+  duration, viewStartDateTime }: {
+    duration: Duration.Duration,
+    viewStartDateTime: DateTime.DateTime
+  }) => {
   const start = new CalendarDate(
     DateTime.getPart(viewStartDateTime, 'year'),
     DateTime.getPart(viewStartDateTime, 'month'),
@@ -108,15 +109,15 @@ export const HorizontalCalendar = ({ duration, viewStartDateTime }: {
                     <div>
                       {d.dayOfWeek}
                     </div>
-                    <div>
+                    <button className="horizontal-day-button">
                       {d.day}
-                    </div>
+                    </button>
                   </div>
                 </td>))}
               </tr>
             </tbody>
           </table>
-        </div>)
+        </div>);
       }))}
     </div>);
 }
