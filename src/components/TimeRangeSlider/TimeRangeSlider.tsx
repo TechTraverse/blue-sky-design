@@ -1,5 +1,5 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 import { DateTime, Option as O, Data as D, Duration } from 'effect';
 import { Button } from '../Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
@@ -17,55 +17,77 @@ export interface TimeRangeSliderProps {
 }
 
 type State = {
-  viewDuration: { days: number };
+  // The duration of the view in days
+  viewDuration: Duration.Duration;
+
+  // The current viewable range of dates
   viewStartDateTime: DateTime.Utc;
-  initEndDateTime: DateTime.Utc;
-  initStartDateTime: DateTime.Utc;
-  endDateTime: DateTime.Utc;
-  startDateTime: DateTime.Utc;
+  viewEndDateTime: DateTime.Utc;
+
+  // Default date range on init, also what to reset to
+  defaultStartDateTime: DateTime.Utc;
+  defaultEndDateTime: DateTime.Utc;
+
+  // User-selected date range
+  selectedStartDateTime: DateTime.Utc;
+  selectedEndDateTime: DateTime.Utc;
 };
 
 type Action = D.TaggedEnum<{
-  SetViewStartTime: {
+  SetViewDuration: { viewDuration: Duration.Duration; };
+  SetViewStartAndEndDateTimes: {
     viewStartDateTime: DateTime.Utc;
+    viewEndDateTime: DateTime.Utc;
   }
-  SetViewDuration: { days: number };
-  SetInitialDates: {
-    initStartDateTime: DateTime.Utc;
-    initEndDateTime: DateTime.Utc;
+  SetDefaultStartAndEndDateTimes: {
+    defaultStartDateTime: DateTime.Utc;
+    defaultEndDateTime: DateTime.Utc;
   };
-  SelectDateRange: { start: DateTime.Utc; end: DateTime.Utc };
+  SetSelectedStartDateTime: { selectedStartDateTime: DateTime.Utc; };
+  SetSelectedEndDateTime: { selectedEndDateTime: DateTime.Utc; };
   Reset: object;
 }>;
 
-const { $match, SetViewDuration, SetViewStartTime, SelectDateRange } = D.taggedEnum<Action>();
+const { $match, SetViewDuration, SetDefaultStartAndEndDateTimes, SetViewStartAndEndDateTimes, SetSelectedStartDateTime, SetSelectedEndDateTime } = D.taggedEnum<Action>();
+
 
 const reducer = (state: State, action: Action): State =>
   $match({
-    SetViewStartTime: ({ viewStartDateTime }) => ({
+    SetViewDuration: (x) => ({
       ...state,
-      viewStartDateTime,
+      viewDuration: x.viewDuration,
+      viewEndDateTime: DateTime.addDuration(state.viewStartDateTime, x.viewDuration),
     }),
-    SetViewDuration: ({ days }) => ({
+    SetDefaultStartAndEndDateTimes: (x) => ({
       ...state,
-      viewDuration: { days },
+      ...x,
     }),
-    SetInitialDates: ({ initStartDateTime, initEndDateTime }) => ({
+    SetViewStartAndEndDateTimes: (x) => ({
       ...state,
-      initStartDateTime,
-      initEndDateTime,
+      ...x,
     }),
-    SelectDateRange: ({ start, end }) => ({
+    SetSelectedStartDateTime: (x) => ({
       ...state,
-      endDateTime: end,
-      startDateTime: start,
+      ...x,
+    }),
+    SetSelectedEndDateTime: (x) => ({
+      ...state,
+      ...x,
     }),
     Reset: () => ({
       ...state,
-      endDateTime: state.initEndDateTime,
-      startDateTime: state.initStartDateTime,
+      selectedStartDateTime: state.defaultStartDateTime,
+      selectedEndDateTime: state.defaultEndDateTime,
     }),
   })(action);
+
+const widthToDuration = (width: number) => match(width)
+  .with(P.number.lt(350), () => ({ days: 7 }))
+  .with(P.number.lt(700), () => ({ days: 14 }))
+  .with(P.number.lt(1050), () => ({ days: 21 }))
+  .with(P.number.lt(1400), () => ({ days: 28 }))
+  .with(P.number.lt(1750), () => ({ days: 35 }))
+  .otherwise(() => ({ days: 42 }));
 
 export const TimeRangeSlider = ({
   initialStartDate,
@@ -95,21 +117,21 @@ export const TimeRangeSlider = ({
     }));
 
   /**
-   *  State defaults
-   */
-  const viewDuration = { days: 7 };
-  const viewStartDateTime = initStartDateTime;
-
-  /**
    * Update local state with initial start and end dates.
    */
+  const defaultViewDuration = Duration.days(7);
   const [s, d] = useReducer(reducer, {
-    viewDuration,
-    viewStartDateTime,
-    initEndDateTime,
-    initStartDateTime,
-    endDateTime: initEndDateTime,
-    startDateTime: initStartDateTime,
+    viewDuration: defaultViewDuration,
+    viewStartDateTime: initStartDateTime,
+    viewEndDateTime: DateTime.addDuration(initStartDateTime, defaultViewDuration), // Default view duration of 7 days
+
+    defaultStartDateTime: initStartDateTime,
+    defaultEndDateTime: initEndDateTime,
+
+    selectedStartDateTime: initStartDateTime,
+    selectedEndDateTime: initEndDateTime,
+
+
   });
 
   /**
@@ -127,10 +149,13 @@ export const TimeRangeSlider = ({
   const { calendarProps, prevButtonProps, nextButtonProps } = useRangeCalendar({}, rangeCalendarState, rangeCalendarRef);
   useEffect(() => {
     rangeCalendarState.setValue({
-      start: parseDate(DateTime.formatIsoDate(s.startDateTime)),
-      end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
+      start: parseDate(DateTime.formatIsoDate(s.selectedStartDateTime)),
+      end: parseDate(DateTime.formatIsoDate(s.selectedEndDateTime)),
     });
-  }, [s.startDateTime, s.endDateTime, rangeCalendarState]);
+  }, [
+    s.selectedStartDateTime,
+    s.selectedEndDateTime,
+    rangeCalendarState]);
 
   /**
    * Update view duration based on the width of the slider.
@@ -140,17 +165,11 @@ export const TimeRangeSlider = ({
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        const newDuration = match(width)
-          .with(P.number.lt(350), () => ({ days: 7 }))
-          .with(P.number.lt(700), () => ({ days: 14 }))
-          .with(P.number.lt(1050), () => ({ days: 21 }))
-          .with(P.number.lt(1400), () => ({ days: 28 }))
-          .with(P.number.lt(1750), () => ({ days: 35 }))
-          .otherwise(() => ({ days: 42 }));
+        const newDuration = widthToDuration(width);
 
-        d(SetViewDuration(newDuration))
-        const newEnd = DateTime.add(s.startDateTime, newDuration);
-        d(SelectDateRange({ start: s.startDateTime, end: newEnd }));
+        d(SetViewDuration({
+          viewDuration: Duration.days(newDuration.days),
+        }));
       }
     });
 
@@ -170,10 +189,13 @@ export const TimeRangeSlider = ({
       <Button primary={true} className="next-prev-date-range" {...prevButtonProps}>
         <IoIosArrowBack
           onClick={() => {
-            const newStart = DateTime.subtract(s.startDateTime, { days: s.viewDuration.days });
-            const newEnd = DateTime.subtract(s.endDateTime, { days: s.viewDuration.days });
-            d(SetViewStartTime({ viewStartDateTime: newStart }));
-            d(SelectDateRange({ start: newStart, end: newEnd }));
+            const newStart = DateTime.subtractDuration(
+              s.viewStartDateTime, s.viewDuration);
+            const newEnd = s.viewStartDateTime;
+            d(SetViewStartAndEndDateTimes({
+              viewStartDateTime: newStart,
+              viewEndDateTime: newEnd,
+            }));
             if (onDateRangeSelect) {
               onDateRangeSelect();
             }
@@ -184,21 +206,26 @@ export const TimeRangeSlider = ({
       <RangeCalendar
         ref={rangeCalendarRef}
         defaultValue={{
-          start: parseDate(DateTime.formatIsoDate(s.startDateTime)),
-          end: parseDate(DateTime.formatIsoDate(s.endDateTime)),
+          start: parseDate(DateTime.formatIsoDate(s.selectedStartDateTime)),
+          end: parseDate(DateTime.formatIsoDate(s.selectedEndDateTime)),
         }}
-        aria-label="Trip dates"
-        visibleDuration={s.viewDuration}>
+        aria-label="Range dates"
+        visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
-        <HorizontalCalendar state={rangeCalendarState} viewStartDateTime={s.viewStartDateTime} duration={Duration.days(s.viewDuration.days)} />
+        <HorizontalCalendar
+          viewStartDateTime={s.viewStartDateTime}
+          duration={s.viewDuration} />
       </RangeCalendar>
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
           onClick={() => {
-            const newStart = DateTime.add(s.startDateTime, { days: s.viewDuration.days });
-            const newEnd = DateTime.add(s.endDateTime, { days: s.viewDuration.days });
-            d(SetViewStartTime({ viewStartDateTime: newStart }));
-            d(SelectDateRange({ start: newStart, end: newEnd }));
+            const newEnd = DateTime.addDuration(
+              s.viewEndDateTime, s.viewDuration);
+            const newStart = s.viewEndDateTime;
+            d(SetViewStartAndEndDateTimes({
+              viewStartDateTime: newStart,
+              viewEndDateTime: newEnd,
+            }));
             if (onDateRangeSelect) {
               onDateRangeSelect();
             }
