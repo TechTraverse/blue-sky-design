@@ -47,19 +47,17 @@ const getDayData = (date: CalendarDate): DayData => ({
   dayOfWeek: getDayOfWeek(date),
 });
 
-const getDaysInRange = (range: RangeValue<DateValue> | null) => _.flow([
-  ({ start, end }: RangeValue<CalendarDate>) => {
-    const entries: CalendarDate[] = [];
-    for (let date = start; date <= end; date = date.add({ days: 1 })) {
-      entries.push(date);
-    }
-    return entries;
-  },
-  f.map(getDayData),
-])(range);
-
-const chunkDaysByMonth: (d: DayData[]) => DayData[][] =
+const chunkDaysByMonth:
+  (range: RangeValue<DateValue> | null) => DayData[][] =
   f.flow([
+    ({ start, end }: RangeValue<CalendarDate>) => {
+      const entries: CalendarDate[] = [];
+      for (let date = start; date <= end; date = date.add({ days: 1 })) {
+        entries.push(date);
+      }
+      return entries;
+    },
+    f.map(getDayData),
     f.groupBy((d: DayData) => `${d.year}-${d.month < 10 ? "0" : ""}${d.month}`),
     Object.entries,
     f.sortBy(["0"]),
@@ -90,9 +88,7 @@ export const HorizontalCalendar = ({
     DateTime.getPart(viewEndDateTime, 'month'),
     DateTime.getPart(viewEndDateTime, 'day'));
 
-  const rangeValue: RangeValue<DateValue> = { start, end };
-  const daysInRange = getDaysInRange(rangeValue);
-  const daysByMonth = chunkDaysByMonth(daysInRange);
+  const daysByMonth = chunkDaysByMonth({ start, end });
 
   return (
     <div
