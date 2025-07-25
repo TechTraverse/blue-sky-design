@@ -1,18 +1,16 @@
 import "./horizontalCalendar.css";
-import _ from "lodash";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
-import { CalendarDate, getDayOfWeek as _getDayOfWeek, type DateValue } from "@internationalized/date";
-import { DateTime, Duration } from "effect";
+import { DateTime } from "effect";
 import { useState } from "react";
 
-type DayData = Pick<CalendarDate, 'year' | 'month' | 'day'> & {
+type DayData = {
   dayOfWeek: string;
+  dateTime: DateTime.DateTime;
 }
 
-const getDayOfWeek = (date: CalendarDate): string => {
-  const weekDayIndex = _getDayOfWeek(date, 'en-US');
-  switch (weekDayIndex) {
+const getDayOfWeek = (weekDay: number): string => {
+  switch (weekDay) {
     case 0: return 'S';
     case 1: return 'M';
     case 2: return 'T';
@@ -42,23 +40,25 @@ const getMonth = (number: number): string => {
   }
 }
 
-const getDayData = (date: CalendarDate): DayData => ({
-  ...date,
-  dayOfWeek: getDayOfWeek(date),
+const getDayData = (dateTime: DateTime.DateTime): DayData => ({
+  dateTime,
+  dayOfWeek: getDayOfWeek(DateTime.getPart(dateTime, "weekDay")),
 });
 
 const chunkDaysByMonth:
-  (range: RangeValue<DateValue> | null) => DayData[][] =
+  (range: RangeValue<DateTime.DateTime> | null) => DayData[][] =
   f.flow([
-    ({ start, end }: RangeValue<CalendarDate>) => {
-      const entries: CalendarDate[] = [];
-      for (let date = start; date <= end; date = date.add({ days: 1 })) {
+    ({ start, end }: RangeValue<DateTime.DateTime>) => {
+      const entries: DateTime.DateTime[] = [];
+      for (let date = start; DateTime.lessThanOrEqualTo(date, end); date = DateTime.add(date, { days: 1 })) {
         entries.push(date);
       }
       return entries;
     },
+    f.tap((days: DayData[]) => console.log("B Days:", days)),
     f.map(getDayData),
-    f.groupBy((d: DayData) => `${d.year}-${d.month < 10 ? "0" : ""}${d.month}`),
+    f.tap((days: DayData[]) => console.log("Days:", days)),
+    f.groupBy(({ dateTime: d }: DayData) => `${DateTime.getPart(d, "year")}-${DateTime.getPart(d, "month") < 10 ? "0" : ""}${DateTime.getPart(d, "month")}`),
     Object.entries,
     f.sortBy(["0"]),
     f.map(([, value]: [string, DayData[]]) => value)
@@ -78,17 +78,9 @@ export const HorizontalCalendar = ({
   const [tempRangeEndDateTime, setTempRangeEndDateTime] =
     useState<DateTime.DateTime | null>(null);
 
-  const start = new CalendarDate(
-    DateTime.getPart(viewStartDateTime, 'year'),
-    DateTime.getPart(viewStartDateTime, 'month'),
-    DateTime.getPart(viewStartDateTime, 'day'));
-
-  const end = new CalendarDate(
-    DateTime.getPart(viewEndDateTime, 'year'),
-    DateTime.getPart(viewEndDateTime, 'month'),
-    DateTime.getPart(viewEndDateTime, 'day'));
-
-  const daysByMonth = chunkDaysByMonth({ start, end });
+  const daysByMonth = chunkDaysByMonth({
+    start: viewStartDateTime, end: viewEndDateTime
+  });
 
   return (
     <div
@@ -98,7 +90,8 @@ export const HorizontalCalendar = ({
           `${daysByMonth.map(x => x.length).join('fr ')}fr`
       }}>
       {daysByMonth.map((x => {
-        const { month, year } = x[0];
+        const month = DateTime.getPart(x[0].dateTime, "month");
+        const year = DateTime.getPart(x[0].dateTime, "year");
         const plainEnglishMonth = getMonth(month);
 
         return (<div className="month-column" key={`${year}-${month}`}>
@@ -108,18 +101,22 @@ export const HorizontalCalendar = ({
           <table>
             <tbody className="horizontal-calendar-grid-body">
               <tr>
-                {x.map((d: DayData) =>
-                (<td key={`${d.year}-${d.month}-${d.day}`}>
-                  <div className="horizontal-day-column">
-                    <div>
-                      {d.dayOfWeek}
+                {x.map(({ dateTime: d, dayOfWeek }: DayData) => {
+                  const { day, month, year } = DateTime.toParts(d);
+
+                  return (<td key={`${year}-${month}-${day}`}>
+                    <div className="horizontal-day-column">
+                      <div>
+                        {dayOfWeek}
+                      </div>
+                      <button
+                        className="horizontal-day-button">
+                        {day}
+                      </button>
                     </div>
-                    <button
-                      className="horizontal-day-button">
-                      {d.day}
-                    </button>
-                  </div>
-                </td>))}
+                  </td>)
+                }
+                )}
               </tr>
             </tbody>
           </table>
