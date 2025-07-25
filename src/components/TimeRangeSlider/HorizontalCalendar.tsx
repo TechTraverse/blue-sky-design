@@ -4,6 +4,7 @@ import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { CalendarDate, getDayOfWeek as _getDayOfWeek, type DateValue } from "@internationalized/date";
 import { DateTime, Duration } from "effect";
+import { useState } from "react";
 
 type DayData = Pick<CalendarDate, 'year' | 'month' | 'day'> & {
   dayOfWeek: string;
@@ -66,20 +67,28 @@ const chunkDaysByMonth: (d: DayData[]) => DayData[][] =
   ]);
 
 export const HorizontalCalendar = ({
-  duration, viewStartDateTime }: {
-    duration: Duration.Duration,
+  viewStartDateTime, viewEndDateTime }: {
     viewStartDateTime: DateTime.DateTime
+    viewEndDateTime: DateTime.DateTime
+    selectedStartDateTime: DateTime.DateTime
+    selectedEndDateTime: DateTime.DateTime
+    setSelectedStartDateTime?: (date: DateTime.DateTime) => void
+    setSelectedEndDateTime?: (date: DateTime.DateTime) => void
+    resetSelectedDateTimes?: () => void
   }) => {
+
+  const [tempRangeEndDateTime, setTempRangeEndDateTime] =
+    useState<DateTime.DateTime | null>(null);
+
   const start = new CalendarDate(
     DateTime.getPart(viewStartDateTime, 'year'),
     DateTime.getPart(viewStartDateTime, 'month'),
     DateTime.getPart(viewStartDateTime, 'day'));
 
-  const _end = DateTime.addDuration(viewStartDateTime, duration);
   const end = new CalendarDate(
-    DateTime.getPart(_end, 'year'),
-    DateTime.getPart(_end, 'month'),
-    DateTime.getPart(_end, 'day'));
+    DateTime.getPart(viewEndDateTime, 'year'),
+    DateTime.getPart(viewEndDateTime, 'month'),
+    DateTime.getPart(viewEndDateTime, 'day'));
 
   const rangeValue: RangeValue<DateValue> = { start, end };
   const daysInRange = getDaysInRange(rangeValue);
@@ -109,7 +118,8 @@ export const HorizontalCalendar = ({
                     <div>
                       {d.dayOfWeek}
                     </div>
-                    <button className="horizontal-day-button">
+                    <button
+                      className="horizontal-day-button">
                       {d.day}
                     </button>
                   </div>

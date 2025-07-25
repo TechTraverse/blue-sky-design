@@ -21,30 +21,30 @@ type State = {
   viewDuration: Duration.Duration;
 
   // The current viewable range of dates
-  viewStartDateTime: DateTime.Utc;
-  viewEndDateTime: DateTime.Utc;
+  viewStartDateTime: DateTime.DateTime;
+  viewEndDateTime: DateTime.DateTime;
 
   // Default date range on init, also what to reset to
-  defaultStartDateTime: DateTime.Utc;
-  defaultEndDateTime: DateTime.Utc;
+  defaultStartDateTime: DateTime.DateTime;
+  defaultEndDateTime: DateTime.DateTime;
 
   // User-selected date range
-  selectedStartDateTime: DateTime.Utc;
-  selectedEndDateTime: DateTime.Utc;
+  selectedStartDateTime: DateTime.DateTime;
+  selectedEndDateTime: DateTime.DateTime;
 };
 
 type Action = D.TaggedEnum<{
   SetViewDuration: { viewDuration: Duration.Duration; };
   SetViewStartAndEndDateTimes: {
-    viewStartDateTime: DateTime.Utc;
-    viewEndDateTime: DateTime.Utc;
+    viewStartDateTime: DateTime.DateTime;
+    viewEndDateTime: DateTime.DateTime;
   }
   SetDefaultStartAndEndDateTimes: {
-    defaultStartDateTime: DateTime.Utc;
-    defaultEndDateTime: DateTime.Utc;
+    defaultStartDateTime: DateTime.DateTime;
+    defaultEndDateTime: DateTime.DateTime;
   };
-  SetSelectedStartDateTime: { selectedStartDateTime: DateTime.Utc; };
-  SetSelectedEndDateTime: { selectedEndDateTime: DateTime.Utc; };
+  SetSelectedStartDateTime: { selectedStartDateTime: DateTime.DateTime; };
+  SetSelectedEndDateTime: { selectedEndDateTime: DateTime.DateTime; };
   Reset: object;
 }>;
 
@@ -78,6 +78,8 @@ const reducer = (state: State, action: Action): State =>
       ...state,
       selectedStartDateTime: state.defaultStartDateTime,
       selectedEndDateTime: state.defaultEndDateTime,
+      viewStartDateTime: state.defaultStartDateTime,
+      viewEndDateTime: DateTime.addDuration(state.defaultStartDateTime, state.viewDuration),
     }),
   })(action);
 
@@ -213,8 +215,16 @@ export const TimeRangeSlider = ({
         visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
         <HorizontalCalendar
+          setSelectedStartDateTime={
+            (dateTime: DateTime.DateTime) => {
+              d(SetSelectedStartDateTime({
+                selectedStartDateTime: dateTime,
+              }));
+            }}
+          selectedStartDateTime={s.selectedStartDateTime}
+          selectedEndDateTime={s.selectedEndDateTime}
           viewStartDateTime={s.viewStartDateTime}
-          duration={s.viewDuration} />
+          viewEndDateTime={s.viewEndDateTime} />
       </RangeCalendar>
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
