@@ -64,7 +64,7 @@ const chunkDaysByMonth:
   ]);
 
 export const HorizontalCalendar = ({
-  viewStartDateTime, viewEndDateTime, selectedStartDateTime, setSelectedStartDateTime }: {
+  viewStartDateTime, viewEndDateTime, selectedStartDateTime, setSelectedStartDateTime, setSelectedEndDateTime }: {
     viewStartDateTime: DateTime.DateTime
     viewEndDateTime: DateTime.DateTime
     selectedStartDateTime: DateTime.DateTime
@@ -118,18 +118,33 @@ export const HorizontalCalendar = ({
                     .otherwise(() => false);
 
                   return (<td key={`${year}-${month}-${day}`}>
-                    <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
-                      <div>
-                        {dayOfWeek}
+                    <button
+                      className="horizontal-day-button"
+                      onClick={() => {
+                        if (setSelectedStartDateTime && setSelectedEndDateTime) {
+                          if (selectedStartDateTime) {
+                            setSelectedEndDateTime(d);
+                          } else {
+                            setSelectedStartDateTime(d);
+                          }
+                        }
+                      }}
+                      onMouseEnter={() => setTempRangeSecondDateTime(d)}
+                    // onMouseLeave={() => {
+                    //   setTimeout(() => {
+                    //     if (tempRangeSecondDateTime && DateTime.distance(tempRangeSecondDateTime, d) === 0) {
+                    //       setTempRangeSecondDateTime(null);
+                    //     }
+                    //   }, 2000);
+                    // }}
+                    >
+                      <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
+                        <div>
+                          {dayOfWeek}
+                        </div>
+                        <div>{day}</div>
                       </div>
-                      <button
-                        className="horizontal-day-button"
-                        onClick={() => setSelectedStartDateTime?.(d)}
-                        onMouseEnter={() => setTempRangeSecondDateTime(d)}
-                      >
-                        {day}
-                      </button>
-                    </div>
+                    </button>
                   </td>)
                 }
                 )}
