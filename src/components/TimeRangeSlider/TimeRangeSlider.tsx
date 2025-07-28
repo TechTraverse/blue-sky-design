@@ -225,13 +225,15 @@ export const TimeRangeSlider = ({
             (dateTime: DateTime.DateTime) => {
               match([s.selectedStartDateTime, dateTime])
                 .when(([prevStartDateTime, newEndDateTime]) =>
-                  DateTime.lessThanOrEqualTo(prevStartDateTime, newEndDateTime), ([, newEndDateTime]) => {
+                  DateTime.lessThanOrEqualTo(prevStartDateTime, newEndDateTime),
+                  ([, newEndDateTime]) => {
                     d(SetSelectedEndDateTime({
                       selectedEndDateTime: newEndDateTime,
                     }));
                   })
                 .when(([prevStartDateTime, newEndDateTime]) =>
-                  DateTime.greaterThan(prevStartDateTime, newEndDateTime), ([prevStartDateTime, newEndDateTime]) => {
+                  DateTime.greaterThan(prevStartDateTime, newEndDateTime),
+                  ([prevStartDateTime, newEndDateTime]) => {
                     // Swap the start and end dates
                     d(SetSelectedStartDateTime({
                       selectedStartDateTime: newEndDateTime,

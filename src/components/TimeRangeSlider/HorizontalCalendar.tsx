@@ -3,6 +3,7 @@ import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime } from "effect";
 import { useState } from "react";
+import { match } from "ts-pattern";
 
 type DayData = {
   dayOfWeek: string;
@@ -73,12 +74,8 @@ export const HorizontalCalendar = ({
     resetSelectedDateTimes?: () => void
   }) => {
 
-  const [tempRangeEndDateTime, _setTempRangeEndDateTime] =
+  const [tempRangeSecondDateTime, setTempRangeSecondDateTime] =
     useState<DateTime.DateTime | null>(null);
-  const setTempRangeEndDateTime = (dateTime: DateTime.DateTime) => {
-    console.log("Setting temp range end date time", dateTime);
-    _setTempRangeEndDateTime(dateTime);
-  };
 
   const daysByMonth = chunkDaysByMonth({
     start: viewStartDateTime, end: viewEndDateTime
@@ -105,10 +102,20 @@ export const HorizontalCalendar = ({
               <tr>
                 {x.map(({ dateTime: d, dayOfWeek }: DayData) => {
                   const { day, month, year } = DateTime.toParts(d);
-                  const isSelected = tempRangeEndDateTime &&
-                    DateTime.lessThanOrEqualTo(tempRangeEndDateTime, d) &&
-                    DateTime.greaterThanOrEqualTo(d, selectedStartDateTime);
-
+                  const isSelected = match([selectedStartDateTime, tempRangeSecondDateTime])
+                    .when(([firstDateTime, secondTime]) =>
+                      secondTime &&
+                      DateTime.lessThanOrEqualTo(firstDateTime, secondTime) &&
+                      DateTime.lessThanOrEqualTo(d, secondTime) &&
+                      DateTime.greaterThanOrEqualTo(d, firstDateTime),
+                      () => true)
+                    .when(([firstDateTime, secondTime]) =>
+                      secondTime &&
+                      DateTime.greaterThanOrEqualTo(firstDateTime, secondTime) &&
+                      DateTime.greaterThanOrEqualTo(d, secondTime) &&
+                      DateTime.lessThanOrEqualTo(d, firstDateTime),
+                      () => true)
+                    .otherwise(() => false);
 
                   return (<td key={`${year}-${month}-${day}`}>
                     <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
@@ -118,7 +125,7 @@ export const HorizontalCalendar = ({
                       <button
                         className="horizontal-day-button"
                         onClick={() => setSelectedStartDateTime?.(d)}
-                        onMouseEnter={() => setTempRangeEndDateTime(d)}
+                        onMouseEnter={() => setTempRangeSecondDateTime(d)}
                       >
                         {day}
                       </button>
