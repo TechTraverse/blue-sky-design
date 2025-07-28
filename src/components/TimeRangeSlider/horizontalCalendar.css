@@ -27,14 +27,16 @@
   cursor: pointer;
   color: 555;
 
-  &:hover {
-    background-color: #2d2d5a;
-    color: white;
-  }
-
   &:focus {
     outline: none;
     background-color: #2d2d5a;
+    color: white;
+  }
+}
+
+.horizontal-day-column-selected {
+  background-color: #2d2d5a;
+  > * {
     color: white;
   }
 }

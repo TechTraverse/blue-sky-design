@@ -63,7 +63,7 @@ const chunkDaysByMonth:
   ]);
 
 export const HorizontalCalendar = ({
-  viewStartDateTime, viewEndDateTime }: {
+  viewStartDateTime, viewEndDateTime, selectedStartDateTime, setSelectedStartDateTime }: {
     viewStartDateTime: DateTime.DateTime
     viewEndDateTime: DateTime.DateTime
     selectedStartDateTime: DateTime.DateTime
@@ -73,8 +73,12 @@ export const HorizontalCalendar = ({
     resetSelectedDateTimes?: () => void
   }) => {
 
-  const [tempRangeEndDateTime, setTempRangeEndDateTime] =
+  const [tempRangeEndDateTime, _setTempRangeEndDateTime] =
     useState<DateTime.DateTime | null>(null);
+  const setTempRangeEndDateTime = (dateTime: DateTime.DateTime) => {
+    console.log("Setting temp range end date time", dateTime);
+    _setTempRangeEndDateTime(dateTime);
+  };
 
   const daysByMonth = chunkDaysByMonth({
     start: viewStartDateTime, end: viewEndDateTime
@@ -101,14 +105,21 @@ export const HorizontalCalendar = ({
               <tr>
                 {x.map(({ dateTime: d, dayOfWeek }: DayData) => {
                   const { day, month, year } = DateTime.toParts(d);
+                  const isSelected = tempRangeEndDateTime &&
+                    DateTime.lessThanOrEqualTo(tempRangeEndDateTime, d) &&
+                    DateTime.greaterThanOrEqualTo(d, selectedStartDateTime);
+
 
                   return (<td key={`${year}-${month}-${day}`}>
-                    <div className="horizontal-day-column">
+                    <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
                       <div>
                         {dayOfWeek}
                       </div>
                       <button
-                        className="horizontal-day-button">
+                        className="horizontal-day-button"
+                        onClick={() => setSelectedStartDateTime?.(d)}
+                        onMouseEnter={() => setTempRangeEndDateTime(d)}
+                      >
                         {day}
                       </button>
                     </div>
