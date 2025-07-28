@@ -55,9 +55,7 @@ const chunkDaysByMonth:
       }
       return entries;
     },
-    f.tap((days: DayData[]) => console.log("B Days:", days)),
     f.map(getDayData),
-    f.tap((days: DayData[]) => console.log("Days:", days)),
     f.groupBy(({ dateTime: d }: DayData) => `${DateTime.getPart(d, "year")}-${DateTime.getPart(d, "month") < 10 ? "0" : ""}${DateTime.getPart(d, "month")}`),
     Object.entries,
     f.sortBy(["0"]),
