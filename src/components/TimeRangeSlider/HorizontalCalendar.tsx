@@ -146,6 +146,7 @@ export const HorizontalCalendar = ({
                       className="horizontal-day-button"
                       onClick={() => {
                         match(rangeSelectionMode)
+                          // First range click
                           .with(RangeSelectionMode.RangeSelected, () => {
                             // Reset the range selection
                             setTempDateTimeRange({
@@ -153,18 +154,15 @@ export const HorizontalCalendar = ({
                               end: d
                             });
                           })
+                          // Second range click
                           .with(RangeSelectionMode.RangeInProgress, () => {
-                            if (setSelectedEndDateTime) {
-                              setSelectedEndDateTime(d);
-                            }
-                            if (setSelectedStartDateTime) {
-                              setSelectedStartDateTime(tempDateTimeRange.start);
-                            }
                             const newRange: RangeValue<DateTime.DateTime> =
                               DateTime.lessThanOrEqualTo(tempDateTimeRange.start, d) ?
                                 { start: tempDateTimeRange.start, end: d } :
                                 { start: d, end: tempDateTimeRange.start };
                             setTempDateTimeRange(newRange);
+                            setSelectedStartDateTime?.(newRange.start);
+                            setSelectedEndDateTime?.(newRange.end);
                           })
                       }}
                       onMouseEnter={() => {
