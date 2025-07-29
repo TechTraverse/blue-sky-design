@@ -3,16 +3,11 @@ import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime } from "effect";
 import { useState } from "react";
-import { match } from "ts-pattern";
+import { HorizontalDateUnit } from "./HorizontalDateUnit";
 
 type DayData = {
   dayOfWeek: string;
   dateTime: DateTime.DateTime;
-}
-
-enum RangeSelectionMode {
-  RangeSelected,
-  RangeInProgress,
 }
 
 const getDayOfWeek = (weekDay: number): string => {
@@ -70,21 +65,19 @@ const chunkDaysByMonth:
 
 export const HorizontalCalendar = ({
   viewStartDateTime, viewEndDateTime,
-  selectedStartDateTime, selectedEndDateTime,
-  setSelectedStartDateTime, setSelectedEndDateTime }: {
+  selectedDateRange,
+  setSelectedDateRange }: {
     viewStartDateTime: DateTime.DateTime
     viewEndDateTime: DateTime.DateTime
-    selectedStartDateTime: DateTime.DateTime
-    selectedEndDateTime: DateTime.DateTime
-    setSelectedStartDateTime?: (date: DateTime.DateTime) => void
-    setSelectedEndDateTime?: (date: DateTime.DateTime) => void
+    selectedDateRange: RangeValue<DateTime.DateTime>
+    setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
     resetSelectedDateTimes?: () => void
   }) => {
 
   const [tempDateTimeRange, setTempDateTimeRange] =
     useState<RangeValue<DateTime.DateTime>>({
-      start: selectedStartDateTime,
-      end: selectedEndDateTime
+      start: selectedDateRange.start,
+      end: selectedDateRange.end
     });
 
   const daysByMonth = chunkDaysByMonth({
@@ -110,80 +103,16 @@ export const HorizontalCalendar = ({
           <table>
             <tbody className="horizontal-calendar-grid-body">
               <tr>
-                {x.map(({ dateTime: d, dayOfWeek }: DayData) => {
-                  const { day, month, year } = DateTime.toParts(d);
-                  const { start: tStart, end: tEnd } = tempDateTimeRange;
-                  const pStart = selectedStartDateTime;
-                  const pEnd = selectedEndDateTime;
-                  const rangeSelectionMode = match([tStart, tEnd, pStart, pEnd])
-                    // Range selected, no new range in progress
-                    .when(([tStart, tEnd, pStart, pEnd]) =>
-                      DateTime.distance(tStart, pStart) === 0 &&
-                      DateTime.distance(tEnd, pEnd) === 0,
-                      () => RangeSelectionMode.RangeSelected)
-                    .otherwise(() => RangeSelectionMode.RangeInProgress);
-                  const isSelected = match(
-                    [rangeSelectionMode, tStart, tEnd, pStart, pEnd, d])
-                    .when(([mode, , , pStart, pEnd, d]) =>
-                      mode === RangeSelectionMode.RangeSelected &&
-                      DateTime.between(d, {
-                        minimum: pStart,
-                        maximum: pEnd
-                      }), () => true)
-                    .when(([mode, tStart, tEnd, , , d]) =>
-                      mode === RangeSelectionMode.RangeInProgress &&
-                      (DateTime.between(d, {
-                        minimum: tStart,
-                        maximum: tEnd
-                      }) || DateTime.between(d, {
-                        minimum: tEnd,
-                        maximum: tStart
-                      })), () => true)
-                    .otherwise(() => false);
-
-                  return (<td key={`${year}-${month}-${day}`}>
-                    <button
-                      className="horizontal-day-button"
-                      onClick={() => {
-                        match(rangeSelectionMode)
-                          // First range click
-                          .with(RangeSelectionMode.RangeSelected, () => {
-                            // Reset the range selection
-                            setTempDateTimeRange({
-                              start: d,
-                              end: d
-                            });
-                          })
-                          // Second range click
-                          .with(RangeSelectionMode.RangeInProgress, () => {
-                            const newRange: RangeValue<DateTime.DateTime> =
-                              DateTime.lessThanOrEqualTo(tempDateTimeRange.start, d) ?
-                                { start: tempDateTimeRange.start, end: d } :
-                                { start: d, end: tempDateTimeRange.start };
-                            setTempDateTimeRange(newRange);
-                            setSelectedStartDateTime?.(newRange.start);
-                            setSelectedEndDateTime?.(newRange.end);
-                          })
-                      }}
-                      onMouseEnter={() => {
-                        match(rangeSelectionMode)
-                          .with(RangeSelectionMode.RangeInProgress, () => {
-                            setTempDateTimeRange({
-                              start: tempDateTimeRange.start,
-                              end: d
-                            });
-                          })
-                      }}
-                    >
-                      <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
-                        <div>
-                          {dayOfWeek}
-                        </div>
-                        <div>{day}</div>
-                      </div>
-                    </button>
-                  </td>)
-                }
+                {x.map(({ dateTime: d, dayOfWeek }: DayData) =>
+                  <HorizontalDateUnit
+                    key={`${DateTime.getPart(d, "year")}-${DateTime.getPart(d, "month")}-${DateTime.getPart(d, "day")}`}
+                    d={d}
+                    dayOfWeek={dayOfWeek}
+                    tempDateTimeRange={tempDateTimeRange}
+                    selectedDateRange={selectedDateRange}
+                    setTempDateTimeRange={setTempDateTimeRange}
+                    setSelectedDateRange={setSelectedDateRange}
+                  />
                 )}
               </tr>
             </tbody>

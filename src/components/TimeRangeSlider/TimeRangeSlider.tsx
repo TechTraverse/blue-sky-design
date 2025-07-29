@@ -1,5 +1,6 @@
 import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef } from 'react';
+import type { RangeValue } from "@react-types/shared";
 import { DateTime, Option as O, Data as D, Duration } from 'effect';
 import { Button } from '../Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
@@ -43,12 +44,14 @@ type Action = D.TaggedEnum<{
     defaultStartDateTime: DateTime.DateTime;
     defaultEndDateTime: DateTime.DateTime;
   };
-  SetSelectedStartDateTime: { selectedStartDateTime: DateTime.DateTime; };
-  SetSelectedEndDateTime: { selectedEndDateTime: DateTime.DateTime; };
+  SetSelectedDateRange: {
+    start: DateTime.DateTime;
+    end: DateTime.DateTime;
+  };
   Reset: object;
 }>;
 
-const { $match, SetViewDuration, SetDefaultStartAndEndDateTimes, SetViewStartAndEndDateTimes, SetSelectedStartDateTime, SetSelectedEndDateTime } = D.taggedEnum<Action>();
+const { $match, SetViewDuration, SetViewStartAndEndDateTimes, SetSelectedDateRange } = D.taggedEnum<Action>();
 
 
 const reducer = (state: State, action: Action): State =>
@@ -66,7 +69,7 @@ const reducer = (state: State, action: Action): State =>
       ...state,
       ...x,
     }),
-    SetSelectedStartDateTime: (x) => ({
+    SetSelectedDateRange: (x) => ({
       ...state,
       ...x,
     }),
@@ -215,36 +218,17 @@ export const TimeRangeSlider = ({
         visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
         <HorizontalCalendar
-          setSelectedStartDateTime={
-            (dateTime: DateTime.DateTime) => {
-              d(SetSelectedStartDateTime({
-                selectedStartDateTime: dateTime,
+          setSelectedDateRange={
+            (dateRange: RangeValue<DateTime.DateTime>) => {
+              d(SetSelectedDateRange({
+                start: dateRange.start,
+                end: dateRange.end,
               }));
             }}
-          setSelectedEndDateTime={
-            (dateTime: DateTime.DateTime) => {
-              match([s.selectedStartDateTime, dateTime])
-                .when(([prevStartDateTime, newEndDateTime]) =>
-                  DateTime.lessThanOrEqualTo(prevStartDateTime, newEndDateTime),
-                  ([, newEndDateTime]) => {
-                    d(SetSelectedEndDateTime({
-                      selectedEndDateTime: newEndDateTime,
-                    }));
-                  })
-                .when(([prevStartDateTime, newEndDateTime]) =>
-                  DateTime.greaterThan(prevStartDateTime, newEndDateTime),
-                  ([prevStartDateTime, newEndDateTime]) => {
-                    // Swap the start and end dates
-                    d(SetSelectedStartDateTime({
-                      selectedStartDateTime: newEndDateTime,
-                    }));
-                    d(SetSelectedEndDateTime({
-                      selectedEndDateTime: prevStartDateTime,
-                    }));
-                  })
-            }}
-          selectedStartDateTime={s.selectedStartDateTime}
-          selectedEndDateTime={s.selectedEndDateTime}
+          selectedDateRange={{
+            start: s.selectedStartDateTime,
+            end: s.selectedEndDateTime
+          }}
           viewStartDateTime={s.viewStartDateTime}
           viewEndDateTime={s.viewEndDateTime} />
       </RangeCalendar>
