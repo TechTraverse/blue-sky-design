@@ -29,28 +29,17 @@ export const HorizontalDateUnit = ({
 
   useEffect(() => {
     const { start: tStart, end: tEnd } = tempDateTimeRange;
-    const pStart = selectedDateRange.start;
-    const pEnd = selectedDateRange.end;
-    const isSelected = match(
-      [rangeSelectionMode, tStart, tEnd, pStart, pEnd, d])
-      .when(([mode, , , pStart, pEnd, d]) =>
-        mode === RangeSelectionMode.RangeSelected &&
-        DateTime.between(d, {
-          minimum: pStart,
-          maximum: pEnd
-        }), () => true)
-      .when(([mode, tStart, tEnd, , , d]) =>
-        mode === RangeSelectionMode.RangeInProgress &&
-        (DateTime.between(d, {
-          minimum: tStart,
-          maximum: tEnd
-        }) || DateTime.between(d, {
-          minimum: tEnd,
-          maximum: tStart
-        })), () => true)
-      .otherwise(() => false);
+    const isSelected =
+      DateTime.between(d, {
+        minimum: tStart,
+        maximum: tEnd
+      }) ||
+      DateTime.between(d, {
+        minimum: tEnd,
+        maximum: tStart
+      });
     setIsSelected(isSelected);
-  }, [rangeSelectionMode, tempDateTimeRange, selectedDateRange, d]);
+  }, [tempDateTimeRange, d]);
 
   return (<td key={`${year}-${month}-${day}`}>
     <button
@@ -59,7 +48,6 @@ export const HorizontalDateUnit = ({
         match(rangeSelectionMode)
           // First range click
           .with(RangeSelectionMode.RangeSelected, () => {
-            console.log("First range click");
             // Reset the range selection
             setRangeSelectionMode(RangeSelectionMode.RangeInProgress);
             setTempDateTimeRange({
@@ -69,7 +57,6 @@ export const HorizontalDateUnit = ({
           })
           // Second range click
           .with(RangeSelectionMode.RangeInProgress, () => {
-            console.log("Second range click");
             const newRange: RangeValue<DateTime.DateTime> =
               DateTime.lessThanOrEqualTo(tempDateTimeRange.start, d) ?
                 { start: tempDateTimeRange.start, end: d } :
