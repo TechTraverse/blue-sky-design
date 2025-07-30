@@ -2,17 +2,15 @@ import type { RangeValue } from "@react-types/shared";
 import { DateTime } from "effect";
 import { useEffect, useState } from "react";
 import { match } from "ts-pattern";
-
-enum RangeSelectionMode {
-  RangeSelected,
-  RangeInProgress,
-}
+import { RangeSelectionMode } from "./timeSliderTypes";
 
 export const HorizontalDateUnit = ({
   d,
   dayOfWeek,
   tempDateTimeRange,
   selectedDateRange,
+  rangeSelectionMode,
+  setRangeSelectionMode,
   setTempDateTimeRange,
   setSelectedDateRange
 }: {
@@ -20,30 +18,19 @@ export const HorizontalDateUnit = ({
   dayOfWeek: string,
   tempDateTimeRange: RangeValue<DateTime.DateTime>,
   selectedDateRange: RangeValue<DateTime.DateTime>,
+  rangeSelectionMode: RangeSelectionMode,
+  setRangeSelectionMode: (mode: RangeSelectionMode) => void,
   setTempDateTimeRange: (range: RangeValue<DateTime.DateTime>) => void,
   setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
 }) => {
   const { day, month, year } = DateTime.toParts(d);
-  const { start: tStart, end: tEnd } = tempDateTimeRange;
-  const pStart = selectedDateRange.start;
-  const pEnd = selectedDateRange.end;
 
-  const [rangeSelectionMode, setRangeSelectionMode] =
-    useState<RangeSelectionMode>(RangeSelectionMode.RangeSelected);
   const [isSelected, setIsSelected] = useState<boolean>(false);
 
   useEffect(() => {
-    const rangeSelectionMode = match([tStart, tEnd, pStart, pEnd])
-      // Range selected, no new range in progress
-      .when(([tStart, tEnd, pStart, pEnd]) =>
-        DateTime.distance(tStart, pStart) === 0 &&
-        DateTime.distance(tEnd, pEnd) === 0,
-        () => RangeSelectionMode.RangeSelected)
-      .otherwise(() => RangeSelectionMode.RangeInProgress);
-    setRangeSelectionMode(rangeSelectionMode);
-  }, [tStart, tEnd, pStart, pEnd]);
-
-  useEffect(() => {
+    const { start: tStart, end: tEnd } = tempDateTimeRange;
+    const pStart = selectedDateRange.start;
+    const pEnd = selectedDateRange.end;
     const isSelected = match(
       [rangeSelectionMode, tStart, tEnd, pStart, pEnd, d])
       .when(([mode, , , pStart, pEnd, d]) =>
@@ -63,7 +50,7 @@ export const HorizontalDateUnit = ({
         })), () => true)
       .otherwise(() => false);
     setIsSelected(isSelected);
-  }, [rangeSelectionMode, tStart, tEnd, pStart, pEnd, d]);
+  }, [rangeSelectionMode, tempDateTimeRange, selectedDateRange, d]);
 
   return (<td key={`${year}-${month}-${day}`}>
     <button
@@ -74,6 +61,7 @@ export const HorizontalDateUnit = ({
           .with(RangeSelectionMode.RangeSelected, () => {
             console.log("First range click");
             // Reset the range selection
+            setRangeSelectionMode(RangeSelectionMode.RangeInProgress);
             setTempDateTimeRange({
               start: d,
               end: d
@@ -88,6 +76,7 @@ export const HorizontalDateUnit = ({
                 { start: d, end: tempDateTimeRange.start };
             setTempDateTimeRange(newRange);
             setSelectedDateRange?.(newRange);
+            setRangeSelectionMode(RangeSelectionMode.RangeSelected);
           })
       }}
       onMouseEnter={() => {
