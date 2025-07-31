@@ -10,6 +10,7 @@ import { useLocale, useRangeCalendar } from 'react-aria';
 import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
+import { RangeDateInput } from './RangeDateInput';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -226,6 +227,23 @@ export const TimeRangeSlider = ({
           viewStartDateTime={s.viewStartDateTime}
           viewEndDateTime={s.viewEndDateTime} />
       </RangeCalendar>
+      <RangeDateInput
+        startDateTime={s.selectedStartDateTime}
+        endDateTime={s.selectedEndDateTime}
+        setStartDateTime={(date: DateTime.DateTime) => {
+          d(SetSelectedDateRange({
+            start: date,
+            end: s.selectedEndDateTime,
+          }));
+        }}
+        setEndDateTime={(date: DateTime.DateTime) => {
+          d(SetSelectedDateRange({
+            start: s.selectedStartDateTime,
+            end: date,
+          }));
+        }}
+
+      />
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
           onClick={() => {

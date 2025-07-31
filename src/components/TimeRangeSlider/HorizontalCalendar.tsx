@@ -2,7 +2,7 @@ import "./horizontalCalendar.css";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime } from "effect";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HorizontalDateUnit } from "./HorizontalDateUnit";
 import { RangeSelectionMode, type RangeSelection } from "./timeSliderTypes";
 import { match } from "ts-pattern";
@@ -88,6 +88,14 @@ export const HorizontalCalendar = ({
         ({ start, end }) => setSelectedDateRange?.({ start, end }))
     _setTempRangeAndMode(r);
   }
+
+  useEffect(() => {
+    _setTempRangeAndMode({
+      mode: RangeSelectionMode.FinalRangeSelected,
+      start: selectedDateRange.start,
+      end: selectedDateRange.end
+    });
+  }, [selectedDateRange.start, selectedDateRange.end]);
 
   const daysByMonth = chunkDaysByMonth({
     start: viewStartDateTime, end: viewEndDateTime
