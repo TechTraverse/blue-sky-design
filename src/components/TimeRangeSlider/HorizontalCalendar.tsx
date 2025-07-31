@@ -4,7 +4,8 @@ import type { RangeValue } from "@react-types/shared";
 import { DateTime } from "effect";
 import { useState } from "react";
 import { HorizontalDateUnit } from "./HorizontalDateUnit";
-import { RangeSelectionMode } from "./timeSliderTypes";
+import { RangeSelectionMode, type RangeSelection } from "./timeSliderTypes";
+import { match } from "ts-pattern";
 
 type DayData = {
   dayOfWeek: string;
@@ -75,13 +76,18 @@ export const HorizontalCalendar = ({
     resetSelectedDateTimes?: () => void
   }) => {
 
-  const [rangeSelectionMode, setRangeSelectionMode] =
-    useState<RangeSelectionMode>(RangeSelectionMode.RangeSelected);
-  const [tempDateTimeRange, setTempDateTimeRange] =
-    useState<RangeValue<DateTime.DateTime>>({
+  const [tempRangeAndMode, _setTempRangeAndMode] =
+    useState<RangeSelection>({
+      mode: RangeSelectionMode.FinalRangeSelected,
       start: selectedDateRange.start,
       end: selectedDateRange.end
     });
+  const setTempRangeAndMode = (r: RangeSelection) => {
+    match(r)
+      .with({ mode: RangeSelectionMode.FinalRangeSelected },
+        ({ start, end }) => setSelectedDateRange?.({ start, end }))
+    _setTempRangeAndMode(r);
+  }
 
   const daysByMonth = chunkDaysByMonth({
     start: viewStartDateTime, end: viewEndDateTime
@@ -111,10 +117,8 @@ export const HorizontalCalendar = ({
                     key={`${DateTime.getPart(d, "year")}-${DateTime.getPart(d, "month")}-${DateTime.getPart(d, "day")}`}
                     d={d}
                     dayOfWeek={dayOfWeek}
-                    rangeSelectionMode={rangeSelectionMode}
-                    dateTimeRange={selectedDateRange}
-                    setDateTimeRange={setSelectedDateRange}
-                    setRangeSelectionMode={setRangeSelectionMode}
+                    dateTimeRangeAndMode={tempRangeAndMode}
+                    setDateTimeRangeAndMode={setTempRangeAndMode}
                   />
                 )}
               </tr>

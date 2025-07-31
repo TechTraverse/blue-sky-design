@@ -1,4 +1,12 @@
+import type { DateTime } from "effect";
+
 export enum RangeSelectionMode {
-    RangeSelected,
-    RangeInProgress,
+  RangeInProgress,
+  FinalRangeSelected,
 }
+
+export type RangeSelection = {
+  mode: RangeSelectionMode;
+  start: DateTime.DateTime;
+  end: DateTime.DateTime;
+};
