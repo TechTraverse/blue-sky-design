@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { match } from "ts-pattern";
 import { RangeSelectionMode } from "./timeSliderTypes";
 
+const { RangeSelected, RangeInProgress } = RangeSelectionMode;
+
 export const HorizontalDateUnit = ({
   d,
   dayOfWeek,
@@ -45,28 +47,28 @@ export const HorizontalDateUnit = ({
       onClick={() => {
         match(rangeSelectionMode)
           // First range click
-          .with(RangeSelectionMode.RangeSelected, () => {
+          .with(RangeSelected, () => {
             // Reset the range selection
-            setRangeSelectionMode(RangeSelectionMode.RangeInProgress);
+            setRangeSelectionMode(RangeInProgress);
             setTempDateTimeRange({
               start: d,
               end: d
             });
           })
           // Second range click
-          .with(RangeSelectionMode.RangeInProgress, () => {
+          .with(RangeInProgress, () => {
             const newRange: RangeValue<DateTime.DateTime> =
               DateTime.lessThanOrEqualTo(tempDateTimeRange.start, d) ?
                 { start: tempDateTimeRange.start, end: d } :
                 { start: d, end: tempDateTimeRange.start };
             setTempDateTimeRange(newRange);
             setSelectedDateRange?.(newRange);
-            setRangeSelectionMode(RangeSelectionMode.RangeSelected);
+            setRangeSelectionMode(RangeSelected);
           })
       }}
       onMouseEnter={() => {
         match(rangeSelectionMode)
-          .with(RangeSelectionMode.RangeInProgress, () => {
+          .with(RangeInProgress, () => {
             setTempDateTimeRange({
               start: tempDateTimeRange.start,
               end: d
