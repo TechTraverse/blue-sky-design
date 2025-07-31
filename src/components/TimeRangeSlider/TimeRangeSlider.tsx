@@ -71,11 +71,8 @@ const reducer = (state: State, action: Action): State =>
     }),
     SetSelectedDateRange: (x) => ({
       ...state,
-      ...x,
-    }),
-    SetSelectedEndDateTime: (x) => ({
-      ...state,
-      ...x,
+      selectedStartDateTime: x.start,
+      selectedEndDateTime: x.end,
     }),
     Reset: () => ({
       ...state,
@@ -220,10 +217,7 @@ export const TimeRangeSlider = ({
         <HorizontalCalendar
           setSelectedDateRange={
             (dateRange: RangeValue<DateTime.DateTime>) => {
-              d(SetSelectedDateRange({
-                start: dateRange.start,
-                end: dateRange.end,
-              }));
+              d(SetSelectedDateRange(dateRange));
             }}
           selectedDateRange={{
             start: s.selectedStartDateTime,

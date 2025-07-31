@@ -112,8 +112,8 @@ export const HorizontalCalendar = ({
                     d={d}
                     dayOfWeek={dayOfWeek}
                     rangeSelectionMode={rangeSelectionMode}
-                    tempDateTimeRange={tempDateTimeRange}
-                    setTempDateTimeRange={setTempDateTimeRange}
+                    dateTimeRange={selectedDateRange}
+                    setDateTimeRange={setSelectedDateRange}
                     setRangeSelectionMode={setRangeSelectionMode}
                   />
                 )}

@@ -9,26 +9,24 @@ const { RangeSelected, RangeInProgress } = RangeSelectionMode;
 export const HorizontalDateUnit = ({
   d,
   dayOfWeek,
-  tempDateTimeRange,
+  dateTimeRange,
   rangeSelectionMode,
   setRangeSelectionMode,
-  setTempDateTimeRange,
-  setSelectedDateRange
+  setDateTimeRange,
 }: {
   d: DateTime.DateTime,
   dayOfWeek: string,
-  tempDateTimeRange: RangeValue<DateTime.DateTime>,
+  dateTimeRange: RangeValue<DateTime.DateTime>,
   rangeSelectionMode: RangeSelectionMode,
   setRangeSelectionMode: (mode: RangeSelectionMode) => void,
-  setTempDateTimeRange: (range: RangeValue<DateTime.DateTime>) => void,
-  setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
+  setDateTimeRange?: (range: RangeValue<DateTime.DateTime>) => void,
 }) => {
   const { day, month, year } = DateTime.toParts(d);
 
   const [isSelected, setIsSelected] = useState<boolean>(false);
 
   useEffect(() => {
-    const { start: tStart, end: tEnd } = tempDateTimeRange;
+    const { start: tStart, end: tEnd } = dateTimeRange;
     const isSelected =
       DateTime.between(d, {
         minimum: tStart,
@@ -39,7 +37,7 @@ export const HorizontalDateUnit = ({
         maximum: tStart
       });
     setIsSelected(isSelected);
-  }, [tempDateTimeRange, d]);
+  }, [dateTimeRange, d]);
 
   return (<td key={`${year}-${month}-${day}`}>
     <button
@@ -50,7 +48,7 @@ export const HorizontalDateUnit = ({
           .with(RangeSelected, () => {
             // Reset the range selection
             setRangeSelectionMode(RangeInProgress);
-            setTempDateTimeRange({
+            setDateTimeRange?.({
               start: d,
               end: d
             });
@@ -58,19 +56,18 @@ export const HorizontalDateUnit = ({
           // Second range click
           .with(RangeInProgress, () => {
             const newRange: RangeValue<DateTime.DateTime> =
-              DateTime.lessThanOrEqualTo(tempDateTimeRange.start, d) ?
-                { start: tempDateTimeRange.start, end: d } :
-                { start: d, end: tempDateTimeRange.start };
-            setTempDateTimeRange(newRange);
-            setSelectedDateRange?.(newRange);
+              DateTime.lessThanOrEqualTo(dateTimeRange.start, d) ?
+                { start: dateTimeRange.start, end: d } :
+                { start: d, end: dateTimeRange.start };
+            setDateTimeRange?.(newRange);
             setRangeSelectionMode(RangeSelected);
           })
       }}
       onMouseEnter={() => {
         match(rangeSelectionMode)
           .with(RangeInProgress, () => {
-            setTempDateTimeRange({
-              start: tempDateTimeRange.start,
+            setDateTimeRange?.({
+              start: dateTimeRange.start,
               end: d
             });
           })
