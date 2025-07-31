@@ -2,31 +2,32 @@ import type { RangeValue } from "@react-types/shared";
 import { DateTime } from "effect";
 import { useEffect, useState } from "react";
 import { match } from "ts-pattern";
-import { RangeSelectionMode } from "./timeSliderTypes";
+import { RangeSelectionMode, type RangeSelection } from "./timeSliderTypes";
 
-const { RangeSelected, RangeInProgress } = RangeSelectionMode;
+const { FinalRangeSelected, RangeInProgress } = RangeSelectionMode;
 
 export const HorizontalDateUnit = ({
   d,
   dayOfWeek,
-  dateTimeRange,
-  rangeSelectionMode,
-  setRangeSelectionMode,
-  setDateTimeRange,
+  dateTimeRangeAndMode,
+  setDateTimeRangeAndMode,
 }: {
   d: DateTime.DateTime,
   dayOfWeek: string,
-  dateTimeRange: RangeValue<DateTime.DateTime>,
-  rangeSelectionMode: RangeSelectionMode,
-  setRangeSelectionMode: (mode: RangeSelectionMode) => void,
-  setDateTimeRange?: (range: RangeValue<DateTime.DateTime>) => void,
+  dateTimeRangeAndMode: RangeSelection,
+  setDateTimeRangeAndMode: (range: RangeSelection) => void,
 }) => {
   const { day, month, year } = DateTime.toParts(d);
 
   const [isSelected, setIsSelected] = useState<boolean>(false);
+  const [selectionMode, setSelectionMode] = useState<RangeSelectionMode>(dateTimeRangeAndMode.mode);
 
   useEffect(() => {
-    const { start: tStart, end: tEnd } = dateTimeRange;
+    setSelectionMode(dateTimeRangeAndMode.mode);
+  }, [dateTimeRangeAndMode.mode]);
+
+  useEffect(() => {
+    const { start: tStart, end: tEnd } = dateTimeRangeAndMode;
     const isSelected =
       DateTime.between(d, {
         minimum: tStart,
@@ -37,18 +38,18 @@ export const HorizontalDateUnit = ({
         maximum: tStart
       });
     setIsSelected(isSelected);
-  }, [dateTimeRange, d]);
+  }, [dateTimeRangeAndMode, d]);
 
   return (<td key={`${year}-${month}-${day}`}>
     <button
       className="horizontal-day-button"
       onClick={() => {
-        match(rangeSelectionMode)
+        match(selectionMode)
           // First range click
-          .with(RangeSelected, () => {
+          .with(FinalRangeSelected, () => {
             // Reset the range selection
-            setRangeSelectionMode(RangeInProgress);
-            setDateTimeRange?.({
+            setDateTimeRangeAndMode({
+              mode: RangeInProgress,
               start: d,
               end: d
             });
@@ -56,18 +57,22 @@ export const HorizontalDateUnit = ({
           // Second range click
           .with(RangeInProgress, () => {
             const newRange: RangeValue<DateTime.DateTime> =
-              DateTime.lessThanOrEqualTo(dateTimeRange.start, d) ?
-                { start: dateTimeRange.start, end: d } :
-                { start: d, end: dateTimeRange.start };
-            setDateTimeRange?.(newRange);
-            setRangeSelectionMode(RangeSelected);
+              DateTime.lessThanOrEqualTo(dateTimeRangeAndMode.start, d) ?
+                { start: dateTimeRangeAndMode.start, end: d } :
+                { start: d, end: dateTimeRangeAndMode.start };
+            setDateTimeRangeAndMode({
+              mode: FinalRangeSelected,
+              start: newRange.start,
+              end: newRange.end
+            });
           })
       }}
       onMouseEnter={() => {
-        match(rangeSelectionMode)
+        match(selectionMode)
           .with(RangeInProgress, () => {
-            setDateTimeRange?.({
-              start: dateTimeRange.start,
+            setDateTimeRangeAndMode({
+              mode: RangeInProgress,
+              start: dateTimeRangeAndMode.start,
               end: d
             });
           })
