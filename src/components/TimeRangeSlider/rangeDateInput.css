@@ -1,13 +1,22 @@
 .range-date-input {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 0 10px;
+  border-left: 10px solid aliceblue;;
+  border-right: 10px solid aliceblue;;
   max-width: fit-content;
   height: 100%;
   font-size: 13px;
   color: #555;
+
+    :popover-open {
+      all: initial; /* Or selectively override */
+      position: absolute;
+      top: 50px;
+      left: 100px;
+    }
+
   > * {
     display: flex;
     flex-direction: column;
@@ -17,5 +26,69 @@
     width: fit-content;
     max-width: fit-content;
     height: 100%;
+  }
+
+  svg {
+    margin: 3px 0 0;
+    align-self: center;
+    color: #555;
+  }
+
+  .range-date-label {
+    font-size: 10px;
+    color: #555;
+    align-self: flex-start;
+  }
+}
+
+.slider-date-picker {
+  --background-color: var(--overlay-background);
+  left: 500px;
+  border: 1px solid var(--border-color);
+  background: var(--background-color);
+  color: var(--text-color);
+  border-radius: 6px;
+  outline: none;
+  max-width: 350px;
+  transition: transform .2s,opacity .2s;
+  box-shadow: 0 8px 20px #0000001a;
+  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  section {
+    max-height: inherit;
+    box-sizing: border-box;
+    outline: none;
+    padding: 30px;
+    overflow: auto;
+  }
+
+  td > div {
+    text-align: center;
+    cursor: default;
+    border-radius: 6px;
+    outline: none;
+    width: 2rem;
+    margin: 1px;
+    line-height: 2rem;
+  }
+
+  button {
+    border: none;
+    background: transparent;
+    padding: 0%;
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      color: #555;
+    }
   }
 }
