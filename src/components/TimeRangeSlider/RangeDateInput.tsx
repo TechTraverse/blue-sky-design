@@ -21,7 +21,7 @@ function SliderDatePicker<T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek, ...props }:
     MyDatePickerProps<T>
 ) {
-  return (
+  return (<>
     <DatePicker {...props} className={"slider-date-picker-container"}>
       <Label>{label}</Label>
       <Group className={'slider-date-picker-group'}>
@@ -30,35 +30,6 @@ function SliderDatePicker<T extends DateValue>(
         </DateInput>
         <Button>
           <FaCalendarAlt />
-        </Button>
-      </Group>
-      <Group className={'range-selection-group'}>
-        <FormControl fullWidth>
-          <InputLabel variant="standard" htmlFor="uncontrolled-native">
-            Range:
-          </InputLabel>
-          <NativeSelect
-            defaultValue={300}
-            inputProps={{
-              name: 'range',
-              id: 'uncontrolled-native',
-            }}
-          >
-            <option value={60}>1m</option>
-            <option value={300}>5m</option>
-            <option value={600}>10m</option>
-            <option value={3600}>1h</option>
-            <option value={10800}>3h</option>
-            <option value={43200}>12h</option>
-            <option value={86400}>24h</option>
-          </NativeSelect>
-        </FormControl>
-        <Button slot="previous">
-          <TbPlayerSkipBack />
-        </Button>
-        <Heading />
-        <Button slot="next">
-          <TbPlayerSkipForward />
         </Button>
       </Group>
       {description && <Text slot="description">{description}</Text>}
@@ -82,7 +53,36 @@ function SliderDatePicker<T extends DateValue>(
         </Dialog>
       </Popover>
     </DatePicker>
-  );
+    <Group className={'range-selection-group'}>
+      <FormControl fullWidth>
+        <InputLabel variant="standard" htmlFor="uncontrolled-native">
+          Range:
+        </InputLabel>
+        <NativeSelect
+          defaultValue={300}
+          inputProps={{
+            name: 'range',
+            id: 'uncontrolled-native',
+          }}
+        >
+          <option value={60}>1m</option>
+          <option value={300}>5m</option>
+          <option value={600}>10m</option>
+          <option value={3600}>1h</option>
+          <option value={10800}>3h</option>
+          <option value={43200}>12h</option>
+          <option value={86400}>24h</option>
+        </NativeSelect>
+      </FormControl>
+      <Button slot="previous">
+        <TbPlayerSkipBack />
+      </Button>
+      <Heading />
+      <Button slot="next">
+        <TbPlayerSkipForward />
+      </Button>
+    </Group>
+  </>);
 }
 
 export const RangeDateInput = ({ startDateTime, endDateTime, setStartDateTime, setEndDateTime }: {
