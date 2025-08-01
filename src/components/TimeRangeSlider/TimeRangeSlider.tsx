@@ -227,23 +227,6 @@ export const TimeRangeSlider = ({
           viewStartDateTime={s.viewStartDateTime}
           viewEndDateTime={s.viewEndDateTime} />
       </RangeCalendar>
-      <RangeDateInput
-        startDateTime={s.selectedStartDateTime}
-        endDateTime={s.selectedEndDateTime}
-        setStartDateTime={(date: DateTime.DateTime) => {
-          d(SetSelectedDateRange({
-            start: date,
-            end: s.selectedEndDateTime,
-          }));
-        }}
-        setEndDateTime={(date: DateTime.DateTime) => {
-          d(SetSelectedDateRange({
-            start: s.selectedStartDateTime,
-            end: date,
-          }));
-        }}
-
-      />
       <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
           onClick={() => {
@@ -261,6 +244,23 @@ export const TimeRangeSlider = ({
           title='Next'
         />
       </Button>
+      <RangeDateInput
+        startDateTime={s.selectedStartDateTime}
+        endDateTime={s.selectedEndDateTime}
+        setStartDateTime={(date: DateTime.DateTime) => {
+          d(SetSelectedDateRange({
+            start: date,
+            end: s.selectedEndDateTime,
+          }));
+        }}
+        setEndDateTime={(date: DateTime.DateTime) => {
+          d(SetSelectedDateRange({
+            start: s.selectedStartDateTime,
+            end: date,
+          }));
+        }}
+
+      />
     </div>
   );
 }

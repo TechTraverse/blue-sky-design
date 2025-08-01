@@ -6,6 +6,10 @@ import { FaCalendarAlt } from "react-icons/fa";
 
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
+import NativeSelect from '@mui/material/NativeSelect';
+import { TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 
 interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   label?: string;
@@ -18,7 +22,7 @@ function SliderDatePicker<T extends DateValue>(
     MyDatePickerProps<T>
 ) {
   return (
-    <DatePicker {...props}>
+    <DatePicker {...props} className={"slider-date-picker-container"}>
       <Label>{label}</Label>
       <Group className={'slider-date-picker-group'}>
         <DateInput className={"slider-date-picker-input"}>
@@ -26,6 +30,35 @@ function SliderDatePicker<T extends DateValue>(
         </DateInput>
         <Button>
           <FaCalendarAlt />
+        </Button>
+      </Group>
+      <Group className={'range-selection-group'}>
+        <FormControl fullWidth>
+          <InputLabel variant="standard" htmlFor="uncontrolled-native">
+            Range:
+          </InputLabel>
+          <NativeSelect
+            defaultValue={300}
+            inputProps={{
+              name: 'range',
+              id: 'uncontrolled-native',
+            }}
+          >
+            <option value={60}>1m</option>
+            <option value={300}>5m</option>
+            <option value={600}>10m</option>
+            <option value={3600}>1h</option>
+            <option value={10800}>3h</option>
+            <option value={43200}>12h</option>
+            <option value={86400}>24h</option>
+          </NativeSelect>
+        </FormControl>
+        <Button slot="previous">
+          <TbPlayerSkipBack />
+        </Button>
+        <Heading />
+        <Button slot="next">
+          <TbPlayerSkipForward />
         </Button>
       </Group>
       {description && <Text slot="description">{description}</Text>}
@@ -36,7 +69,6 @@ function SliderDatePicker<T extends DateValue>(
             <header>
               <Button slot="previous">
                 <MdOutlineKeyboardArrowLeft />
-
               </Button>
               <Heading />
               <Button slot="next">
@@ -51,37 +83,6 @@ function SliderDatePicker<T extends DateValue>(
       </Popover>
     </DatePicker>
   );
-}
-
-const RangeDate = ({ label, dateTime, setDateTime }: {
-  label?: string,
-  dateTime?: DateTime.DateTime,
-  setDateTime?: (date: DateTime.DateTime) => void
-}) => {
-  const calendarDateTime = dateTime ? pipe(
-    DateTime.toParts(dateTime),
-    ({ year, month, day }) => new CalendarDateTime(year, month, day, 0, 0, 0, 0) // Set time to midnight
-  ) : undefined;
-  console.log("RangeDate", calendarDateTime);
-
-  return (
-    <DateField
-      className={'range-date'}
-      value={calendarDateTime}
-      // TODO: Cleaner conversion?
-      onChange={d => pipe(
-        d?.toString(),
-        x => x && new Date(x),
-        x => x && DateTime.unsafeFromDate(x),
-        x => x && setDateTime?.(x))
-      }>
-      {label ? <Label className="range-date-label">{label}</Label> : null}
-      <DateInput>
-        {(segment) => <DateSegment segment={segment} />}
-      </DateInput>
-      <Text slot="description" />
-      <FieldError />
-    </DateField>);
 }
 
 export const RangeDateInput = ({ startDateTime, endDateTime, setStartDateTime, setEndDateTime }: {
