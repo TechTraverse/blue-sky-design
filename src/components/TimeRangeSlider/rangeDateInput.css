@@ -39,20 +39,59 @@
     color: #555;
     align-self: flex-start;
   }
+
+}
+
+.slider-date-picker-group {
+  border: 1px solid #e1e1e1;
+  border-radius: 2px;
+  padding: 9px 10px 8px;
+  margin: 0 5px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+
+  &:hover {
+    border: 1px solid #1976d2;
+  }
+
+  button {
+    margin: 0 5px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    color: #555;
+
+    svg {
+      margin-top: 0;
+      width: 12px;
+      height: 12px;
+    }
+
+    &:hover {
+      color: #000;
+    }
+  }
 }
 
 .slider-date-picker {
-  --background-color: var(--overlay-background);
+  z-index: 10000;;
+  --background-color: #fff;
   left: 500px;
+  bottom: 100px;
   border: 1px solid var(--border-color);
   background: var(--background-color);
   color: var(--text-color);
-  border-radius: 6px;
+  border-radius: 2px;
   outline: none;
   max-width: 350px;
   transition: transform .2s,opacity .2s;
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 12px;;
 
   header {
     display: flex;
@@ -73,11 +112,12 @@
   td > div {
     text-align: center;
     cursor: default;
-    border-radius: 6px;
+    border-radius: 2px;
     outline: none;
-    width: 2rem;
+    width: 20px;
+    height: 20px;
     margin: 1px;
-    line-height: 2rem;
+    line-height: 20px;
   }
 
   button {

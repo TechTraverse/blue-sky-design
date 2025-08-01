@@ -2,10 +2,9 @@ import { DateTime, pipe } from "effect";
 import "./rangeDateInput.css";
 import { Button, Calendar, CalendarCell, CalendarGrid, DateField, DateInput, DatePicker, DateSegment, Dialog, FieldError, Group, Heading, Label, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
-import { FaArrowDown } from "react-icons/fa";
+import { FaCalendarAlt } from "react-icons/fa";
 
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
-import { IoIosArrowDropright, IoIosArrowUp } from "react-icons/io";
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 
 interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
@@ -21,12 +20,12 @@ function SliderDatePicker<T extends DateValue>(
   return (
     <DatePicker {...props}>
       <Label>{label}</Label>
-      <Group>
-        <DateInput>
+      <Group className={'slider-date-picker-group'}>
+        <DateInput className={"slider-date-picker-input"}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
         <Button>
-          <IoIosArrowUp />
+          <FaCalendarAlt />
         </Button>
       </Group>
       {description && <Text slot="description">{description}</Text>}
