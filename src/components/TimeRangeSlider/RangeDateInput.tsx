@@ -85,11 +85,9 @@ function SliderDatePicker<T extends DateValue>(
   </>);
 }
 
-export const RangeDateInput = ({ startDateTime, endDateTime, setStartDateTime, setEndDateTime }: {
+export const RangeDateInput = ({ startDateTime, setStartDateTime }: {
   startDateTime?: DateTime.DateTime,
-  endDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
-  setEndDateTime?: (date: DateTime.DateTime) => void,
 }) => {
   const calendarDateTime = startDateTime ? pipe(
     DateTime.toParts(startDateTime),

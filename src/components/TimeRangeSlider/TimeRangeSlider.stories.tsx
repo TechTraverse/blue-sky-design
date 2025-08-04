@@ -14,6 +14,6 @@ export const Default: Story = {
   args: {
     user: {},
     initialStartDate: 1752991200000,
-    initialEndDate: 1753164000000
+    initialDuration: 300000, // 5 minutes in milliseconds
   }
 };

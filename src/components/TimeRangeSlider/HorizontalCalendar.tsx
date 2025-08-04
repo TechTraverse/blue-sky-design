@@ -76,6 +76,10 @@ export const HorizontalCalendar = ({
     resetSelectedDateTimes?: () => void
   }) => {
 
+  /**
+   * Temporary range and mode for the calendar.
+   */
+
   const [tempRangeAndMode, _setTempRangeAndMode] =
     useState<RangeSelection>({
       mode: RangeSelectionMode.FinalRangeSelected,
@@ -88,7 +92,6 @@ export const HorizontalCalendar = ({
         ({ start, end }) => setSelectedDateRange?.({ start, end }))
     _setTempRangeAndMode(r);
   }
-
   useEffect(() => {
     _setTempRangeAndMode({
       mode: RangeSelectionMode.FinalRangeSelected,
