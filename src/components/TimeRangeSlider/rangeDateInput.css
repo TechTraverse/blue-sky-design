@@ -127,13 +127,14 @@
 .slider-date-picker {
   z-index: 10000;;
   --background-color: #fff;
-  left: 500px;
+  right: 15px;
   bottom: 100px;
   border: 1px solid var(--border-color);
   background: var(--background-color);
   color: var(--text-color);
   border-radius: 2px;
   outline: none;
+  min-width: fit-content;
   max-width: 350px;
   transition: transform .2s,opacity .2s;
   box-shadow: 0 8px 20px #0000001a;
@@ -175,7 +176,7 @@
     svg {
       width: 1.5rem;
       height: 1.5rem;
-      color: #555;
+      color: #1976d2;
     }
   }
 }
