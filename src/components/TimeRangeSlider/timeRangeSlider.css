@@ -28,6 +28,16 @@
   height: 100%;
   border: 1px solid white;
   padding: 0 20px;
+  color: #fff;
+
+  svg {
+    color: #1976d2;
+    transform: scale(1.7);
+  }
+}
+
+.horizontal-calendar-grid-body {
+  padding: 0 0 0 5px ;
 }
 
 .horizontal-calendar-grid-body {

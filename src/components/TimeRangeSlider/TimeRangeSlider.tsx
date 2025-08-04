@@ -189,7 +189,7 @@ export const TimeRangeSlider = ({
 
   return (
     <div {...calendarProps} ref={sliderRef} className="time-range-slider">
-      <Button primary={true} className="next-prev-date-range" {...prevButtonProps}>
+      <button className="next-prev-date-range" {...prevButtonProps}>
         <IoIosArrowBack
           onClick={() => {
             const newStart = DateTime.subtractDuration(
@@ -205,9 +205,10 @@ export const TimeRangeSlider = ({
           }}
           title='Previous'
         />
-      </Button>
+      </button>
       <RangeCalendar
         ref={rangeCalendarRef}
+        className={"horizontal-calendar-grid-body"}
         defaultValue={{
           start: parseDate(DateTime.formatIsoDate(s.selectedStartDateTime)),
           end: parseDate(DateTime.formatIsoDate(s.selectedEndDateTime)),
@@ -227,7 +228,7 @@ export const TimeRangeSlider = ({
           viewStartDateTime={s.viewStartDateTime}
           viewEndDateTime={s.viewEndDateTime} />
       </RangeCalendar>
-      <Button primary={true} className="next-prev-date-range" {...nextButtonProps}>
+      <button className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
           onClick={() => {
             const newEnd = DateTime.addDuration(
@@ -243,7 +244,7 @@ export const TimeRangeSlider = ({
           }}
           title='Next'
         />
-      </Button>
+      </button>
       <RangeDateInput
         startDateTime={s.selectedStartDateTime}
         endDateTime={s.selectedEndDateTime}
