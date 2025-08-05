@@ -103,6 +103,7 @@ export const HorizontalCalendar = ({
   const daysByMonth = chunkDaysByMonth({
     start: viewStartDateTime, end: viewEndDateTime
   });
+  console.log(DateTime.formatIsoDate(viewStartDateTime), DateTime.formatIsoDate(viewEndDateTime));
 
   return (
     <div

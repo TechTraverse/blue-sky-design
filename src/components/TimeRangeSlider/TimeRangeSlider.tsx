@@ -2,7 +2,6 @@ import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Option as O, Data as D, Duration } from 'effect';
-import { Button } from '../Button';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar } from 'react-aria-components';
 import { createCalendar, parseDate } from '@internationalized/date';
@@ -12,6 +11,7 @@ import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
 import { TimeDuration } from './timeSliderTypes';
+import type { Unit } from 'effect/Duration';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -89,13 +89,13 @@ const reducer = (state: State, action: Action): State =>
     }),
   })(action);
 
-const widthToDuration = (width: number) => match(width)
-  .with(P.number.lt(350), () => ({ days: 7 }))
-  .with(P.number.lt(700), () => ({ days: 14 }))
-  .with(P.number.lt(1050), () => ({ days: 21 }))
-  .with(P.number.lt(1400), () => ({ days: 28 }))
-  .with(P.number.lt(1750), () => ({ days: 35 }))
-  .otherwise(() => ({ days: 42 }));
+const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
+  .with(P.number.lt(350), () => Duration.hours(6))
+  .with(P.number.lt(700), () => Duration.hours(12))
+  .with(P.number.lt(1050), () => Duration.hours(18))
+  .with(P.number.lt(1400), () => Duration.hours(24))
+  .with(P.number.lt(1750), () => Duration.hours(30))
+  .otherwise(() => Duration.hours(72));
 
 export const TimeRangeSlider = ({
   initialStartDate,
@@ -167,11 +167,9 @@ export const TimeRangeSlider = ({
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        const newDuration = widthToDuration(width);
+        const viewDuration = widthToDuration(width);
 
-        d(SetViewDuration({
-          viewDuration: Duration.days(newDuration.days),
-        }));
+        d(SetViewDuration({ viewDuration }));
       }
     });
 
