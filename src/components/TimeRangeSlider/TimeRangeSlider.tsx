@@ -90,12 +90,12 @@ const reducer = (state: State, action: Action): State =>
   })(action);
 
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
-  .with(P.number.lt(350), () => Duration.hours(3))
-  .with(P.number.lt(700), () => Duration.hours(6))
-  .with(P.number.lt(1050), () => Duration.hours(9))
-  .with(P.number.lt(1400), () => Duration.hours(12))
-  .with(P.number.lt(1750), () => Duration.hours(15))
-  .with(P.number.lt(2100), () => Duration.hours(18))
+  .with(P.number.lt(350), () => Duration.hours(1))
+  .with(P.number.lt(700), () => Duration.hours(2))
+  .with(P.number.lt(1050), () => Duration.hours(3))
+  .with(P.number.lt(1400), () => Duration.hours(4))
+  .with(P.number.lt(1750), () => Duration.hours(5))
+  .with(P.number.lt(2100), () => Duration.hours(6))
   .otherwise(() => Duration.hours(21));
 
 export const TimeRangeSlider = ({

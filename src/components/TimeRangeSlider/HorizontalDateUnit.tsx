@@ -84,7 +84,7 @@ export const HorizontalDateUnit = ({
         }
         {
           minutes === 0 ? <div>{hours}</div> :
-            <div>.</div>
+            <div>•</div>
         }
       </div>
     </button>
