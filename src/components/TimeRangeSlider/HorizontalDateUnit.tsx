@@ -8,16 +8,14 @@ const { FinalRangeSelected, RangeInProgress } = RangeSelectionMode;
 
 export const HorizontalDateUnit = ({
   d,
-  dayOfWeek,
   dateTimeRangeAndMode,
   setDateTimeRangeAndMode,
 }: {
   d: DateTime.DateTime,
-  dayOfWeek: string,
   dateTimeRangeAndMode: RangeSelection,
   setDateTimeRangeAndMode: (range: RangeSelection) => void,
 }) => {
-  const { day, month, year } = DateTime.toParts(d);
+  const { minutes, month, day, hours } = DateTime.toParts(d);
 
   const [isSelected, setIsSelected] = useState<boolean>(false);
   const [selectionMode, setSelectionMode] = useState<RangeSelectionMode>(dateTimeRangeAndMode.mode);
@@ -40,7 +38,7 @@ export const HorizontalDateUnit = ({
     setIsSelected(isSelected);
   }, [dateTimeRangeAndMode, d]);
 
-  return (<td key={`${year}-${month}-${day}`}>
+  return (<td key={`${day}-${month}-${minutes}`}>
     <button
       className="horizontal-day-button"
       onClick={() => {
@@ -79,10 +77,10 @@ export const HorizontalDateUnit = ({
       }}
     >
       <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
-        <div>
-          {dayOfWeek}
-        </div>
-        <div>{day}</div>
+        {
+          minutes === 0 ? <div>{hours}</div> :
+            <div>.</div>
+        }
       </div>
     </button>
   </td>)

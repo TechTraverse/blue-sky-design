@@ -103,40 +103,35 @@ export const HorizontalCalendar = ({
   const daysByMonth = chunkDaysByMonth({
     start: viewStartDateTime, end: viewEndDateTime
   });
-  console.log(DateTime.formatIsoDate(viewStartDateTime), DateTime.formatIsoDate(viewEndDateTime));
+  // console.log(DateTime.formatIsoDate(viewStartDateTime), DateTime.formatIsoDate(viewEndDateTime));
+  const viewInMinIncrements = [];
+  for (let date = viewStartDateTime;
+    DateTime.lessThanOrEqualTo(date, viewEndDateTime);
+    date = DateTime.add(date, { minutes: 10 })) {
+    viewInMinIncrements.push(date);
+  }
 
   return (
     <div
       className="horizontal-calendar-grid"
-      style={{
-        gridTemplateColumns:
-          `${daysByMonth.map(x => x.length).join('fr ')}fr`
-      }}>
-      {daysByMonth.map((x => {
-        const month = DateTime.getPart(x[0].dateTime, "month");
-        const year = DateTime.getPart(x[0].dateTime, "year");
-        const plainEnglishMonth = getMonth(month);
-
-        return (<div className="month-column" key={`${year}-${month}`}>
-          <div className="month-header">
-            {x.length > 3 ? `${plainEnglishMonth} ${year}` : ""}
-          </div>
-          <table>
-            <tbody className="horizontal-calendar-grid-body">
-              <tr>
-                {x.map(({ dateTime: d, dayOfWeek }: DayData) =>
-                  <HorizontalDateUnit
-                    key={`${DateTime.getPart(d, "year")}-${DateTime.getPart(d, "month")}-${DateTime.getPart(d, "day")}`}
-                    d={d}
-                    dayOfWeek={dayOfWeek}
-                    dateTimeRangeAndMode={tempRangeAndMode}
-                    setDateTimeRangeAndMode={setTempRangeAndMode}
-                  />
-                )}
-              </tr>
-            </tbody>
-          </table>
-        </div>);
-      }))}
+    // style={{
+    //   gridTemplateColumns:
+    //     `${daysByMonth.map(x => x.length).join('fr ')}fr`
+    // }}
+    >
+      <table>
+        <tbody className="horizontal-calendar-grid-body">
+          <tr>
+            {viewInMinIncrements.map((x: DateTime.DateTime) =>
+              <HorizontalDateUnit
+                key={DateTime.formatIso(x)}
+                d={x}
+                dateTimeRangeAndMode={tempRangeAndMode}
+                setDateTimeRangeAndMode={setTempRangeAndMode}
+              />
+            )}
+          </tr>
+        </tbody>
+      </table>
     </div>);
 }
