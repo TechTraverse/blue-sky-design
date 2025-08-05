@@ -78,6 +78,11 @@ export const HorizontalDateUnit = ({
     >
       <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
         {
+          hours === 0 && minutes === 0 ? <div className="horizontal-day-column-label">{DateTime.formatIsoDate(d)}</div> :
+            <span> </span>
+
+        }
+        {
           minutes === 0 ? <div>{hours}</div> :
             <div>.</div>
         }
