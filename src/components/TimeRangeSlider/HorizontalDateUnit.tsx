@@ -16,6 +16,8 @@ export const HorizontalDateUnit = ({
   const { minutes, month, day, hours } = DateTime.toParts(d);
 
   const [isSelected, setIsSelected] = useState<boolean>(false);
+  const [leftDurationChangeActive, setLeftDurationChangeActive] = useState<boolean>(false);
+  const [rightDurationChangeActive, setRightDurationChangeActive] = useState<boolean>(false);
 
   useEffect(() => {
     const { start: tStart, end: tEnd } = dateTimeRange;
@@ -45,12 +47,32 @@ export const HorizontalDateUnit = ({
         {
           isSelected
             ? <div className="horizontal-day-row-selected">
-              <div className="left-selected-border" />
-              {minutes === 0 ? <div>{hours}</div> : <div>{" "}</div>}
-              <div className="right-selected-border" />
+              <div className={`left-selected-border ${leftDurationChangeActive ? "left-duration-active" : ""}`}
+                onMouseEnter={() => setLeftDurationChangeActive(true)}
+                onMouseLeave={() => setLeftDurationChangeActive(false)}
+              />
+              <div className="cell-content-grid">
+                <div className="blank-cell-space" />
+                {minutes === 0
+                  ? <div className="cell-content">{hours}</div>
+                  : <div className="cell-content">{" "}</div>}
+                <div className="blank-cell-space" />
+              </div>
+              <div className={`right-selected-border ${rightDurationChangeActive ? "right-duration-active" : ""}`}
+                onMouseEnter={() => setRightDurationChangeActive(true)}
+                onMouseLeave={() => setRightDurationChangeActive(false)}
+              />
             </div>
-            : <div className={`horizontal-day-column`}>
-              {minutes === 0 ? <div>{hours}</div> : <div>{" "}</div>}
+            : <div>
+              <div className="left-unselected-border" />
+              <div className="cell-content-grid">
+                <div className="blank-cell-space" />
+                {minutes === 0
+                  ? <div className="cell-content">{hours}</div>
+                  : <div className="cell-content">{" "}</div>}
+                <div className="blank-cell-space" />
+              </div>
+              <div className="right-unselected-border" />
             </div>
         }
       </button>
