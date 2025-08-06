@@ -32,18 +32,20 @@ export const HorizontalDateUnit = ({
   }, [dateTimeRange, d]);
 
   return (<td key={`${day}-${month}-${minutes}`}>
-    <button
-      className="horizontal-day-button"
-      onClick={() => {
-        setDateTimeRange?.({
-          start: d,
-          end: DateTime.addDuration(d, duration)
-        });
-      }}
-    >
-      <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
-        {minutes === 0 ? <div>{hours}</div> : <div>•</div>}
-      </div>
-    </button>
+    <div className="date-cell-container">
+      <button
+        className="horizontal-day-button"
+        onClick={() => {
+          setDateTimeRange?.({
+            start: d,
+            end: DateTime.addDuration(d, duration)
+          });
+        }}
+      >
+        <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
+          {minutes === 0 ? <div>{hours}</div> : <div>{" "}</div>}
+        </div>
+      </button>
+    </div>
   </td>)
 }

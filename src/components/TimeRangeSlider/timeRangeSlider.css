@@ -38,9 +38,6 @@
 
 .horizontal-calendar-grid-body {
   padding: 0 0 0 5px ;
-}
-
-.horizontal-calendar-grid-body {
   display: flex;
   flex-direction: row;
   overflow-x: auto;
@@ -48,6 +45,10 @@
   width: 100%;
   border-collapse: collapse;
   td {
+    /* display: flex;
+    justify-content: end;
+    flex-direction: row; */
+    vertical-align: bottom;
     padding: 0;
     margin: 0;
   }
