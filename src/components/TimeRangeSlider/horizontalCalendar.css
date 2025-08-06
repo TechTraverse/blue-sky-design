@@ -10,6 +10,11 @@
   }
 }
 
+.horizontal-calendar-grid-header-label {
+  font-size: 13px;
+  color: #555;
+}
+
 .month-column {
   display: flex;
   flex-direction: column;

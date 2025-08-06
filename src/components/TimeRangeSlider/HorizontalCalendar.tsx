@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { HorizontalDateUnit } from "./HorizontalDateUnit";
 import { RangeSelectionMode, type RangeSelection } from "./timeSliderTypes";
 import { match } from "ts-pattern";
+import { head } from "lodash";
 
 type DayData = {
   dayOfWeek: string;
@@ -111,14 +112,31 @@ export const HorizontalCalendar = ({
     viewInMinIncrements.push(date);
   }
 
+  const dayDividerIndex = viewInMinIncrements.findIndex(
+    (d: DateTime.DateTime) => DateTime.getPart(d, "hours") === 0 &&
+      DateTime.getPart(d, "minutes") === 10);
+  const headerGridLocation = dayDividerIndex === -1
+    ? "1 / 4"
+    : `${dayDividerIndex} / ${dayDividerIndex + 4}`;
+
   return (
-    <div
-      className="horizontal-calendar-grid"
-    // style={{
-    //   gridTemplateColumns:
-    //     `${daysByMonth.map(x => x.length).join('fr ')}fr`
-    // }}
-    >
+    <div className="horizontal-calendar-grid">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns:
+            `${viewInMinIncrements.map(() => 1).join('fr ')}fr`
+        }}
+      >
+        <div style={{ gridColumn: headerGridLocation }} className="horizontal-calendar-grid-header">
+          <div className="horizontal-calendar-grid-header-label">
+            {`${getMonth(DateTime.getPart(viewEndDateTime, "month"))} ` +
+              `${DateTime.getPart(viewEndDateTime, "day")}, ` +
+              `${DateTime.getPart(viewEndDateTime, "year")}`}
+          </div>
+        </div>
+      </div>
+
       <table>
         <tbody className="horizontal-calendar-grid-body">
           <tr>
