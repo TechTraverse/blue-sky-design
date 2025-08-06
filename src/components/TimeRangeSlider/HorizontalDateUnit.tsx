@@ -1,31 +1,24 @@
 import type { RangeValue } from "@react-types/shared";
-import { DateTime } from "effect";
+import { DateTime, Duration } from "effect";
 import { useEffect, useState } from "react";
-import { match } from "ts-pattern";
-import { RangeSelectionMode, type RangeSelection } from "./timeSliderTypes";
-
-const { FinalRangeSelected, RangeInProgress } = RangeSelectionMode;
 
 export const HorizontalDateUnit = ({
   d,
-  dateTimeRangeAndMode,
-  setDateTimeRangeAndMode,
+  dateTimeRange,
+  duration,
+  setDateTimeRange,
 }: {
   d: DateTime.DateTime,
-  dateTimeRangeAndMode: RangeSelection,
-  setDateTimeRangeAndMode: (range: RangeSelection) => void,
+  dateTimeRange: RangeValue<DateTime.DateTime>,
+  duration: Duration.Duration,
+  setDateTimeRange?: (range: RangeValue<DateTime.DateTime>) => void,
 }) => {
   const { minutes, month, day, hours } = DateTime.toParts(d);
 
   const [isSelected, setIsSelected] = useState<boolean>(false);
-  const [selectionMode, setSelectionMode] = useState<RangeSelectionMode>(dateTimeRangeAndMode.mode);
 
   useEffect(() => {
-    setSelectionMode(dateTimeRangeAndMode.mode);
-  }, [dateTimeRangeAndMode.mode]);
-
-  useEffect(() => {
-    const { start: tStart, end: tEnd } = dateTimeRangeAndMode;
+    const { start: tStart, end: tEnd } = dateTimeRange;
     const isSelected =
       DateTime.between(d, {
         minimum: tStart,
@@ -36,44 +29,16 @@ export const HorizontalDateUnit = ({
         maximum: tStart
       });
     setIsSelected(isSelected);
-  }, [dateTimeRangeAndMode, d]);
+  }, [dateTimeRange, d]);
 
   return (<td key={`${day}-${month}-${minutes}`}>
     <button
       className="horizontal-day-button"
       onClick={() => {
-        match(selectionMode)
-          // First range click
-          .with(FinalRangeSelected, () => {
-            // Reset the range selection
-            setDateTimeRangeAndMode({
-              mode: RangeInProgress,
-              start: d,
-              end: d
-            });
-          })
-          // Second range click
-          .with(RangeInProgress, () => {
-            const newRange: RangeValue<DateTime.DateTime> =
-              DateTime.lessThanOrEqualTo(dateTimeRangeAndMode.start, d) ?
-                { start: dateTimeRangeAndMode.start, end: d } :
-                { start: d, end: dateTimeRangeAndMode.start };
-            setDateTimeRangeAndMode({
-              mode: FinalRangeSelected,
-              start: newRange.start,
-              end: newRange.end
-            });
-          })
-      }}
-      onMouseEnter={() => {
-        match(selectionMode)
-          .with(RangeInProgress, () => {
-            setDateTimeRangeAndMode({
-              mode: RangeInProgress,
-              start: dateTimeRangeAndMode.start,
-              end: d
-            });
-          })
+        setDateTimeRange?.({
+          start: d,
+          end: DateTime.addDuration(d, duration)
+        });
       }}
     >
       <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>

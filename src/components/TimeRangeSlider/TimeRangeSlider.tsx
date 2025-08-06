@@ -185,16 +185,6 @@ export const TimeRangeSlider = ({
     };
   }, []);
 
-  /**
-   * Update view range based upon newly selected date range.
-   */
-  useEffect(() => {
-    d(SetViewStartAndEndDateTimes({
-      viewStartDateTime: s.selectedStartDateTime,
-      viewEndDateTime: DateTime.addDuration(s.selectedStartDateTime, s.viewDuration),
-    }));
-  }, [s.selectedStartDateTime, s.viewDuration]);
-
   return (
     <div {...calendarProps} ref={sliderRef} className="time-range-slider">
       <button className="next-prev-date-range" {...prevButtonProps}>
@@ -225,6 +215,11 @@ export const TimeRangeSlider = ({
         visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
         <HorizontalCalendar
+          duration={s.selectedDuration}
+          selectedDateRange={{
+            start: s.selectedStartDateTime,
+            end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+          }}
           setSelectedDateRange={
             (dateRange: RangeValue<DateTime.DateTime>) => {
               d(SetSelectedDateTimeAndDuration({
@@ -232,10 +227,6 @@ export const TimeRangeSlider = ({
                 duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
               }));
             }}
-          selectedDateRange={{
-            start: s.selectedStartDateTime,
-            end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-          }}
           viewStartDateTime={s.viewStartDateTime}
           viewEndDateTime={s.viewEndDateTime} />
       </RangeCalendar>

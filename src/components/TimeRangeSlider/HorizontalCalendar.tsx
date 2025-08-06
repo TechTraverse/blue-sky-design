@@ -1,12 +1,8 @@
 import "./horizontalCalendar.css";
 import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
-import { DateTime } from "effect";
-import { useEffect, useState } from "react";
+import { DateTime, Duration } from "effect";
 import { HorizontalDateUnit } from "./HorizontalDateUnit";
-import { RangeSelectionMode, type RangeSelection } from "./timeSliderTypes";
-import { match } from "ts-pattern";
-import { head } from "lodash";
 
 type DayData = {
   dayOfWeek: string;
@@ -44,32 +40,11 @@ const getMonth = (number: number): string => {
   }
 }
 
-const getDayData = (dateTime: DateTime.DateTime): DayData => ({
-  dateTime,
-  dayOfWeek: getDayOfWeek(DateTime.getPart(dateTime, "weekDay")),
-});
-
-const chunkDaysByMonth:
-  (range: RangeValue<DateTime.DateTime> | null) => DayData[][] =
-  f.flow([
-    ({ start, end }: RangeValue<DateTime.DateTime>) => {
-      const entries: DateTime.DateTime[] = [];
-      for (let date = start; DateTime.lessThanOrEqualTo(date, end); date = DateTime.add(date, { days: 1 })) {
-        entries.push(date);
-      }
-      return entries;
-    },
-    f.map(getDayData),
-    f.groupBy(({ dateTime: d }: DayData) => `${DateTime.getPart(d, "year")}-${DateTime.getPart(d, "month") < 10 ? "0" : ""}${DateTime.getPart(d, "month")}`),
-    Object.entries,
-    f.sortBy(["0"]),
-    f.map(([, value]: [string, DayData[]]) => value)
-  ]);
-
 export const HorizontalCalendar = ({
-  viewStartDateTime, viewEndDateTime,
+  duration, viewStartDateTime, viewEndDateTime,
   selectedDateRange,
   setSelectedDateRange }: {
+    duration: Duration.Duration,
     viewStartDateTime: DateTime.DateTime
     viewEndDateTime: DateTime.DateTime
     selectedDateRange: RangeValue<DateTime.DateTime>
@@ -77,34 +52,6 @@ export const HorizontalCalendar = ({
     resetSelectedDateTimes?: () => void
   }) => {
 
-  /**
-   * Temporary range and mode for the calendar.
-   */
-
-  const [tempRangeAndMode, _setTempRangeAndMode] =
-    useState<RangeSelection>({
-      mode: RangeSelectionMode.FinalRangeSelected,
-      start: selectedDateRange.start,
-      end: selectedDateRange.end
-    });
-  const setTempRangeAndMode = (r: RangeSelection) => {
-    match(r)
-      .with({ mode: RangeSelectionMode.FinalRangeSelected },
-        ({ start, end }) => setSelectedDateRange?.({ start, end }))
-    _setTempRangeAndMode(r);
-  }
-  useEffect(() => {
-    _setTempRangeAndMode({
-      mode: RangeSelectionMode.FinalRangeSelected,
-      start: selectedDateRange.start,
-      end: selectedDateRange.end
-    });
-  }, [selectedDateRange.start, selectedDateRange.end]);
-
-  const daysByMonth = chunkDaysByMonth({
-    start: viewStartDateTime, end: viewEndDateTime
-  });
-  // console.log(DateTime.formatIsoDate(viewStartDateTime), DateTime.formatIsoDate(viewEndDateTime));
   const viewInMinIncrements = [];
   for (let date = viewStartDateTime;
     DateTime.lessThanOrEqualTo(date, viewEndDateTime);
@@ -142,10 +89,11 @@ export const HorizontalCalendar = ({
           <tr>
             {viewInMinIncrements.map((x: DateTime.DateTime) =>
               <HorizontalDateUnit
+                duration={duration}
                 key={DateTime.formatIso(x)}
                 d={x}
-                dateTimeRangeAndMode={tempRangeAndMode}
-                setDateTimeRangeAndMode={setTempRangeAndMode}
+                dateTimeRange={selectedDateRange}
+                setDateTimeRange={setSelectedDateRange}
               />
             )}
           </tr>

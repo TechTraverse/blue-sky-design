@@ -56,7 +56,7 @@ function SliderDatePicker<T extends DateValue>(
     <Group className={'range-selection-group'}>
       <FormControl fullWidth>
         <InputLabel variant="standard" htmlFor="uncontrolled-native">
-          Duration:
+          Interval:
         </InputLabel>
         <NativeSelect
           defaultValue={300}

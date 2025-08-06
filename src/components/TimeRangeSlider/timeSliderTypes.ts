@@ -1,16 +1,3 @@
-import { type DateTime } from "effect";
-
-export enum RangeSelectionMode {
-  RangeInProgress,
-  FinalRangeSelected,
-}
-
-export type RangeSelection = {
-  mode: RangeSelectionMode;
-  start: DateTime.DateTime;
-  end: DateTime.DateTime;
-};
-
 export enum TimeDuration {
   "1m" = 60000, // 1 minute in milliseconds
   "5m" = 300000, // 5 minutes in milliseconds
