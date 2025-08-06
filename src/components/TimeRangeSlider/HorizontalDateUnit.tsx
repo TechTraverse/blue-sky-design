@@ -42,9 +42,17 @@ export const HorizontalDateUnit = ({
           });
         }}
       >
-        <div className={`horizontal-day-column ${isSelected ? 'horizontal-day-column-selected' : ''}`}>
-          {minutes === 0 ? <div>{hours}</div> : <div>{" "}</div>}
-        </div>
+        {
+          isSelected
+            ? <div className="horizontal-day-row-selected">
+              <div className="left-selected-border" />
+              {minutes === 0 ? <div>{hours}</div> : <div>{" "}</div>}
+              <div className="right-selected-border" />
+            </div>
+            : <div className={`horizontal-day-column`}>
+              {minutes === 0 ? <div>{hours}</div> : <div>{" "}</div>}
+            </div>
+        }
       </button>
     </div>
   </td>)
