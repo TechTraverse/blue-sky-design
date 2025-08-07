@@ -150,9 +150,8 @@ export const HorizontalCalendar = ({
         <Slider
           getAriaLabel={() => 'Minimum distance'}
           value={sliderSelectedDateRange}
-          onChange={(__, newValue) => {
-            if (sliderActive) {
-              console.log("Slider value changed:", newValue);
+          onChange={(e, newValue) => {
+            if (e.type === "mousemove") {
               const [start, end] = newValue as number[];
               setSelectedDateRange?.({
                 start: DateTime.unsafeFromDate(new Date(start)),
