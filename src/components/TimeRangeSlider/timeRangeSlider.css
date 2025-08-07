@@ -37,6 +37,7 @@
 }
 
 .horizontal-calendar-grid-body {
+  height: 80px;
   overflow: clip;
   display: flex;
   flex-direction: row;
@@ -56,4 +57,28 @@
 
 .bottom-calendar-container {
   margin-bottom: 80px;
+}
+
+.hide-slider-components {
+  .MuiSlider-thumb {
+    display: none;
+  }
+  .MuiSlider-track {
+    display: none;
+  }
+}
+
+.hour-marks, .minute-marks {
+  font-size: 11px;
+  display: flex;
+  align-items: right;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-overflow: unset;
+}
+
+.hour-marks {
+  font-size: 14px;
+  font-weight: bold;
 }

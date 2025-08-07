@@ -11,11 +11,11 @@ import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
 import { TimeDuration } from './timeSliderTypes';
-import type { Unit } from 'effect/Duration';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
   initialDuration?: TimeDuration;
+  increment?: TimeDuration;
   onDateRangeSelect?: () => void;
 }
 
@@ -101,6 +101,7 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
 export const TimeRangeSlider = ({
   initialStartDate,
   initialDuration = TimeDuration['5m'],
+  increment = TimeDuration['5m'],
   onDateRangeSelect,
 }: TimeRangeSliderProps) => {
 
@@ -215,6 +216,7 @@ export const TimeRangeSlider = ({
         visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
         <HorizontalCalendar
+          increment={increment}
           duration={s.selectedDuration}
           selectedDateRange={{
             start: s.selectedStartDateTime,
