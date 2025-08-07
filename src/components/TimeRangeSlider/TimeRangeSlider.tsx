@@ -256,6 +256,10 @@ export const TimeRangeSlider = ({
             start: date,
             duration: DateTime.distanceDuration(date, DateTime.addDuration(date, s.selectedDuration))
           }));
+          d(SetViewStartAndEndDateTimes({
+            viewStartDateTime: date,
+            viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
+          }));
         }}
       />
     </div>
