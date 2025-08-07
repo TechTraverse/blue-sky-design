@@ -37,10 +37,10 @@
 }
 
 .horizontal-calendar-grid-body {
-  padding: 0 0 0 5px ;
+  overflow: clip;
   display: flex;
   flex-direction: row;
-  overflow-x: auto;
+  overflow-x: clip;
   overflow-y: hidden;
   width: 100%;
   border-collapse: collapse;

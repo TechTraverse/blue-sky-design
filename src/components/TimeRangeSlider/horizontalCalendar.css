@@ -11,8 +11,23 @@
 }
 
 .horizontal-calendar-grid-header-label {
+  margin-left: 10px;
   font-size: 13px;
   color: #555;
+}
+
+.hour-marks, .minute-marks {
+  display: flex;
+  align-items: right;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-overflow: unset;
+}
+
+.hour-marks {
+  font-size: 16px;
+  font-weight: bold;
 }
 
 .month-column {
@@ -139,5 +154,14 @@
     align-items: start;
     justify-content: center;
     position: relative;
+  }
+}
+
+.hide-slider-components {
+  .MuiSlider-thumb {
+    display: none;
+  }
+  .MuiSlider-track {
+    display: none;
   }
 }

@@ -3,6 +3,11 @@ import f from 'lodash/fp';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Duration } from "effect";
 import { HorizontalDateUnit } from "./HorizontalDateUnit";
+import Slider from "@mui/material/Slider";
+import Box from "@mui/material/Box";
+import { useEffect, useState } from "react";
+import { value } from "effect/Redacted";
+import { date } from "effect/FastCheck";
 
 type DayData = {
   dayOfWeek: string;
@@ -40,6 +45,26 @@ const getMonth = (number: number): string => {
   }
 }
 
+type Step = {
+  label: React.ReactNode
+  value: number;
+}
+const createStepsOverRange = (start: number, end: number, step: number): Step[] => {
+  const steps: { label: string, value: number }[] = [];
+  for (let i = start; i <= end; i += step) {
+    const minutes = DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "minutes");
+    const label = minutes === 0
+      ? <div className="hour-marks">{DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "hours").toString()}</div>
+      : <div className="minute-marks">{minutes.toString()}</div>;
+
+    steps.push({
+      value: i,
+      label
+    });
+  }
+  return steps;
+}
+
 export const HorizontalCalendar = ({
   duration, viewStartDateTime, viewEndDateTime,
   selectedDateRange,
@@ -51,6 +76,63 @@ export const HorizontalCalendar = ({
     setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
     resetSelectedDateTimes?: () => void
   }) => {
+
+  /**
+   * View range and step settings
+   */
+  const [viewRangeAndStep, setViewRangeAndStep] = useState<{
+    start: number;
+    end: number;
+    stepArr: Step[];
+  }>({
+    start: DateTime.toEpochMillis(viewStartDateTime),
+    end: DateTime.toEpochMillis(viewEndDateTime),
+    stepArr: createStepsOverRange(
+      DateTime.toEpochMillis(viewStartDateTime),
+      DateTime.toEpochMillis(viewEndDateTime),
+      // 10m in milliseconds
+      10 * 60 * 1000)
+  });
+  useEffect(() => {
+    setViewRangeAndStep({
+      start: DateTime.toEpochMillis(viewStartDateTime),
+      end: DateTime.toEpochMillis(viewEndDateTime),
+      stepArr: createStepsOverRange(
+        DateTime.toEpochMillis(viewStartDateTime),
+        DateTime.toEpochMillis(viewEndDateTime),
+        10 * 60 * 1000)
+    });
+  }, [viewStartDateTime, viewEndDateTime]);
+
+  /**
+   * Selected date range settings
+   */
+  const [sliderActive, setSliderActive] = useState<boolean>(true);
+  const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number] | []>([
+    DateTime.toEpochMillis(selectedDateRange.start),
+    DateTime.toEpochMillis(selectedDateRange.end)
+  ]);
+  useEffect(() => {
+    if (DateTime.between(selectedDateRange.start, {
+      minimum: viewStartDateTime,
+      maximum: viewEndDateTime
+    }) || DateTime.between(selectedDateRange.end, {
+      minimum: viewStartDateTime,
+      maximum: viewEndDateTime
+    })) {
+      setSliderSelectedDateRange([
+        DateTime.toEpochMillis(selectedDateRange.start),
+        DateTime.toEpochMillis(selectedDateRange.end)
+      ]);
+      setSliderActive(true);
+    } else {
+      setSliderSelectedDateRange([DateTime.toEpochMillis(viewStartDateTime),
+      DateTime.toEpochMillis(viewEndDateTime)]);
+      setSliderActive(false);
+    }
+  }, [selectedDateRange, viewStartDateTime, viewEndDateTime]);
+
+
 
   const viewInMinIncrements = [];
   for (let date = viewStartDateTime;
@@ -67,7 +149,7 @@ export const HorizontalCalendar = ({
     : `${dayDividerIndex} / ${dayDividerIndex + 4}`;
 
   return (
-    <div className="horizontal-calendar-grid">
+    <div className={`horizontal-calendar-grid`}>
       <div
         style={{
           display: 'grid',
@@ -84,7 +166,7 @@ export const HorizontalCalendar = ({
         </div>
       </div>
 
-      <table>
+      {/* <table>
         <tbody className="horizontal-calendar-grid-body">
           <tr>
             {viewInMinIncrements.map((x: DateTime.DateTime) =>
@@ -98,6 +180,43 @@ export const HorizontalCalendar = ({
             )}
           </tr>
         </tbody>
-      </table>
+      </table> */}
+      <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${sliderActive ? "" : "hide-slider-components"}`}>
+        <Slider
+          getAriaLabel={() => 'Minimum distance'}
+          value={sliderSelectedDateRange}
+          onChange={(__, newValue) => {
+            if (sliderActive) {
+              console.log("Slider value changed:", newValue);
+              const [start, end] = newValue as number[];
+              setSelectedDateRange?.({
+                start: DateTime.unsafeFromDate(new Date(start)),
+                end: DateTime.unsafeFromDate(new Date(end))
+              });
+            } else {
+              const [oldX] = sliderSelectedDateRange;
+              const [newX, newY] = newValue;
+              const newDateTime = oldX === newX ? newY : newX;
+              const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
+              const dateTimeEnd = DateTime.addDuration(
+                dateTimeStart, duration)
+              setSelectedDateRange?.({
+                start: dateTimeStart,
+                end: dateTimeEnd
+              });
+            }
+          }}
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value) => {
+            const date = DateTime.unsafeFromDate(new Date(value));
+            return DateTime.formatIsoDate(date);
+          }}
+          // getAriaValueText={valuetext}
+          disableSwap
+          marks={viewRangeAndStep.stepArr}
+          min={viewRangeAndStep.start}
+          max={viewRangeAndStep.end}
+        />
+      </Box>
     </div>);
 }
