@@ -121,7 +121,7 @@ const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 
 export const TimeRangeSlider = ({
   initialStartDate,
-  initialDuration = TimeDuration['5m'],
+  initialDuration = TimeDuration['10m'],
   increment = TimeDuration['5m'],
   onDateRangeSelect,
 }: TimeRangeSliderProps) => {
@@ -294,6 +294,17 @@ export const TimeRangeSlider = ({
         />
       </button>
       <RangeDateInput
+        animationEnabled={s.animationState._tag === 'AnimationActive'}
+        setAnimationEnabled={(enabled: boolean) => {
+          d(SetAnimationState({
+            animationState: enabled
+              ? AnimationActive({
+                animationStartDateTime: s.selectedStartDateTime,
+                animationDuration: DEFAULT_ANIMATION_DURATION,
+              })
+              : AnimationInactive(),
+          }));
+        }}
         startDateTime={s.selectedStartDateTime}
         setStartDateTime={(date: DateTime.DateTime) => {
           d(SetSelectedDateTimeAndDuration({

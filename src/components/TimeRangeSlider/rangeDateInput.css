@@ -3,7 +3,7 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  width: 100%;
+  width: 210px;
   height: 100%;
   position: relative;
 }
@@ -39,6 +39,16 @@
     align-self: flex-start;
   }
 
+}
+
+.date-calendar-and-switch-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 .slider-date-picker-group {
