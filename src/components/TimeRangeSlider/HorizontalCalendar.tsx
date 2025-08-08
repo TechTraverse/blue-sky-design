@@ -4,6 +4,8 @@ import { DateTime, Duration } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useState } from "react";
+import { $animationMatch, type AnimationState } from "./timeSliderTypes";
+import type { SxProps, Theme } from "@mui/material";
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -46,17 +48,27 @@ const createStepsOverRange = (start: number, end: number, step: number): Step[] 
 }
 
 export const HorizontalCalendar = ({
-  duration, viewStartDateTime, viewEndDateTime, increment,
+  duration,
+  viewStartDateTime,
+  viewEndDateTime,
+  increment,
   selectedDateRange,
-  setSelectedDateRange }: {
-    duration: Duration.Duration,
-    viewStartDateTime: DateTime.DateTime
-    viewEndDateTime: DateTime.DateTime
-    increment?: number,
-    selectedDateRange: RangeValue<DateTime.DateTime>
-    setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
-    resetSelectedDateTimes?: () => void
-  }) => {
+  setSelectedDateRange,
+  setAnimationActive,
+  setAnimationDateRange,
+  animationState,
+}: {
+  duration: Duration.Duration,
+  viewStartDateTime: DateTime.DateTime
+  viewEndDateTime: DateTime.DateTime
+  increment?: number,
+  selectedDateRange: RangeValue<DateTime.DateTime>
+  setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
+  setAnimationActive?: (active: boolean) => void
+  setAnimationDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
+  animationState?: AnimationState
+  resetSelectedDateTimes?: () => void
+}) => {
 
   /**
    * View range and step settings
@@ -86,10 +98,14 @@ export const HorizontalCalendar = ({
   }, [viewStartDateTime, viewEndDateTime]);
 
   /**
-   * Selected date range settings
+   * Slider active state
    */
   const [sliderActive, setSliderActive] = useState<boolean>(true);
-  const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number] | []>([
+
+  /**
+   * Selected date range settings
+   */
+  const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number]>([
     DateTime.toEpochMillis(selectedDateRange.start),
     DateTime.toEpochMillis(selectedDateRange.end)
   ]);
@@ -113,6 +129,32 @@ export const HorizontalCalendar = ({
     }
   }, [selectedDateRange, viewStartDateTime, viewEndDateTime]);
 
+  /**
+   * Slider sx conditional settings
+   */
+  const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
+  useEffect(() => {
+    if (sliderActive) {
+      $animationMatch({
+        AnimationActive: ({ animationStartDateTime, animationDuration }) => {
+          setSliderSx({
+            '& .MuiSlider-track': {
+              background: 'linear-gradient(to right, #FF0000 20%, #0000FF 20% 100%)'
+            },
+            '& .MuiSlider-thumb[data-index="1"]': {
+              height: '12px',
+              width: '12px',
+            }
+          });
+        },
+        AnimationInactive: () => {
+          setSliderSx({});
+        }
+      })
+    } else {
+      setSliderSx({});
+    }
+  }, [sliderActive]);
 
 
   const viewInMinIncrements = [];
@@ -148,9 +190,16 @@ export const HorizontalCalendar = ({
       </div>
       <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${sliderActive ? "" : "hide-slider-components"}`}>
         <Slider
+          // Conditional
+          sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
-          value={sliderSelectedDateRange}
+          // Conditional
+          value={[...sliderSelectedDateRange,
+          sliderSelectedDateRange[0] + 30 * 60 * 1000,
+          sliderSelectedDateRange[0] + 60 * 60 * 1000,
+          ]}
           onChange={(e, newValue) => {
+            console.log("Slider value changed", e);
             if (e.type === "mousemove") {
               const [start, end] = newValue as number[];
               setSelectedDateRange?.({
@@ -160,6 +209,7 @@ export const HorizontalCalendar = ({
             } else {
               const [oldX] = sliderSelectedDateRange;
               const [newX, newY] = newValue;
+              console.log("Percent: ", ((newX - viewRangeAndStep.start) / (viewRangeAndStep.end - viewRangeAndStep.start)) * 100);
               const newDateTime = oldX === newX ? newY : newX;
               const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
               const dateTimeEnd = DateTime.addDuration(

@@ -10,7 +10,7 @@ import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
-import { TimeDuration } from './timeSliderTypes';
+import { $animationMatch, AnimationActive, AnimationInactive, TimeDuration, type AnimationState } from './timeSliderTypes';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -20,12 +20,10 @@ export interface TimeRangeSliderProps {
 }
 
 type State = {
-  // The duration of the view in days
-  viewDuration: Duration.Duration;
-
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
   viewEndDateTime: DateTime.DateTime;
+  viewDuration: Duration.Duration;
 
   // Default date range on init, also what to reset to
   defaultStartDateTime: DateTime.DateTime;
@@ -34,6 +32,9 @@ type State = {
   // User-selected date range
   selectedStartDateTime: DateTime.DateTime;
   selectedDuration: Duration.Duration;
+
+  // Animation state for the calendar
+  animationState: AnimationState;
 };
 
 type Action = D.TaggedEnum<{
@@ -50,18 +51,22 @@ type Action = D.TaggedEnum<{
     start: DateTime.DateTime;
     duration: Duration.Duration;
   };
+  SetAnimationState: {
+    animationState: AnimationState;
+  }
   Reset: object;
 }>;
 
 const {
-  $match,
+  $match: $actionMatch,
   SetViewDuration,
   SetViewStartAndEndDateTimes,
-  SetSelectedDateTimeAndDuration } = D.taggedEnum<Action>();
+  SetSelectedDateTimeAndDuration,
+  SetAnimationState } = D.taggedEnum<Action>();
 
 
 const reducer = (state: State, action: Action): State =>
-  $match({
+  $actionMatch({
     SetViewDuration: (x) => ({
       ...state,
       viewDuration: x.viewDuration,
@@ -80,12 +85,26 @@ const reducer = (state: State, action: Action): State =>
       selectedStartDateTime: x.start,
       selectedDuration: x.duration,
     }),
+    SetAnimationState: (x) => {
+      const { animationState } = x;
+      return $animationMatch({
+        AnimationInactive: () => ({
+          ...state,
+          animationState: AnimationInactive(),
+        }),
+        AnimationActive: (active) => ({
+          ...state,
+          animationState: AnimationActive(active),
+        }),
+      })(animationState);
+    },
     Reset: () => ({
       ...state,
       selectedStartDateTime: state.defaultStartDateTime,
       selectedDuration: state.defaultDuration,
       viewStartDateTime: state.defaultStartDateTime,
       viewEndDateTime: DateTime.addDuration(state.defaultStartDateTime, state.viewDuration),
+      animationState: AnimationInactive(),
     }),
   })(action);
 
@@ -97,6 +116,8 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
   .with(P.number.lt(1750), () => Duration.hours(5))
   .with(P.number.lt(2100), () => Duration.hours(6))
   .otherwise(() => Duration.hours(21));
+
+const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 
 export const TimeRangeSlider = ({
   initialStartDate,
@@ -115,8 +136,8 @@ export const TimeRangeSlider = ({
     O.flatMap(DateTime.make),
     O.getOrElse(() => {
       console.warn(
-        "No start date for range or invalide date provided, using 1 hour date range.");
-      return DateTime.subtract(initEndDateTime, { hours: 1 }) as DateTime.DateTime;
+        "No start date for range or invalide date provided, using current date.");
+      return DateTime.unsafeFromDate(new Date()) as DateTime.DateTime;
     }));
 
   const initEndDateTime: DateTime.DateTime = DateTime.add(initStartDateTime, { millis: initialDuration });
@@ -136,6 +157,8 @@ export const TimeRangeSlider = ({
 
     selectedStartDateTime: initStartDateTime,
     selectedDuration: defaultDuration,
+
+    animationState: AnimationInactive(),
   });
 
   /**
@@ -229,8 +252,29 @@ export const TimeRangeSlider = ({
                 duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
               }));
             }}
+          setAnimationActive={(active: boolean) => {
+            d(SetAnimationState({
+              animationState: active
+                ? AnimationActive({
+                  animationStartDateTime: s.viewStartDateTime,
+                  animationDuration: DEFAULT_ANIMATION_DURATION,
+                })
+                : AnimationInactive(),
+            }));
+          }}
+          setAnimationDateRange={(dateRange: RangeValue<DateTime.DateTime>) => {
+            d(SetAnimationState({
+              animationState: AnimationActive({
+                animationStartDateTime: dateRange.start,
+                animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
+              }),
+            }));
+          }}
+          animationState={s.animationState}
           viewStartDateTime={s.viewStartDateTime}
-          viewEndDateTime={s.viewEndDateTime} />
+          viewEndDateTime={s.viewEndDateTime}
+
+        />
       </RangeCalendar>
       <button className="next-prev-date-range" {...nextButtonProps}>
         <IoIosArrowForward
