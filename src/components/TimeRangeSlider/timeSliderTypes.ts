@@ -1,3 +1,4 @@
+import type { RangeValue } from "@react-types/shared";
 import { Data as D, type DateTime, type Duration } from "effect";
 
 export enum TimeDuration {
@@ -22,3 +23,12 @@ export const {
   $match: $animationMatch,
   AnimationInactive,
   AnimationActive } = D.taggedEnum<AnimationState>();
+
+export type PrimaryRange = RangeValue<DateTime.DateTime> & {
+  set?: (range: { start: DateTime.DateTime; end: DateTime.DateTime }) => void;
+}
+
+export type SubRange = PrimaryRange & {
+  active: boolean;
+  durationChangeable: boolean;
+}

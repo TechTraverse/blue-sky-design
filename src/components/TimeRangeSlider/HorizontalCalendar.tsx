@@ -1,11 +1,10 @@
 import "./horizontalCalendar.css";
-import type { RangeValue } from "@react-types/shared";
 import { DateTime, Duration } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useState } from "react";
-import { $animationMatch, AnimationActive, type AnimationState } from "./timeSliderTypes";
-import type { SxProps, Theme } from "@mui/material";
+import { type PrimaryRange, type SubRange } from "./timeSliderTypes";
+import type { RangeValue } from "@react-types/shared";
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -49,25 +48,22 @@ const createStepsOverRange = (start: number, end: number, step: number): Step[] 
 
 export const HorizontalCalendar = ({
   duration,
-  viewStartDateTime,
-  viewEndDateTime,
   increment,
-  selectedDateRange,
-  setSelectedDateRange,
-  setAnimationDateRange,
-  animationState,
+  primaryRange,
+  viewRange,
+  subRanges,
 }: {
   duration: Duration.Duration,
-  viewStartDateTime: DateTime.DateTime
-  viewEndDateTime: DateTime.DateTime
   increment?: number,
-  selectedDateRange: RangeValue<DateTime.DateTime>
-  setSelectedDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
-  setAnimationActive?: (active: boolean) => void
-  setAnimationDateRange?: (dateRange: RangeValue<DateTime.DateTime>) => void
-  animationState?: AnimationState
-  resetSelectedDateTimes?: () => void
+  primaryRange: PrimaryRange,
+  viewRange: RangeValue<DateTime.DateTime>,
+  subRanges?: SubRange[],
 }) => {
+
+  /**
+   * Slider active state
+   */
+  const [sliderActive, setSliderActive] = useState<boolean>(true);
 
   /**
    * View range and step settings
@@ -77,139 +73,100 @@ export const HorizontalCalendar = ({
     end: number;
     stepArr: Step[];
   }>({
-    start: DateTime.toEpochMillis(viewStartDateTime),
-    end: DateTime.toEpochMillis(viewEndDateTime),
+    start: DateTime.toEpochMillis(viewRange.start),
+    end: DateTime.toEpochMillis(viewRange.end),
     stepArr: createStepsOverRange(
-      DateTime.toEpochMillis(viewStartDateTime),
-      DateTime.toEpochMillis(viewEndDateTime),
+      DateTime.toEpochMillis(viewRange.start),
+      DateTime.toEpochMillis(viewRange.end),
       // 10m in milliseconds
       increment || 10 * 60 * 1000)
   });
   useEffect(() => {
     setViewRangeAndStep({
-      start: DateTime.toEpochMillis(viewStartDateTime),
-      end: DateTime.toEpochMillis(viewEndDateTime),
+      start: DateTime.toEpochMillis(viewRange.start),
+      end: DateTime.toEpochMillis(viewRange.end),
       stepArr: createStepsOverRange(
-        DateTime.toEpochMillis(viewStartDateTime),
-        DateTime.toEpochMillis(viewEndDateTime),
+        DateTime.toEpochMillis(viewRange.start),
+        DateTime.toEpochMillis(viewRange.end),
         increment || 10 * 60 * 1000)
     });
-  }, [viewStartDateTime, viewEndDateTime, increment]);
+  }, [viewRange, increment]);
 
   /**
-   * Slider active state
-   */
-  const [sliderActive, setSliderActive] = useState<boolean>(true);
-
-  /**
-   * Selected date range settings
+   * Selected date range settings and slider active udpates
    */
   const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number] | [number, number, number, number]>([
-    DateTime.toEpochMillis(selectedDateRange.start),
-    DateTime.toEpochMillis(selectedDateRange.end)
+    DateTime.toEpochMillis(primaryRange.start),
+    DateTime.toEpochMillis(primaryRange.end)
   ]);
   useEffect(() => {
-    if (animationState?._tag === "AnimationActive") {
-      return;
-    }
-
-    if (DateTime.between(selectedDateRange.start, {
-      minimum: viewStartDateTime,
-      maximum: viewEndDateTime
-    }) || DateTime.between(selectedDateRange.end, {
-      minimum: viewStartDateTime,
-      maximum: viewEndDateTime
+    if (DateTime.between(primaryRange.start, {
+      minimum: viewRange.start,
+      maximum: viewRange.end
+    }) || DateTime.between(primaryRange.end, {
+      minimum: viewRange.start,
+      maximum: viewRange.end
     })) {
       setSliderSelectedDateRange([
-        DateTime.toEpochMillis(selectedDateRange.start),
-        DateTime.toEpochMillis(selectedDateRange.end)
+        DateTime.toEpochMillis(primaryRange.start),
+        DateTime.toEpochMillis(primaryRange.end)
       ]);
       setSliderActive(true);
     } else {
-      setSliderSelectedDateRange([DateTime.toEpochMillis(viewStartDateTime),
-      DateTime.toEpochMillis(viewEndDateTime)]);
+      setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
+      DateTime.toEpochMillis(viewRange.end)]);
       setSliderActive(false);
     }
-  }, [selectedDateRange, viewStartDateTime, viewEndDateTime, animationState]);
-
-  // useEffect(() =>
-  //   animationState && $animationMatch({
-  //     AnimationActive: () => {
-  //       setAnimationDateRange?.({
-  //         start: DateTime.unsafeFromDate(new Date(sliderSelectedDateRange[0])),
-  //         end: DateTime.unsafeFromDate(new Date(sliderSelectedDateRange[3] || sliderSelectedDateRange[1]))
-  //       });
-  //     },
-  //     AnimationInactive: () => {
-  //       if (DateTime.between(selectedDateRange.start, {
-  //         minimum: viewStartDateTime,
-  //         maximum: viewEndDateTime
-  //       }) || DateTime.between(selectedDateRange.end, {
-  //         minimum: viewStartDateTime,
-  //         maximum: viewEndDateTime
-  //       })) {
-  //         setSliderSelectedDateRange([
-  //           DateTime.toEpochMillis(selectedDateRange.start),
-  //           DateTime.toEpochMillis(selectedDateRange.end)
-  //         ]);
-  //         setSliderActive(true);
-  //       } else {
-  //         setSliderSelectedDateRange([DateTime.toEpochMillis(viewStartDateTime),
-  //         DateTime.toEpochMillis(viewEndDateTime)]);
-  //         setSliderActive(false);
-  //       }
-  //     }
-  //   })(animationState),
-  //   [selectedDateRange, viewStartDateTime, viewEndDateTime, animationState, setAnimationDateRange, sliderSelectedDateRange]);
+  }, [primaryRange, viewRange]);
 
   /**
    * Slider sx conditional settings and selected date range updates
    */
-  const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
-  useEffect(() => {
-    if (sliderActive && animationState && sliderSelectedDateRange.length === 2) {
-      $animationMatch({
-        AnimationActive: ({ animationStartDateTime, animationDuration }) => {
-          const rangeDates = sliderSelectedDateRange.slice(0, 2);
-          const animationStart = DateTime.toEpochMillis(animationStartDateTime);
-          const animationEnd = DateTime.toEpochMillis(
-            DateTime.addDuration(animationStartDateTime, animationDuration));
+  // const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
+  // useEffect(() => {
+  //   if (sliderActive && animationState && sliderSelectedDateRange.length === 2) {
+  //     $animationMatch({
+  //       AnimationActive: ({ animationStartDateTime, animationDuration }) => {
+  //         const rangeDates = sliderSelectedDateRange.slice(0, 2);
+  //         const animationStart = DateTime.toEpochMillis(animationStartDateTime);
+  //         const animationEnd = DateTime.toEpochMillis(
+  //           DateTime.addDuration(animationStartDateTime, animationDuration));
 
-          const linePercent =
-            (rangeDates[1] - viewRangeAndStep.start) /
-            (animationEnd - viewRangeAndStep.start) * 100;
-          console.log("linePercent: ", linePercent);
-          setSliderSx({
-            '& .MuiSlider-track': {
-              background: `linear-gradient(to right, #FF0000 ${linePercent}%, #0000FF ${linePercent}% 100%)`
-            },
-            '& .MuiSlider-thumb[data-index="1"]'
-              : {
-              height: '10px',
-              width: '10px',
-            },
-            '& .MuiSlider-thumb[data-index="2"]'
-              : {
-              height: '10px',
-              width: '10px',
-            }
-          });
-          console.log("slider selected date range: ", sliderSelectedDateRange)
-          setSliderSelectedDateRange([animationStart, ...rangeDates, animationEnd] as [number, number, number, number]);
-        },
-        AnimationInactive: () => {
-          setSliderSx({});
-        }
-      })(animationState);
-    } else if (sliderActive && !animationState) {
-      setSliderSx({});
-    }
-  }, [sliderActive, sliderSelectedDateRange, viewRangeAndStep.end, viewRangeAndStep.start, animationState]);
+  //         const linePercent =
+  //           (rangeDates[1] - viewRangeAndStep.start) /
+  //           (animationEnd - viewRangeAndStep.start) * 100;
+  //         console.log("linePercent: ", linePercent);
+  //         setSliderSx({
+  //           '& .MuiSlider-track': {
+  //             background: `linear-gradient(to right, #FF0000 ${linePercent}%, #0000FF ${linePercent}% 100%)`
+  //           },
+  //           '& .MuiSlider-thumb[data-index="1"]'
+  //             : {
+  //             height: '10px',
+  //             width: '10px',
+  //           },
+  //           '& .MuiSlider-thumb[data-index="2"]'
+  //             : {
+  //             height: '10px',
+  //             width: '10px',
+  //           }
+  //         });
+  //         console.log("slider selected date range: ", sliderSelectedDateRange)
+  //         setSliderSelectedDateRange([animationStart, ...rangeDates, animationEnd] as [number, number, number, number]);
+  //       },
+  //       AnimationInactive: () => {
+  //         setSliderSx({});
+  //       }
+  //     })(animationState);
+  //   } else if (sliderActive && !animationState) {
+  //     setSliderSx({});
+  //   }
+  // }, [sliderActive, sliderSelectedDateRange, viewRangeAndStep.end, viewRangeAndStep.start, animationState]);
 
 
   const viewInMinIncrements = [];
-  for (let date = viewStartDateTime;
-    DateTime.lessThanOrEqualTo(date, viewEndDateTime);
+  for (let date = viewRange.start;
+    DateTime.lessThanOrEqualTo(date, viewRange.end);
     date = DateTime.add(date, { minutes: 10 })) {
     viewInMinIncrements.push(date);
   }
@@ -220,7 +177,6 @@ export const HorizontalCalendar = ({
   const headerGridLocation = dayDividerIndex === -1
     ? "1 / 4"
     : `${dayDividerIndex} / ${dayDividerIndex + 4}`;
-  console.log(sliderSx, "sliderSx");
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -233,46 +189,37 @@ export const HorizontalCalendar = ({
       >
         <div style={{ gridColumn: headerGridLocation }} className="horizontal-calendar-grid-header">
           <div className="horizontal-calendar-grid-header-label">
-            {`${getMonth(DateTime.getPart(viewEndDateTime, "month"))} ` +
-              `${DateTime.getPart(viewEndDateTime, "day")}, ` +
-              `${DateTime.getPart(viewEndDateTime, "year")}`}
+            {`${getMonth(DateTime.getPart(viewRange.end, "month"))} ` +
+              `${DateTime.getPart(viewRange.end, "day")}, ` +
+              `${DateTime.getPart(viewRange.end, "year")}`}
           </div>
         </div>
       </div>
       <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${sliderActive ? "" : "hide-slider-components"}`}>
         <Slider
           // Conditional
-          sx={sliderSx}
+          // sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           // Conditional
           value={sliderSelectedDateRange}
           onChange={(e, newValue) => {
-            console.log("Slider value changed", e);
-            if (newValue.length === 2) {
-              if (e.type === "mousemove") {
-                const [start, end] = newValue as number[];
-                setSelectedDateRange?.({
-                  start: DateTime.unsafeFromDate(new Date(start)),
-                  end: DateTime.unsafeFromDate(new Date(end))
-                });
-              } else {
-                const [oldX] = sliderSelectedDateRange;
-                const [newX, newY] = newValue;
-                console.log("Percent: ", ((newX - viewRangeAndStep.start) / (viewRangeAndStep.end - viewRangeAndStep.start)) * 100);
-                const newDateTime = oldX === newX ? newY : newX;
-                const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
-                const dateTimeEnd = DateTime.addDuration(
-                  dateTimeStart, duration)
-                setSelectedDateRange?.({
-                  start: dateTimeStart,
-                  end: dateTimeEnd
-                });
-              }
-            } else if (newValue.length === 4) {
-              const [animationStart, , , animationEnd] = newValue as number[];
-              setAnimationDateRange?.({
-                start: DateTime.unsafeFromDate(new Date(animationStart)),
-                end: DateTime.unsafeFromDate(new Date(animationEnd))
+            if (e.type === "mousemove") {
+              const [start, end] = newValue as number[];
+              primaryRange.set?.({
+                start: DateTime.unsafeFromDate(new Date(start)),
+                end: DateTime.unsafeFromDate(new Date(end))
+              });
+            } else {
+              const [oldX] = sliderSelectedDateRange;
+              const [newX, newY] = newValue;
+              console.log("Percent: ", ((newX - viewRangeAndStep.start) / (viewRangeAndStep.end - viewRangeAndStep.start)) * 100);
+              const newDateTime = oldX === newX ? newY : newX;
+              const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
+              const dateTimeEnd = DateTime.addDuration(
+                dateTimeStart, duration)
+              primaryRange.set?.({
+                start: dateTimeStart,
+                end: dateTimeEnd
               });
             }
           }}

@@ -241,39 +241,17 @@ export const TimeRangeSlider = ({
         <HorizontalCalendar
           increment={increment}
           duration={s.selectedDuration}
-          selectedDateRange={{
+          primaryRange={{
             start: s.selectedStartDateTime,
             end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-          }}
-          setSelectedDateRange={
-            (dateRange: RangeValue<DateTime.DateTime>) => {
+            set: (dateRange: RangeValue<DateTime.DateTime>) => {
               d(SetSelectedDateTimeAndDuration({
                 start: dateRange.start,
                 duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
               }));
-            }}
-          setAnimationActive={(active: boolean) => {
-            d(SetAnimationState({
-              animationState: active
-                ? AnimationActive({
-                  animationStartDateTime: s.viewStartDateTime,
-                  animationDuration: DEFAULT_ANIMATION_DURATION,
-                })
-                : AnimationInactive(),
-            }));
+            }
           }}
-          setAnimationDateRange={(dateRange: RangeValue<DateTime.DateTime>) => {
-            d(SetAnimationState({
-              animationState: AnimationActive({
-                animationStartDateTime: dateRange.start,
-                animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
-              }),
-            }));
-          }}
-          animationState={s.animationState}
-          viewStartDateTime={s.viewStartDateTime}
-          viewEndDateTime={s.viewEndDateTime}
-
+          viewRange={{ start: s.viewStartDateTime, end: s.viewEndDateTime }}
         />
       </RangeCalendar>
       <button className="next-prev-date-range" {...nextButtonProps}>
