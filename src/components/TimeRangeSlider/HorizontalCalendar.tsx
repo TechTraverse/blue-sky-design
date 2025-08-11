@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import { useEffect, useState } from "react";
 import { type PrimaryRange, type SubRange } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
+import type { SxProps, Theme } from "@mui/material";
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -55,9 +56,9 @@ export const HorizontalCalendar = ({
 }: {
   duration: Duration.Duration,
   increment?: number,
-  primaryRange: PrimaryRange,
+  primaryRange: PrimaryRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
-  subRanges?: SubRange[],
+  subRanges?: SubRange<DateTime.DateTime>[],
 }) => {
 
   /**
@@ -95,7 +96,7 @@ export const HorizontalCalendar = ({
   /**
    * Selected date range settings and slider active udpates
    */
-  const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number] | [number, number, number, number]>([
+  const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number]>([
     DateTime.toEpochMillis(primaryRange.start),
     DateTime.toEpochMillis(primaryRange.end)
   ]);
@@ -118,6 +119,48 @@ export const HorizontalCalendar = ({
       setSliderActive(false);
     }
   }, [primaryRange, viewRange]);
+
+  const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
+  useEffect(() => {
+    if (subRanges) {
+      setSliderSubRanges(subRanges.map((r) => ({
+        start: DateTime.toEpochMillis(r.start),
+        end: DateTime.toEpochMillis(r.end),
+        set: (range: { start: number; end: number }) => {
+          r.set?.({
+            start: DateTime.unsafeFromDate(new Date(range.start)),
+            end: DateTime.unsafeFromDate(new Date(range.end))
+          });
+        },
+        active: r.active
+      })));
+    } else {
+      setSliderSubRanges([]);
+    }
+  }, [subRanges]);
+
+  const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
+  useEffect(() => {
+    const selectionStart = sliderSelectedDateRange[0];
+    const selectionEnd = sliderSelectedDateRange[1];
+    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
+      const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
+      const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
+      if (!active) {
+        acc = `${acc}, red ${linearGradientStart}% ${linearGradientEnd}%`;
+      }
+      if (idx === sliderSubRanges.length - 1) {
+        acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
+      }
+      return acc;
+    }, "linear-gradient(to right");
+
+    setSliderSx({
+      '& .MuiSlider-track': {
+        background: gradient,
+      }
+    });
+  }, [sliderSelectedDateRange, sliderSubRanges]);
 
   /**
    * Slider sx conditional settings and selected date range updates
@@ -198,7 +241,7 @@ export const HorizontalCalendar = ({
       <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${sliderActive ? "" : "hide-slider-components"}`}>
         <Slider
           // Conditional
-          // sx={sliderSx}
+          sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           // Conditional
           value={sliderSelectedDateRange}

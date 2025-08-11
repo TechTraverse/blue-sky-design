@@ -24,11 +24,10 @@ export const {
   AnimationInactive,
   AnimationActive } = D.taggedEnum<AnimationState>();
 
-export type PrimaryRange = RangeValue<DateTime.DateTime> & {
-  set?: (range: { start: DateTime.DateTime; end: DateTime.DateTime }) => void;
+export type PrimaryRange<T> = RangeValue<T> & {
+  set?: (range: { start: T; end: T }) => void;
 }
 
-export type SubRange = PrimaryRange & {
+export type SubRange<T> = PrimaryRange<T> & {
   active: boolean;
-  durationChangeable: boolean;
 }

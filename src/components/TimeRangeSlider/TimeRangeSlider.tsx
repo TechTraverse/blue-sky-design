@@ -1,5 +1,5 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Option as O, Data as D, Duration } from 'effect';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
@@ -10,8 +10,7 @@ import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
-import { $animationMatch, AnimationActive, AnimationInactive, TimeDuration, type AnimationState } from './timeSliderTypes';
-import { start } from 'repl';
+import { $animationMatch, AnimationActive, AnimationInactive, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -210,6 +209,66 @@ export const TimeRangeSlider = ({
     };
   }, []);
 
+  /**
+   * Determine primary and sub-ranges for the calendar.
+   */
+  const setSelectedRangeWrapper = (dateRange: RangeValue<DateTime.DateTime>) => {
+    d(SetSelectedDateTimeAndDuration({
+      start: dateRange.start,
+      duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
+    }));
+  }
+
+  const [primaryRange, setPrimaryRange] = useState<PrimaryRange<DateTime.DateTime>>({
+    start: s.selectedStartDateTime,
+    end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+    set: setSelectedRangeWrapper,
+  });
+  const [subRanges, setSubRanges] = useState<SubRange<DateTime.DateTime>[]>([]);
+
+  useEffect(() => {
+    $animationMatch({
+      AnimationInactive: () => {
+        setPrimaryRange({
+          start: s.selectedStartDateTime,
+          end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+          set: (dateRange: RangeValue<DateTime.DateTime>) => {
+            d(SetSelectedDateTimeAndDuration({
+              start: dateRange.start,
+              duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
+            }));
+          }
+        });
+        setSubRanges([]);
+      },
+      AnimationActive: (aState) => {
+        setPrimaryRange({
+          start: aState.animationStartDateTime,
+          end: DateTime.addDuration(aState.animationStartDateTime, aState.animationDuration),
+          set: (dateRange: RangeValue<DateTime.DateTime>) => {
+            d(SetAnimationState({
+              animationState: AnimationActive({
+                animationStartDateTime: dateRange.start,
+                animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
+              }),
+            }));
+          }
+        });
+        setSubRanges([{
+          start: s.selectedStartDateTime,
+          end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+          set: (dateRange: RangeValue<DateTime.DateTime>) => {
+            d(SetSelectedDateTimeAndDuration({
+              start: dateRange.start,
+              duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
+            }));
+          },
+          active: false,
+        }]);
+      },
+    })(s.animationState);
+  }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
+
   return (
     <div {...calendarProps} ref={sliderRef} className="time-range-slider">
       <button className="next-prev-date-range" {...prevButtonProps}>
@@ -242,30 +301,8 @@ export const TimeRangeSlider = ({
         <HorizontalCalendar
           increment={increment}
           duration={s.selectedDuration}
-          primaryRange={$animationMatch({
-            AnimationInactive: () => ({
-              start: s.selectedStartDateTime,
-              end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-              set: (dateRange: RangeValue<DateTime.DateTime>) => {
-                d(SetSelectedDateTimeAndDuration({
-                  start: dateRange.start,
-                  duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
-                }));
-              }
-            }),
-            AnimationActive: (aState) => ({
-              start: aState.animationStartDateTime,
-              end: DateTime.addDuration(aState.animationStartDateTime, aState.animationDuration),
-              set: (dateRange: RangeValue<DateTime.DateTime>) => {
-                d(SetAnimationState({
-                  animationState: AnimationActive({
-                    animationStartDateTime: dateRange.start,
-                    animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
-                  }),
-                }));
-              }
-            }),
-          })(s.animationState)}
+          primaryRange={primaryRange}
+          subRanges={subRanges}
           viewRange={{ start: s.viewStartDateTime, end: s.viewEndDateTime }}
         />
       </RangeCalendar>
