@@ -11,6 +11,7 @@ import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
 import { $animationMatch, AnimationActive, AnimationInactive, TimeDuration, type AnimationState } from './timeSliderTypes';
+import { start } from 'repl';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -241,16 +242,30 @@ export const TimeRangeSlider = ({
         <HorizontalCalendar
           increment={increment}
           duration={s.selectedDuration}
-          primaryRange={{
-            start: s.selectedStartDateTime,
-            end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-            set: (dateRange: RangeValue<DateTime.DateTime>) => {
-              d(SetSelectedDateTimeAndDuration({
-                start: dateRange.start,
-                duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
-              }));
-            }
-          }}
+          primaryRange={$animationMatch({
+            AnimationInactive: () => ({
+              start: s.selectedStartDateTime,
+              end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+              set: (dateRange: RangeValue<DateTime.DateTime>) => {
+                d(SetSelectedDateTimeAndDuration({
+                  start: dateRange.start,
+                  duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
+                }));
+              }
+            }),
+            AnimationActive: (aState) => ({
+              start: aState.animationStartDateTime,
+              end: DateTime.addDuration(aState.animationStartDateTime, aState.animationDuration),
+              set: (dateRange: RangeValue<DateTime.DateTime>) => {
+                d(SetAnimationState({
+                  animationState: AnimationActive({
+                    animationStartDateTime: dateRange.start,
+                    animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
+                  }),
+                }));
+              }
+            }),
+          })(s.animationState)}
           viewRange={{ start: s.viewStartDateTime, end: s.viewEndDateTime }}
         />
       </RangeCalendar>
