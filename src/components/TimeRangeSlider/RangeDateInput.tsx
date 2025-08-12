@@ -1,4 +1,4 @@
-import { DateTime, pipe } from "effect";
+import { DateTime, Effect, pipe, Schedule } from "effect";
 import "./rangeDateInput.css";
 import { Button, Calendar, CalendarCell, CalendarGrid, DateField, DateInput, DatePicker, DateSegment, Dialog, FieldError, Group, Heading, Label, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
@@ -22,6 +22,15 @@ interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   setPlayMode?: (mode: PlayMode) => void;
   setAnimationEnabled?: (enabled: boolean) => void;
 }
+
+// Define an effect that logs a message to the console
+const action = Effect.sync(() => console.log("success"));
+
+// Define a schedule that repeats the action 2 more times with a delay
+const policy = Schedule.addDelay(Schedule.recurs(9), () => "900 millis")
+
+// Repeat the action according to the schedule
+const program = Effect.repeat(action, policy)
 
 function SliderDatePicker<T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek,
@@ -96,11 +105,18 @@ function SliderDatePicker<T extends DateValue>(
       </Button>
       {
         playMode === PlayMode.Play
-          ? <Button slot="pause" onPress={() => setPlayMode?.(PlayMode.Pause)}>
+          ? <Button slot="pause" onPress={() => {
+            setPlayMode?.(PlayMode.Pause)
+          }}>
             <TbPlayerPause />
           </Button>
           : playMode === PlayMode.Pause
-            ? <Button slot="play" onPress={() => setPlayMode?.(PlayMode.Play)}>
+            ? <Button slot="play" onPress={() => {
+              setPlayMode?.(PlayMode.Play)
+              // Run the program and log the number of repetitions
+              Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+
+            }}>
               <TbPlayerPlay />
             </Button>
             : null
