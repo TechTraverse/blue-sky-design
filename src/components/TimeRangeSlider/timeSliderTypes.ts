@@ -26,8 +26,9 @@ export const {
 
 export type PrimaryRange<T> = RangeValue<T> & {
   set?: (range: { start: T; end: T }) => void;
+  duration: Duration.Duration;
 }
 
-export type SubRange<T> = PrimaryRange<T> & {
+export type SubRange<T> = Omit<PrimaryRange<T>, "duration"> & {
   active: boolean;
 }

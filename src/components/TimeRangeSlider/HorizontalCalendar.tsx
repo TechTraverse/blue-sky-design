@@ -1,5 +1,5 @@
 import "./horizontalCalendar.css";
-import { DateTime, Duration } from "effect";
+import { DateTime } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useState } from "react";
@@ -48,13 +48,11 @@ const createStepsOverRange = (start: number, end: number, step: number): Step[] 
 }
 
 export const HorizontalCalendar = ({
-  duration,
   increment,
   primaryRange,
   viewRange,
   subRanges,
 }: {
-  duration: Duration.Duration,
   increment?: number,
   primaryRange: PrimaryRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
@@ -259,7 +257,7 @@ export const HorizontalCalendar = ({
               const newDateTime = oldX === newX ? newY : newX;
               const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
               const dateTimeEnd = DateTime.addDuration(
-                dateTimeStart, duration)
+                dateTimeStart, primaryRange.duration)
               primaryRange.set?.({
                 start: dateTimeStart,
                 end: dateTimeEnd

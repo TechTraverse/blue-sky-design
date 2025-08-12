@@ -223,6 +223,7 @@ export const TimeRangeSlider = ({
     start: s.selectedStartDateTime,
     end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
     set: setSelectedRangeWrapper,
+    duration: s.selectedDuration,
   });
   const [subRanges, setSubRanges] = useState<SubRange<DateTime.DateTime>[]>([]);
 
@@ -232,12 +233,8 @@ export const TimeRangeSlider = ({
         setPrimaryRange({
           start: s.selectedStartDateTime,
           end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-          set: (dateRange: RangeValue<DateTime.DateTime>) => {
-            d(SetSelectedDateTimeAndDuration({
-              start: dateRange.start,
-              duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
-            }));
-          }
+          set: setSelectedRangeWrapper,
+          duration: s.selectedDuration,
         });
         setSubRanges([]);
       },
@@ -252,7 +249,12 @@ export const TimeRangeSlider = ({
                 animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
               }),
             }));
-          }
+            d(SetSelectedDateTimeAndDuration({
+              start: dateRange.start,
+              duration: s.selectedDuration,
+            }));
+          },
+          duration: aState.animationDuration,
         });
         setSubRanges([{
           start: s.selectedStartDateTime,
@@ -300,7 +302,6 @@ export const TimeRangeSlider = ({
         {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
         <HorizontalCalendar
           increment={increment}
-          duration={s.selectedDuration}
           primaryRange={primaryRange}
           subRanges={subRanges}
           viewRange={{ start: s.viewStartDateTime, end: s.viewEndDateTime }}
