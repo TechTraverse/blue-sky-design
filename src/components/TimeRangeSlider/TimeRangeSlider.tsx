@@ -10,7 +10,7 @@ import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
-import { $animationMatch, AnimationActive, AnimationInactive, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
+import { $animationMatch, AnimationActive, AnimationInactive, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -35,6 +35,7 @@ type State = {
 
   // Animation state for the calendar
   animationState: AnimationState;
+  playMode: PlayMode;
 };
 
 type Action = D.TaggedEnum<{
@@ -53,7 +54,10 @@ type Action = D.TaggedEnum<{
   };
   SetAnimationState: {
     animationState: AnimationState;
-  }
+  };
+  SetPlayMode: {
+    playMode: PlayMode;
+  };
   Reset: object;
 }>;
 
@@ -62,7 +66,7 @@ const {
   SetViewDuration,
   SetViewStartAndEndDateTimes,
   SetSelectedDateTimeAndDuration,
-  SetAnimationState } = D.taggedEnum<Action>();
+  SetAnimationState, SetPlayMode } = D.taggedEnum<Action>();
 
 
 const reducer = (state: State, action: Action): State =>
@@ -91,6 +95,7 @@ const reducer = (state: State, action: Action): State =>
         AnimationInactive: () => ({
           ...state,
           animationState: AnimationInactive(),
+          playMode: PlayMode.Pause, // Reset play mode when animation is inactive
         }),
         AnimationActive: (active) => ({
           ...state,
@@ -98,6 +103,10 @@ const reducer = (state: State, action: Action): State =>
         }),
       })(animationState);
     },
+    SetPlayMode: (x) => ({
+      ...state,
+      playMode: x.playMode,
+    }),
     Reset: () => ({
       ...state,
       selectedStartDateTime: state.defaultStartDateTime,
@@ -159,6 +168,7 @@ export const TimeRangeSlider = ({
     selectedDuration: defaultDuration,
 
     animationState: AnimationInactive(),
+    playMode: PlayMode.Pause, // Start with animation inactive
   });
 
   /**
@@ -346,6 +356,10 @@ export const TimeRangeSlider = ({
             viewStartDateTime: date,
             viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
           }));
+        }}
+        playMode={s.animationState._tag === 'AnimationActive' ? s.playMode : undefined}
+        setPlayMode={(mode: PlayMode) => {
+          d(SetPlayMode({ playMode: mode }));
         }}
       />
     </div>

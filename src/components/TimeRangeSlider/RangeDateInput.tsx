@@ -9,14 +9,17 @@ import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-i
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import NativeSelect from '@mui/material/NativeSelect';
-import { TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
+import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Switch } from "@mui/material";
+import { PlayMode } from "./timeSliderTypes";
 
 interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
   animationEnabled?: boolean;
+  playMode?: PlayMode;
+  setPlayMode?: (mode: PlayMode) => void;
   setAnimationEnabled?: (enabled: boolean) => void;
 }
 
@@ -24,6 +27,8 @@ function SliderDatePicker<T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek,
     animationEnabled = false,
     setAnimationEnabled = () => { },
+    playMode,
+    setPlayMode,
     ...props }:
     MyDatePickerProps<T>
 ) {
@@ -89,7 +94,17 @@ function SliderDatePicker<T extends DateValue>(
       <Button slot="previous">
         <TbPlayerSkipBack />
       </Button>
-      <Heading />
+      {
+        playMode === PlayMode.Play
+          ? <Button slot="pause" onPress={() => setPlayMode?.(PlayMode.Pause)}>
+            <TbPlayerPause />
+          </Button>
+          : playMode === PlayMode.Pause
+            ? <Button slot="play" onPress={() => setPlayMode?.(PlayMode.Play)}>
+              <TbPlayerPlay />
+            </Button>
+            : null
+      }
       <Button slot="next">
         <TbPlayerSkipForward />
       </Button>
@@ -102,11 +117,15 @@ export const RangeDateInput = ({
   setStartDateTime,
   animationEnabled = false,
   setAnimationEnabled = () => { },
+  playMode,
+  setPlayMode
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
+  playMode?: PlayMode,
+  setPlayMode?: (mode: PlayMode) => void,
 }) => {
   const calendarDateTime = startDateTime ? pipe(
     DateTime.toParts(startDateTime),
@@ -124,6 +143,8 @@ export const RangeDateInput = ({
         firstDayOfWeek={"sun"}
         animationEnabled={animationEnabled}
         setAnimationEnabled={setAnimationEnabled}
+        playMode={playMode}
+        setPlayMode={setPlayMode}
       />
     </div>);
 }

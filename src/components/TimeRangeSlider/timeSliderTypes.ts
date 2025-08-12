@@ -32,3 +32,8 @@ export type PrimaryRange<T> = RangeValue<T> & {
 export type SubRange<T> = Omit<PrimaryRange<T>, "duration"> & {
   active: boolean;
 }
+
+export enum PlayMode {
+  Play,
+  Pause,
+}
