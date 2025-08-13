@@ -1,15 +1,10 @@
-.slider-date-picker-container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  width: 210px;
+.slider-control-panel {
   height: 100%;
-  position: relative;
-}
-
-.range-date-input {
-  display: flex;
+  display: grid !important;
+  align-items: center;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: 2fr 1fr;
+  /* display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -19,13 +14,6 @@
   height: 100%;
   font-size: 13px;
   color: #555;
-
-  :popover-open {
-    all: initial; /* Or selectively override */
-    position: absolute;
-    top: 50px;
-    left: 100px;
-  }
 
   svg {
     margin: 3px 0 0;
@@ -37,10 +25,56 @@
     font-size: 10px;
     color: #555;
     align-self: flex-start;
-  }
+  } */
 
 }
 
+.slider-date-picker-container {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  width: 210px;
+  height: 100%;
+  position: relative;
+
+  :popover-open {
+    all: initial; /* Or selectively override */
+    position: absolute;
+    top: 50px;
+    left: 100px;
+  }
+}
+
+.playback-nav-controls {
+  grid-column: 3 / span 2;
+  grid-row: 1 / span 2;
+
+  button {
+    margin: 0 5px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    color: #555;
+    width: 30px;
+    height: 30px;
+
+    svg {
+      margin-top: 0;
+      transform: scale(1.7);
+    }
+
+    &:hover {
+      color: #000;
+    }
+  }
+}
+
+
+/* Update to work with grid */
 .date-calendar-and-switch-group {
   display: flex;
   flex-direction: row;
@@ -86,6 +120,7 @@
   }
 }
 
+/* Update to work with grid */
 .range-selection-group {
   display: flex;
   flex-direction: row;
