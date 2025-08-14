@@ -238,8 +238,9 @@
   color: var(--text-color);
   border-radius: 2px;
   outline: none;
+  min-height: 292px;
   min-width: fit-content;
-  max-width: 350px;
+  max-width: 204px;
   transition: transform .2s,opacity .2s;
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
