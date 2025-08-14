@@ -216,20 +216,14 @@ export const HorizontalCalendar = ({
     (d: DateTime.DateTime) => DateTime.getPart(d, "hours") === 0 &&
       DateTime.getPart(d, "minutes") === 10);
   const headerGridLocation = dayDividerIndex === -1
-    ? "1 / 4"
-    : `${dayDividerIndex} / ${dayDividerIndex + 4}`;
+    ? "10px"
+    : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
 
   return (
     <div className={`horizontal-calendar-grid`}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns:
-            `${viewInMinIncrements.map(() => 1).join('fr ')}fr`
-        }}
-      >
-        <div style={{ gridColumn: headerGridLocation }} className="horizontal-calendar-grid-header">
-          <div className="horizontal-calendar-grid-header-label">
+      <div>
+        <div className="horizontal-calendar-grid-header">
+          <div style={{ left: headerGridLocation }} className="horizontal-calendar-grid-header-label">
             {`${getMonth(DateTime.getPart(viewRange.end, "month"))} ` +
               `${DateTime.getPart(viewRange.end, "day")}, ` +
               `${DateTime.getPart(viewRange.end, "year")}`}

@@ -1,5 +1,5 @@
 .time-range-slider {
-  height: 90px;
+  height: 76px;
   position: fixed;
   width: 100%;
   display: flex;
@@ -9,6 +9,10 @@
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   bottom: 0;
   left: 0;
+
+  /* Shadow above bottom navigation */
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.1);
+
   > div {
     width: 100%;
     display: flex;
@@ -26,8 +30,11 @@
 .next-prev-date-range {
   height: 100%;
   border: 1px solid white;
-  padding: 0 20px;
+  padding: 0 10px;
   color: #fff;
+  background-color: #eee;
+  border: 1px solid #dae9f8;
+  border-radius: 2px;
 
   svg {
     color: #1976d2;
@@ -36,7 +43,6 @@
 }
 
 .horizontal-calendar-grid-body {
-  height: 80px;
   overflow: clip;
   display: flex;
   flex-direction: row;

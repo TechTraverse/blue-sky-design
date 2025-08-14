@@ -2,6 +2,8 @@
   display: grid;
   /* flex-direction: row; */
   width: 100%;
+  padding-top: 2px;
+  margin-bottom: 4px;
 
   tbody {
     display: table;
@@ -11,7 +13,7 @@
 }
 
 .horizontal-calendar-grid-header-label {
-  margin-left: 10px;
+  position: relative;
   font-size: 13px;
   color: #555;
 }
