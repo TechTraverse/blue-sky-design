@@ -10,6 +10,7 @@ import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } fr
 import { Divider, MenuItem, Select, Tab, Tabs } from "@mui/material";
 import { PlayMode } from "./timeSliderTypes";
 import { useState } from "react";
+import { FiFastForward, FiRewind } from "react-icons/fi";
 
 interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   label?: string;
@@ -33,17 +34,18 @@ const policy = Schedule.addDelay(Schedule.recurs(9), () => "1000 millis")
 // Repeat the action according to the schedule
 const program = Effect.repeat(action, policy)
 
-const PlaybackNavControls = ({
+
+const AnimateNavControls = ({
   playMode,
   setPlayMode
 }: {
-  playMode?: PlayMode,
+  playMode: PlayMode,
   setPlayMode?: (mode: PlayMode) => void
 }) => {
   return (
     <div className="playback-nav-controls">
       <Button slot="previous">
-        <TbPlayerSkipBack />
+        <FiRewind />
       </Button>
       {
         playMode === PlayMode.Play
@@ -52,16 +54,27 @@ const PlaybackNavControls = ({
           }}>
             <TbPlayerPause />
           </Button>
-          : playMode === PlayMode.Pause
-            ? <Button slot="play" onPress={() => {
-              setPlayMode?.(PlayMode.Play)
-              // Run the program and log the number of repetitions
-              Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
-            }}>
-              <TbPlayerPlay />
-            </Button>
-            : null
+          : <Button slot="play" onPress={() => {
+            setPlayMode?.(PlayMode.Play)
+            // Run the program and log the number of repetitions
+            Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+          }}>
+            <TbPlayerPlay />
+          </Button>
       }
+      <Button slot="next">
+        <FiFastForward />
+      </Button>
+    </div>
+  );
+}
+
+const StepNavControls = () => {
+  return (
+    <div className="playback-nav-controls">
+      <Button slot="previous">
+        <TbPlayerSkipBack />
+      </Button>
       <Button slot="next">
         <TbPlayerSkipForward />
       </Button>
@@ -170,10 +183,11 @@ export const RangeDateInput = ({
           <Tab label="Step" {...a11yProps(0)} />
           <Tab label="Animate" {...a11yProps(1)} />
         </Tabs>
-        <PlaybackNavControls
-          playMode={playMode}
-          setPlayMode={setPlayMode}
-        />
+        {animationEnabled && playMode
+          ? <AnimateNavControls
+            playMode={playMode}
+            setPlayMode={setPlayMode} />
+          : <StepNavControls />}
       </div>
     </div>);
 }
