@@ -10,14 +10,27 @@ import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import NativeSelect from '@mui/material/NativeSelect';
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
-import { styled, Switch } from "@mui/material";
+import { ButtonGroup, Divider, MenuItem, Select, styled, Switch, Tab, Tabs } from "@mui/material";
 import { PlayMode } from "./timeSliderTypes";
+import { useState } from "react";
 
 interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
 }
+
+
+const a11yProps = (index: number) => {
+  return {
+    id: `simple-tab-${index}`,
+    'aria-controls': `simple-tabpanel-${index}`,
+  };
+}
+
+const playbackSwitchSVG = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 512 512"><path fill="${encodeURIComponent(
+  '#fff',
+)}" d="M0 256a256 256 0 1 1 512 0 256 256 0 1 1 -512 0zM188.3 147.1c-7.6 4.2-12.3 12.3-12.3 20.9l0 176c0 8.7 4.7 16.7 12.3 20.9s16.8 4.1 24.3-.5l144-88c7.1-4.4 11.5-12.1 11.5-20.5s-4.4-16.1-11.5-20.5l-144-88c-7.4-4.5-16.7-4.7-24.3-.5z"/></svg>')`;
 
 // Define an effect that logs a message to the console
 const action = Effect.sync(() => console.log("success"));
@@ -65,8 +78,8 @@ const PlaybackNavControls = ({
 }
 
 const PlaybackSwitch = styled(Switch)(({ theme }) => ({
-  width: 62,
-  height: 34,
+  width: 53,
+  height: 28,
   padding: 7,
   '& .MuiSwitch-switchBase': {
     margin: 1,
@@ -76,9 +89,7 @@ const PlaybackSwitch = styled(Switch)(({ theme }) => ({
       color: '#fff',
       transform: 'translateX(22px)',
       '& .MuiSwitch-thumb:before': {
-        backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 20 20"><path fill="${encodeURIComponent(
-          '#fff',
-        )}" d="M4.2 2.5l-.7 1.8-1.8.7 1.8.7.7 1.8.6-1.8L6.7 5l-1.9-.7-.6-1.8zm15 8.3a6.7 6.7 0 11-6.6-6.6 5.8 5.8 0 006.6 6.6z"/></svg>')`,
+        backgroundImage: playbackSwitchSVG,
       },
       '& + .MuiSwitch-track': {
         opacity: 1,
@@ -91,8 +102,8 @@ const PlaybackSwitch = styled(Switch)(({ theme }) => ({
   },
   '& .MuiSwitch-thumb': {
     backgroundColor: '#001e3c',
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     '&::before': {
       content: "''",
       position: 'absolute',
@@ -102,9 +113,7 @@ const PlaybackSwitch = styled(Switch)(({ theme }) => ({
       top: 0,
       backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center',
-      backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 20 20"><path fill="${encodeURIComponent(
-        '#fff',
-      )}" d="M9.305 1.667V3.75h1.389V1.667h-1.39zm-4.707 1.95l-.982.982L5.09 6.072l.982-.982-1.473-1.473zm10.802 0L13.927 5.09l.982.982 1.473-1.473-.982-.982zM10 5.139a4.872 4.872 0 00-4.862 4.86A4.872 4.872 0 0010 14.862 4.872 4.872 0 0014.86 10 4.872 4.872 0 0010 5.139zm0 1.389A3.462 3.462 0 0113.471 10a3.462 3.462 0 01-3.473 3.472A3.462 3.462 0 016.527 10 3.462 3.462 0 0110 6.528zM1.665 9.305v1.39h2.083v-1.39H1.666zm14.583 0v1.39h2.084v-1.39h-2.084zM5.09 13.928L3.616 15.4l.982.982 1.473-1.473-.982-.982zm9.82 0l-.982.982 1.473 1.473.982-.982-1.473-1.473zM9.305 16.25v2.083h1.389V16.25h-1.39z"/></svg>')`,
+      backgroundImage: playbackSwitchSVG,
     },
     ...theme.applyStyles('dark', {
       backgroundColor: '#003892',
@@ -174,6 +183,13 @@ export const RangeDateInput = ({
   playMode?: PlayMode,
   setPlayMode?: (mode: PlayMode) => void,
 }) => {
+
+  const [value, setValue] = useState(0);
+
+  const handleChange = (__: React.SyntheticEvent, newValue: number) => {
+    setValue(newValue);
+  };
+
   const calendarDateTime = startDateTime ? pipe(
     DateTime.toParts(startDateTime),
     ({ year, month, day }) => new CalendarDateTime(year, month, day, 0, 0, 0, 0) // Set time to midnight
@@ -189,14 +205,37 @@ export const RangeDateInput = ({
           x => x && setStartDateTime?.(x))}
         firstDayOfWeek={"sun"}
       />
-      <PlaybackNavControls
-        playMode={playMode}
-        setPlayMode={setPlayMode}
-      />
-      <PlaybackSwitch
-        checked={animationEnabled}
-        onChange={(e) => setAnimationEnabled(e.target.checked)}
-      />
+      <Select
+        labelId="query-range-select-label"
+        id="query-range-select"
+        className="query-range-select"
+        value={300}
+        label="Range"
+        onChange={(e) => console.log(e.target.value)}
+      >
+        <MenuItem value={60}>1m</MenuItem>
+        <MenuItem value={300}>5m</MenuItem>
+        <MenuItem value={600}>10m</MenuItem>
+        <MenuItem value={3600}>1h</MenuItem>
+        <MenuItem value={10800}>3h</MenuItem>
+        <MenuItem value={43200}>12h</MenuItem>
+        <MenuItem value={86400}>24h</MenuItem>
+      </Select>
+      <Divider variant="middle" orientation={"vertical"} flexItem />
+      <div className="playback-section">
+        <Tabs
+          value={value}
+          className="playback-tabs"
+          onChange={handleChange}
+          aria-label="basic tabs example">
+          <Tab label="Step" {...a11yProps(0)} />
+          <Tab label="Animate" {...a11yProps(1)} />
+        </Tabs>
+        <PlaybackNavControls
+          playMode={playMode}
+          setPlayMode={setPlayMode}
+        />
+      </div>
       {/* <Switch
         value={animationEnabled}
         onChange={(e) => setAnimationEnabled(e.target.checked)}
