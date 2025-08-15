@@ -43,28 +43,30 @@ const AnimateNavControls = ({
   setPlayMode?: (mode: PlayMode) => void
 }) => {
   return (
-    <div className="playback-nav-controls">
-      <Button slot="previous">
-        <FiRewind />
-      </Button>
-      {
-        playMode === PlayMode.Play
-          ? <Button slot="pause" onPress={() => {
-            setPlayMode?.(PlayMode.Pause)
-          }}>
-            <TbPlayerPause />
-          </Button>
-          : <Button slot="play" onPress={() => {
-            setPlayMode?.(PlayMode.Play)
-            // Run the program and log the number of repetitions
-            Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
-          }}>
-            <TbPlayerPlay />
-          </Button>
-      }
-      <Button slot="next">
-        <FiFastForward />
-      </Button>
+    <div className="animate-container">
+      <div className="playback-nav-controls">
+        <Button slot="previous">
+          <FiRewind />
+        </Button>
+        {
+          playMode === PlayMode.Play
+            ? <Button slot="pause" onPress={() => {
+              setPlayMode?.(PlayMode.Pause)
+            }}>
+              <TbPlayerPause />
+            </Button>
+            : <Button slot="play" onPress={() => {
+              setPlayMode?.(PlayMode.Play)
+              // Run the program and log the number of repetitions
+              Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+            }}>
+              <TbPlayerPlay />
+            </Button>
+        }
+        <Button slot="next">
+          <FiFastForward />
+        </Button>
+      </div>
     </div>
   );
 }

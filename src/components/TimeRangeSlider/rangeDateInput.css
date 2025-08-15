@@ -238,7 +238,6 @@
   color: var(--text-color);
   border-radius: 2px;
   outline: none;
-  min-height: 292px;
   min-width: fit-content;
   max-width: 204px;
   transition: transform .2s,opacity .2s;
