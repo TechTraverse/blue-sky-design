@@ -66,6 +66,15 @@ const AnimateNavControls = ({
         <Button slot="next">
           <FiFastForward />
         </Button>
+        <Button slot="next">
+          <FiFastForward />
+        </Button>
+        <Button slot="next">
+          <FiFastForward />
+        </Button>
+        <Button slot="next">
+          <FiFastForward />
+        </Button>
       </div>
     </div>
   );
@@ -146,34 +155,36 @@ export const RangeDateInput = ({
     ({ year, month, day }) => new CalendarDateTime(year, month, day, 0, 0, 0, 0) // Set time to midnight
   ) : undefined;
   return (
-    <div className="slider-control-panel">
-      <SliderDatePicker
-        value={calendarDateTime}
-        onChange={d => setStartDateTime && pipe(
-          d?.toString(),
-          x => x && new Date(x),
-          x => x && DateTime.unsafeFromDate(x),
-          x => x && setStartDateTime?.(x))}
-        firstDayOfWeek={"sun"}
-      />
-      <Select
-        labelId="query-range-select-label"
-        id="query-range-select"
-        className="query-range-select"
-        value={300}
-        label="Range"
-        onChange={(e) => console.log(e.target.value)}
-      >
-        <MenuItem value={60}>1m</MenuItem>
-        <MenuItem value={300}>5m</MenuItem>
-        <MenuItem value={600}>10m</MenuItem>
-        <MenuItem value={3600}>1h</MenuItem>
-        <MenuItem value={10800}>3h</MenuItem>
-        <MenuItem value={43200}>12h</MenuItem>
-        <MenuItem value={86400}>24h</MenuItem>
-      </Select>
+    <>
+      <div className="date-and-query-range-container">
+        <SliderDatePicker
+          value={calendarDateTime}
+          onChange={d => setStartDateTime && pipe(
+            d?.toString(),
+            x => x && new Date(x),
+            x => x && DateTime.unsafeFromDate(x),
+            x => x && setStartDateTime?.(x))}
+          firstDayOfWeek={"sun"}
+        />
+        <Select
+          labelId="query-range-select-label"
+          id="query-range-select"
+          className="query-range-select"
+          value={300}
+          label="Range"
+          onChange={(e) => console.log(e.target.value)}
+        >
+          <MenuItem value={60}>1m</MenuItem>
+          <MenuItem value={300}>5m</MenuItem>
+          <MenuItem value={600}>10m</MenuItem>
+          <MenuItem value={3600}>1h</MenuItem>
+          <MenuItem value={10800}>3h</MenuItem>
+          <MenuItem value={43200}>12h</MenuItem>
+          <MenuItem value={86400}>24h</MenuItem>
+        </Select>
+      </div>
       <Divider variant="middle" orientation={"vertical"} flexItem />
-      <div className="playback-section">
+      <div className={`playback-section ${value ? "animate" : "step"}`}>
         <Tabs
           value={value}
           className="playback-tabs"
@@ -191,5 +202,5 @@ export const RangeDateInput = ({
             setPlayMode={setPlayMode} />
           : <StepNavControls />}
       </div>
-    </div>);
+    </>);
 }
