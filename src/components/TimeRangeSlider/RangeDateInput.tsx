@@ -11,6 +11,7 @@ import { Divider, MenuItem, Select, Tab, Tabs } from "@mui/material";
 import { PlayMode } from "./timeSliderTypes";
 import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
+import { SpeedIndicator } from "./SpeedIndicator";
 
 interface MyDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   label?: string;
@@ -66,16 +67,8 @@ const AnimateNavControls = ({
         <Button slot="next">
           <FiFastForward />
         </Button>
-        <Button slot="next">
-          <FiFastForward />
-        </Button>
-        <Button slot="next">
-          <FiFastForward />
-        </Button>
-        <Button slot="next">
-          <FiFastForward />
-        </Button>
       </div>
+      <SpeedIndicator />
     </div>
   );
 }
@@ -186,6 +179,7 @@ export const RangeDateInput = ({
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <div className={`playback-section ${value ? "animate" : "step"}`}>
         <Tabs
+          orientation="vertical"
           value={value}
           className="playback-tabs"
           onChange={(__, x) => {

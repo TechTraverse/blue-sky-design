@@ -38,6 +38,19 @@
 
 /* } */
 
+.animate-container, .playback-nav-controls {
+  width: 162px;
+  box-sizing: border-box;
+}
+
+.animate-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
 .date-and-query-range-container {
   height: 100%;
   display: flex;
@@ -87,14 +100,9 @@
 .playback-section {
   height: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   width: auto;
-
-  &.animate:after {
-    max-width: 0;
-    transition: max-width ease-in-out 0.7s;
-  }
 
   > * {
     padding: 2px 6px 0;
@@ -106,13 +114,13 @@
     width: 32px;
   } */
    .playback-tabs {
-     min-height: 24px;
-     max-height: 26px;
      top: 0;
-     height: 20px;
+     height: 100%;
 
      > div {
       height: 24px;
+      display: flex;
+      align-items: center;
      }
 
      button {
@@ -128,6 +136,9 @@
    }
 
   .playback-nav-controls {
+    display: flex;
+    justify-content: center;
+
     button {
       margin: 0 5px;
       border: none;
