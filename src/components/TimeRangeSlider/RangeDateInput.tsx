@@ -68,7 +68,7 @@ const AnimateNavControls = ({
           <FiFastForward />
         </Button>
       </div>
-      <SpeedIndicator />
+      <SpeedIndicator disabled={playMode === PlayMode.Pause} />
     </div>
   );
 }

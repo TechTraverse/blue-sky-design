@@ -1,3 +1,4 @@
+import { Box, FormControl, FormLabel, InputLabel, MenuItem, NativeSelect, Select } from "@mui/material";
 import "./speedIndicator.css";
 import { Duration } from 'effect';
 
@@ -46,15 +47,28 @@ const speedDescriptors: {
   value: Duration.toMillis(Duration.hours(1)),
 }];
 
-export const SpeedIndicator = () => {
+export const SpeedIndicator = ({ disabled = true }: { disabled: boolean }) => {
   return (
-    <div className="speed-indicator">
-      <label className="speed-indicator">
-        {"Speed: "}
-      </label>
-      <label className="speed-indicator">
-        {speedDescriptors[6].label}
-      </label>
+    <div className={`speed-indicator ${disabled ? '' : 'enabled'}`}>
+      <FormControl
+        variant="standard" sx={{ m: 1 }}
+        className="speed-indicator-select">
+        <Select
+          labelId="demo-simple-select-standard-label"
+          id="demo-simple-select-standard"
+          value={speedDescriptors[6].value}
+          onChange={console.log}
+          size="small"
+        >
+          {
+            speedDescriptors.map((descriptor) => (
+              <MenuItem key={descriptor.value} value={descriptor.value}>
+                {descriptor.label}
+              </MenuItem>
+            ))
+          }
+        </Select>
+      </FormControl>
     </div>
   );
 }

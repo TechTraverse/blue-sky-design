@@ -7,20 +7,32 @@
 }
 
 .speed-indicator {
-  font-size: 14px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
-  border: 1px solid #555;
-  width: 100%;
+  box-sizing: border-box;
+
+  .speed-indicator-select {
+    width: 90px;
+    margin: 0 2px;
+
+    > div {
+      font-size: 11px;
+    }
+  }
+
+  > label {
+    padding: 3px;
+  }
 
   >label:first-child {
     font-weight: 600;
-    margin-right: 10px;
-    background-color: #888;
-    color: white;
+    font-size: 14px;
     width: fit-content;
-    padding: 0 4px 0 3px;
+
+    &.enabled {
+      color: #555;
+    }
   }
 
   > * {
