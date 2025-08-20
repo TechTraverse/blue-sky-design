@@ -145,18 +145,22 @@ export const RangeDateInput = ({
 
   const calendarDateTime = startDateTime ? pipe(
     DateTime.toParts(startDateTime),
-    ({ year, month, day }) => new CalendarDateTime(year, month, day, 0, 0, 0, 0) // Set time to midnight
+    ({ year, month, day, hours, minutes, seconds, millis }) => new CalendarDateTime(year, month, day, hours, minutes, seconds, millis)
   ) : undefined;
   return (
     <>
       <div className="date-and-query-range-container">
         <SliderDatePicker
           value={calendarDateTime}
-          onChange={d => setStartDateTime && pipe(
-            d?.toString(),
-            x => x && new Date(x),
-            x => x && DateTime.unsafeFromDate(x),
-            x => x && setStartDateTime?.(x))}
+          onChange={d => d && setStartDateTime?.(DateTime.unsafeMake({
+            year: d.year,
+            month: d.month,
+            day: d.day,
+            hours: d.hour,
+            minutes: d.minute,
+            seconds: d.second,
+            millis: d.millisecond
+          }))}
           firstDayOfWeek={"sun"}
         />
         <Select

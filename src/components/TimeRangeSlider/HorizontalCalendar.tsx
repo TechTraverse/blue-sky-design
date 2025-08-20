@@ -160,51 +160,6 @@ export const HorizontalCalendar = ({
     });
   }, [sliderSelectedDateRange, sliderSubRanges]);
 
-  /**
-   * Slider sx conditional settings and selected date range updates
-   */
-  // const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
-  // useEffect(() => {
-  //   if (sliderActive && animationState && sliderSelectedDateRange.length === 2) {
-  //     $animationMatch({
-  //       AnimationActive: ({ animationStartDateTime, animationDuration }) => {
-  //         const rangeDates = sliderSelectedDateRange.slice(0, 2);
-  //         const animationStart = DateTime.toEpochMillis(animationStartDateTime);
-  //         const animationEnd = DateTime.toEpochMillis(
-  //           DateTime.addDuration(animationStartDateTime, animationDuration));
-
-  //         const linePercent =
-  //           (rangeDates[1] - viewRangeAndStep.start) /
-  //           (animationEnd - viewRangeAndStep.start) * 100;
-  //         console.log("linePercent: ", linePercent);
-  //         setSliderSx({
-  //           '& .MuiSlider-track': {
-  //             background: `linear-gradient(to right, #FF0000 ${linePercent}%, #0000FF ${linePercent}% 100%)`
-  //           },
-  //           '& .MuiSlider-thumb[data-index="1"]'
-  //             : {
-  //             height: '10px',
-  //             width: '10px',
-  //           },
-  //           '& .MuiSlider-thumb[data-index="2"]'
-  //             : {
-  //             height: '10px',
-  //             width: '10px',
-  //           }
-  //         });
-  //         console.log("slider selected date range: ", sliderSelectedDateRange)
-  //         setSliderSelectedDateRange([animationStart, ...rangeDates, animationEnd] as [number, number, number, number]);
-  //       },
-  //       AnimationInactive: () => {
-  //         setSliderSx({});
-  //       }
-  //     })(animationState);
-  //   } else if (sliderActive && !animationState) {
-  //     setSliderSx({});
-  //   }
-  // }, [sliderActive, sliderSelectedDateRange, viewRangeAndStep.end, viewRangeAndStep.start, animationState]);
-
-
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
     DateTime.lessThanOrEqualTo(date, viewRange.end);
@@ -232,10 +187,8 @@ export const HorizontalCalendar = ({
       </div>
       <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${sliderActive ? "" : "hide-slider-components"}`}>
         <Slider
-          // Conditional
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
-          // Conditional
           value={sliderSelectedDateRange}
           onChange={(e, newValue) => {
             if (e.type === "mousemove") {
