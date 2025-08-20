@@ -140,12 +140,12 @@
   .playback-nav-controls {
     display: flex;
     justify-content: center;
+    gap: 7px;
 
     button {
-      margin: 0 5px;
       padding: 0;
       cursor: pointer;
-      width: 34px;
+      width: 44px;
       min-width: 34px;
       height: 34px;
 
