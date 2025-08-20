@@ -149,7 +149,9 @@ export const RangeDateInput = ({
   animationEnabled = false,
   setAnimationEnabled = () => { },
   playMode,
-  setPlayMode
+  setPlayMode,
+  incrememntStartDateTime,
+  decrememntStartDateTime,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
@@ -157,18 +159,22 @@ export const RangeDateInput = ({
   setAnimationEnabled?: (enabled: boolean) => void,
   playMode?: PlayMode,
   setPlayMode?: (mode: PlayMode) => void,
+  incrememntStartDateTime?: () => void,
+  decrememntStartDateTime?: () => void,
 }) => {
 
   const [value, setValue] = useState(animationEnabled ? 1 : 0);
 
   const calendarDateTime = startDateTime ? pipe(
     DateTime.toParts(startDateTime),
-    ({ year, month, day, hours, minutes, seconds, millis }) => new CalendarDateTime(year, month, day, hours, minutes, seconds, millis)
+    ({ year, month, day, hours, minutes, seconds, millis }) =>
+      new CalendarDateTime(year, month, day, hours, minutes, seconds, millis)
   ) : undefined;
   return (
     <>
       <div className="date-and-query-range-container">
         <SliderDatePicker
+          label="Start Date"
           value={calendarDateTime}
           onChange={d => d && setStartDateTime?.(DateTime.unsafeMake({
             year: d.year,
@@ -181,22 +187,30 @@ export const RangeDateInput = ({
           }))}
           firstDayOfWeek={"sun"}
         />
-        <Select
-          labelId="query-range-select-label"
-          id="query-range-select"
-          className="query-range-select"
-          value={300}
-          label="Range"
-          onChange={(e) => console.log(e.target.value)}
-        >
-          <MenuItem value={60}>1m</MenuItem>
-          <MenuItem value={300}>5m</MenuItem>
-          <MenuItem value={600}>10m</MenuItem>
-          <MenuItem value={3600}>1h</MenuItem>
-          <MenuItem value={10800}>3h</MenuItem>
-          <MenuItem value={43200}>12h</MenuItem>
-          <MenuItem value={86400}>24h</MenuItem>
-        </Select>
+        <FormControl sx={{ m: 1 }} className="query-range-select">
+          <InputLabel shrink htmlFor="select-multiple-native">
+            Range
+          </InputLabel>
+          <Select
+            labelId="query-range-select-label"
+            id="query-range-select"
+            value={300}
+            label="Range"
+            inputProps={{
+              id: 'select-multiple-native',
+            }}
+            variant="standard"
+            onChange={(e) => console.log(e.target.value)}
+          >
+            <MenuItem value={60}>1m</MenuItem>
+            <MenuItem value={300}>5m</MenuItem>
+            <MenuItem value={600}>10m</MenuItem>
+            <MenuItem value={3600}>1h</MenuItem>
+            <MenuItem value={10800}>3h</MenuItem>
+            <MenuItem value={43200}>12h</MenuItem>
+            <MenuItem value={86400}>24h</MenuItem>
+          </Select>
+        </FormControl>
       </div>
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <div className={`playback-section ${value ? "animate" : "step"}`}>
@@ -216,7 +230,9 @@ export const RangeDateInput = ({
           ? <AnimateNavControls
             playMode={playMode}
             setPlayMode={setPlayMode} />
-          : <StepNavControls />}
+          : <StepNavControls
+            fwd={incrememntStartDateTime}
+            rev={decrememntStartDateTime} />}
       </div>
     </>);
 }

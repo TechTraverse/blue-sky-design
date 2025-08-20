@@ -58,8 +58,8 @@
   align-items: center;
   justify-content: space-around;
   gap: 10px;
-  min-width: 256px;
-  max-width: 266px;
+  min-width: 280px;
+  max-width: 284px;
   margin-right: 10px;
 }
 
@@ -82,10 +82,8 @@
 
 .query-range-select {
   font-size: 14px !important;
-  border: 1px solid #e1e1e1;
-  border-radius: 2px !important;
-  color: #555;
   height: 40px;
+  width: 80px;
   box-sizing: border-box;
   justify-content: center;
   align-self: center;
@@ -106,7 +104,6 @@
 
   > * {
     padding: 2px 6px 0;
-    margin-bottom: 2px;
   }
 
   /* > .playback-switch {
@@ -172,15 +169,21 @@
 .slider-date-picker-group {
   border: 1px solid #e1e1e1;
   border-radius: 2px;
-  padding: 9px 10px 8px;
+  /* padding: 9px 10px 8px; */
+  padding-block: 0 0;
   box-sizing: border-box;
-  height: 41px;
+  /* height: 41px; */
   margin-left: 8px;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
   width: fit-content;
+
+  > legend {
+    font-size: 12.5px;
+    color: rgba(0, 0, 0, 0.6);
+  }
 
   &:hover {
     border: 1px solid #1976d2;

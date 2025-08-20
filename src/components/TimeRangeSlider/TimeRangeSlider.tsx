@@ -357,6 +357,18 @@ export const TimeRangeSlider = ({
             viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
           }));
         }}
+        incrememntStartDateTime={() => {
+          d(SetSelectedDateTimeAndDuration({
+            start: DateTime.add(s.selectedStartDateTime, { millis: increment }),
+            duration: s.selectedDuration,
+          }));
+        }}
+        decrememntStartDateTime={() => {
+          d(SetSelectedDateTimeAndDuration({
+            start: DateTime.subtract(s.selectedStartDateTime, { millis: increment }),
+            duration: s.selectedDuration,
+          }));
+        }}
         playMode={s.animationState._tag === 'AnimationActive' ? s.playMode : undefined}
         setPlayMode={(mode: PlayMode) => {
           d(SetPlayMode({ playMode: mode }));

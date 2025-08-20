@@ -7,7 +7,7 @@
 }
 
 .speed-indicator {
-  margin-top: 6px;
+  margin-top: 8px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
