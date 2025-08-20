@@ -7,7 +7,7 @@ import { FaCalendarAlt } from "react-icons/fa";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
-import { Button, Divider, MenuItem, Select, Tab, Tabs } from "@mui/material";
+import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Tab, Tabs, Typography } from "@mui/material";
 import { PlayMode } from "./timeSliderTypes";
 import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
@@ -73,16 +73,35 @@ const AnimateNavControls = ({
   );
 }
 
-const StepNavControls = () => {
+const StepNavControls = ({ fwd, rev }: {
+  fwd?: () => void,
+  rev?: () => void
+}) => {
   return (
     <div className="playback-nav-controls">
-      <Button variant="contained" slot="previous">
+      <Button variant="contained" slot="previous" onClick={() => rev?.()}>
         <TbPlayerSkipBack />
       </Button>
-      <Button variant="contained" slot="next">
+      <Button variant="contained" slot="next" onClick={() => fwd?.()}>
         <TbPlayerSkipForward />
       </Button>
     </div>
+  );
+}
+
+
+
+function FieldsetBox({
+  children, label, className }: {
+    children: React.ReactNode | React.ReactNode[],
+    label: string | undefined;
+    className?: string;
+  }): React.JSX.Element | null {
+  return (
+    <Box component="fieldset" className={className}>
+      <legend>{label}</legend>
+      {children}
+    </Box>
   );
 }
 
@@ -93,15 +112,14 @@ const SliderDatePicker = <T extends DateValue>(
 ) => {
   return (
     <DatePicker {...props} className={"slider-date-picker-container"}>
-      <Label>{label}</Label>
-      <Group className={'slider-date-picker-group'}>
+      <FieldsetBox label={label} className={"slider-date-picker-group"}>
         <DateInput className={"slider-date-picker-input"}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
         <CalendarButton>
           <FaCalendarAlt />
         </CalendarButton>
-      </Group>
+      </FieldsetBox>
       {description && <Text slot="description">{description}</Text>}
       <FieldError>{errorMessage}</FieldError>
       <Popover className="slider-date-picker">
