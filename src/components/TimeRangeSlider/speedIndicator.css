@@ -7,6 +7,7 @@
 }
 
 .speed-indicator {
+  margin-top: 6px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
@@ -18,6 +19,10 @@
 
     > div {
       font-size: 11px;
+
+      &:first-child {
+        padding-bottom: 2px;
+      }
     }
   }
 

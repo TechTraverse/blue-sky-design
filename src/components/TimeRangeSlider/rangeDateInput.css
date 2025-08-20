@@ -143,21 +143,15 @@
 
     button {
       margin: 0 5px;
-      border: none;
-      background: transparent;
       padding: 0;
       cursor: pointer;
-      color: #555;
-      width: 40px;
-      height: 40px;
+      width: 34px;
+      min-width: 34px;
+      height: 34px;
 
       svg {
         margin-top: 0;
-        transform: scale(1.7);
-      }
-
-      &:hover {
-        color: #000;
+        transform: scale(1.4);
       }
     }
   }
@@ -193,12 +187,15 @@
   }
 
   button {
-    margin: 0 5px;
+    margin: 0 2px;
     border: none;
     background: transparent;
     padding: 0;
     cursor: pointer;
     color: #555;
+    width: 24px;
+    min-width: 24px;
+    height: 34px;
 
     svg {
       margin-top: 0;

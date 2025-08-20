@@ -24,7 +24,7 @@ const speedDescriptors: {
 }, {
   // 4
   label: '-1 min/sec',
-  value: -(Duration.toMillis(Duration.minutes(5))),
+  value: -(Duration.toMillis(Duration.minutes(1))),
 }, {
   // 5
   label: '1 min/sec',

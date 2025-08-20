@@ -1,13 +1,13 @@
 import { DateTime, Effect, pipe, Schedule } from "effect";
 import "./rangeDateInput.css";
-import { Button, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Group, Heading, Label, Popover, Text } from 'react-aria-components';
+import { Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Group, Heading, Label, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt } from "react-icons/fa";
 
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
-import { Divider, MenuItem, Select, Tab, Tabs } from "@mui/material";
+import { Button, Divider, MenuItem, Select, Tab, Tabs } from "@mui/material";
 import { PlayMode } from "./timeSliderTypes";
 import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
@@ -46,17 +46,17 @@ const AnimateNavControls = ({
   return (
     <div className="animate-container">
       <div className="playback-nav-controls">
-        <Button slot="previous">
+        <Button variant="contained" slot="previous">
           <FiRewind />
         </Button>
         {
           playMode === PlayMode.Play
-            ? <Button slot="pause" onPress={() => {
+            ? <Button variant="contained" onClick={() => {
               setPlayMode?.(PlayMode.Pause)
             }}>
               <TbPlayerPause />
             </Button>
-            : <Button slot="play" onPress={() => {
+            : <Button variant="contained" onClick={() => {
               setPlayMode?.(PlayMode.Play)
               // Run the program and log the number of repetitions
               Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
@@ -64,7 +64,7 @@ const AnimateNavControls = ({
               <TbPlayerPlay />
             </Button>
         }
-        <Button slot="next">
+        <Button variant="contained" slot="next">
           <FiFastForward />
         </Button>
       </div>
@@ -76,10 +76,10 @@ const AnimateNavControls = ({
 const StepNavControls = () => {
   return (
     <div className="playback-nav-controls">
-      <Button slot="previous">
+      <Button variant="contained" slot="previous">
         <TbPlayerSkipBack />
       </Button>
-      <Button slot="next">
+      <Button variant="contained" slot="next">
         <TbPlayerSkipForward />
       </Button>
     </div>
