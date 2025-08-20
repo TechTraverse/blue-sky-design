@@ -1,51 +1,17 @@
-import { Box, FormControl, FormLabel, InputLabel, MenuItem, NativeSelect, Select } from "@mui/material";
+import { FormControl, MenuItem, Select } from "@mui/material";
 import "./speedIndicator.css";
-import { Duration } from 'effect';
+import { AnimationSpeed } from "./timeSliderTypes";
 
 const speedDescriptors: {
   label: string;
   value: number;
-}[] = [{
-  // 0
-  label: '-1 hour/sec',
-  value: -(Duration.toMillis(Duration.hours(1))),
-}, {
-  // 1
-  label: '-30 min/sec',
-  value: -(Duration.toMillis(Duration.minutes(30))),
-}, {
-  // 2
-  label: '-10 min/sec',
-  value: -(Duration.toMillis(Duration.minutes(10))),
-}, {
-  // 3
-  label: '-5 min/sec',
-  value: -(Duration.toMillis(Duration.minutes(5))),
-}, {
-  // 4
-  label: '-1 min/sec',
-  value: -(Duration.toMillis(Duration.minutes(1))),
-}, {
-  // 5
-  label: '1 min/sec',
-  value: Duration.toMillis(Duration.minutes(1)),
-}, {
-  // 6
-  label: '5 min/sec',
-  value: Duration.toMillis(Duration.minutes(5)),
-}, {
-  // 7
-  label: '10 min/sec',
-  value: Duration.toMillis(Duration.minutes(10)),
-}, {
-  // 8
-  label: '30 min/sec',
-  value: Duration.toMillis(Duration.minutes(30)),
-}, {
-  // 9
-  label: '1 hour/sec',
-  value: Duration.toMillis(Duration.hours(1)),
-}];
+}[] = Object.entries(AnimationSpeed)
+  .filter(([key]) => isNaN(Number(key)))
+  .map(([key, value]) => ({
+    label: key,
+    value: Number(value),
+  }))
+  .sort((a, b) => a.value - b.value);
 
 export const SpeedIndicator = ({ disabled = true }: { disabled: boolean }) => {
   return (

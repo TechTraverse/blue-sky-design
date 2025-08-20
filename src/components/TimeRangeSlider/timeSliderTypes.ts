@@ -1,5 +1,5 @@
 import type { RangeValue } from "@react-types/shared";
-import { Data as D, type DateTime, type Duration } from "effect";
+import { Data as D, Duration, type DateTime } from "effect";
 
 export enum TimeDuration {
   "1m" = 60000, // 1 minute in milliseconds
@@ -11,11 +11,31 @@ export enum TimeDuration {
   "24h" = 86400000, // 24 hours in milliseconds
 }
 
+export enum AnimationSpeed {
+  '-1 hour/sec' = -(Duration.toMillis(Duration.hours(1))),
+  '-30 min/sec' = -(Duration.toMillis(Duration.minutes(30))),
+  '-10 min/sec' = -(Duration.toMillis(Duration.minutes(10))),
+  '-5 min/sec' = -(Duration.toMillis(Duration.minutes(5))),
+  '-1 min/sec' = -(Duration.toMillis(Duration.minutes(1))),
+  '1 min/sec' = Duration.toMillis(Duration.minutes(1)),
+  '5 min/sec' = Duration.toMillis(Duration.minutes(5)),
+  '10 min/sec' = Duration.toMillis(Duration.minutes(10)),
+  '30 min/sec' = Duration.toMillis(Duration.minutes(30)),
+  '1 hour/sec' = Duration.toMillis(Duration.hours(1)),
+}
+
+export enum PlayMode {
+  Play,
+  Pause,
+}
+
 export type AnimationState = D.TaggedEnum<{
   AnimationInactive: object;
   AnimationActive: {
     animationStartDateTime: DateTime.DateTime;
     animationDuration: Duration.Duration;
+    animationPlayMode: PlayMode;
+    animationSpeed: AnimationSpeed;
   }
 }>;
 
@@ -31,9 +51,4 @@ export type PrimaryRange<T> = RangeValue<T> & {
 
 export type SubRange<T> = Omit<PrimaryRange<T>, "duration"> & {
   active: boolean;
-}
-
-export enum PlayMode {
-  Play,
-  Pause,
 }
