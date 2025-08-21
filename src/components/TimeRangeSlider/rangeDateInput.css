@@ -81,12 +81,17 @@
 }
 
 .query-range-select {
-  font-size: 14px !important;
-  height: 40px;
-  width: 80px;
+  padding-top: 11px !important;
+  height: 44px;
+  width: 89px;
   box-sizing: border-box;
   justify-content: center;
   align-self: center;
+  margin: 0 !important;
+
+  > div {
+    font-size: 14px !important;
+  }
 
   fieldset {
     border: none;

@@ -8,7 +8,7 @@ import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-co
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Tab, Tabs, Typography } from "@mui/material";
-import { PlayMode, TimeDuration } from "./timeSliderTypes";
+import { AnimationSpeed, PlayMode, TimeDuration } from "./timeSliderTypes";
 import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
 import { SpeedIndicator } from "./SpeedIndicator";
@@ -38,10 +38,14 @@ const program = Effect.repeat(action, policy)
 
 const AnimateNavControls = ({
   playMode,
-  setPlayMode
+  setPlayMode,
+  animationSpeed,
+  setAnimationSpeed
 }: {
   playMode: PlayMode,
   setPlayMode?: (mode: PlayMode) => void
+  animationSpeed: AnimationSpeed,
+  setAnimationSpeed?: (speed: number) => void
 }) => {
   return (
     <div className="animate-container">
@@ -49,26 +53,27 @@ const AnimateNavControls = ({
         <Button variant="contained" slot="previous">
           <FiRewind />
         </Button>
-        {
-          playMode === PlayMode.Play
-            ? <Button variant="contained" onClick={() => {
-              setPlayMode?.(PlayMode.Pause)
-            }}>
-              <TbPlayerPause />
-            </Button>
-            : <Button variant="contained" onClick={() => {
-              setPlayMode?.(PlayMode.Play)
-              // Run the program and log the number of repetitions
-              Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
-            }}>
-              <TbPlayerPlay />
-            </Button>
-        }
+        {playMode === PlayMode.Play
+          ? <Button variant="contained" onClick={() => {
+            setPlayMode?.(PlayMode.Pause)
+          }}>
+            <TbPlayerPause />
+          </Button>
+          : <Button variant="contained" onClick={() => {
+            setPlayMode?.(PlayMode.Play)
+            // Run the program and log the number of repetitions
+            Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+          }}>
+            <TbPlayerPlay />
+          </Button>}
         <Button variant="contained" slot="next">
           <FiFastForward />
         </Button>
       </div>
-      <SpeedIndicator disabled={playMode === PlayMode.Pause} />
+      <SpeedIndicator
+        disabled={playMode === PlayMode.Pause}
+        animationSpeed={animationSpeed}
+        setAnimationSpeed={setAnimationSpeed} />
     </div>
   );
 }
@@ -126,9 +131,9 @@ const SliderDatePicker = <T extends DateValue>(
         <Dialog>
           <Calendar firstDayOfWeek={firstDayOfWeek}>
             <header>
-              <Button slot="previous">
+              <CalendarButton slot="previous">
                 <MdOutlineKeyboardArrowLeft />
-              </Button>
+              </CalendarButton>
               <Heading />
               <Button slot="next">
                 <MdOutlineKeyboardArrowRight />
@@ -150,6 +155,8 @@ export const RangeDateInput = ({
   setAnimationEnabled = () => { },
   playMode,
   setPlayMode,
+  animationSpeed,
+  setAnimationSpeed,
   incrememntStartDateTime,
   decrememntStartDateTime,
   rangeValue,
@@ -161,6 +168,8 @@ export const RangeDateInput = ({
   setAnimationEnabled?: (enabled: boolean) => void,
   playMode?: PlayMode,
   setPlayMode?: (mode: PlayMode) => void,
+  animationSpeed?: AnimationSpeed,
+  setAnimationSpeed?: (speed: number) => void,
   incrememntStartDateTime?: () => void,
   decrememntStartDateTime?: () => void,
   rangeValue?: TimeDuration,
@@ -174,6 +183,7 @@ export const RangeDateInput = ({
     ({ year, month, day, hours, minutes, seconds, millis }) =>
       new CalendarDateTime(year, month, day, hours, minutes, seconds, millis)
   ) : undefined;
+  console.log(animationEnabled, playMode, rangeValue, startDateTime);
   return (
     <>
       <div className="date-and-query-range-container">
@@ -192,30 +202,24 @@ export const RangeDateInput = ({
           firstDayOfWeek={"sun"}
         />
         <FormControl sx={{ m: 1 }} className="query-range-select">
-          <InputLabel shrink htmlFor="select-multiple-native">
-            Range
+          <InputLabel shrink>
+            Range/Step
           </InputLabel>
           <Select
             labelId="query-range-select-label"
             id="query-range-select"
             value={rangeValue}
-            label="Range"
-            inputProps={{
-              id: 'select-multiple-native',
-            }}
+            label="Range/Step"
             variant="standard"
             onChange={(e) => setRange?.(e.target.value as TimeDuration)}
-          >
-            {
-              Object.entries(TimeDuration).map(([key, value]) => {
-                return isNaN(key as unknown as number) ? (
-                  <MenuItem key={key} value={value}>
-                    {key}
-                  </MenuItem>
-                ) : null;
-              }).filter(Boolean)
-            }
-          </Select>
+          >{Object.entries(TimeDuration).map(([key, value]) => {
+            return isNaN(key as unknown as number) ? (
+              <MenuItem key={key} value={value}>
+                {key}
+              </MenuItem>
+            ) : null;
+          }).filter(Boolean)
+            }</Select>
         </FormControl>
       </div>
       <Divider variant="middle" orientation={"vertical"} flexItem />
@@ -232,10 +236,12 @@ export const RangeDateInput = ({
           <Tab label="Step" {...a11yProps(0)} />
           <Tab label="Animate" {...a11yProps(1)} />
         </Tabs>
-        {animationEnabled && playMode
+        {animationEnabled && playMode !== undefined
           ? <AnimateNavControls
             playMode={playMode}
-            setPlayMode={setPlayMode} />
+            setPlayMode={setPlayMode}
+            animationSpeed={animationSpeed}
+            setAnimationSpeed={setAnimationSpeed} />
           : <StepNavControls
             fwd={incrememntStartDateTime}
             rev={decrememntStartDateTime} />}

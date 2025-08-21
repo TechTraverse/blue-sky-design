@@ -10,11 +10,12 @@ import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { RangeDateInput } from './RangeDateInput';
-import { $animationMatch, AnimationActive, AnimationInactive, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
+import { $animationMatch, AnimationActive, AnimationInactive, AnimationSpeed, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
   initialDuration?: TimeDuration;
+  viewIncrement?: TimeDuration;
   onDateRangeSelect?: () => void;
 }
 
@@ -34,7 +35,7 @@ type State = {
 
   // Animation state for the calendar
   animationState: AnimationState;
-  playMode: PlayMode;
+  defaultAnimationSpeed: AnimationSpeed;
 };
 
 type Action = D.TaggedEnum<{
@@ -67,7 +68,6 @@ const {
   SetSelectedDateTimeAndDuration,
   SetAnimationState, SetPlayMode } = D.taggedEnum<Action>();
 
-
 const reducer = (state: State, action: Action): State =>
   $actionMatch({
     SetViewDuration: (x) => ({
@@ -94,7 +94,6 @@ const reducer = (state: State, action: Action): State =>
         AnimationInactive: () => ({
           ...state,
           animationState: AnimationInactive(),
-          playMode: PlayMode.Pause, // Reset play mode when animation is inactive
         }),
         AnimationActive: (active) => ({
           ...state,
@@ -104,7 +103,13 @@ const reducer = (state: State, action: Action): State =>
     },
     SetPlayMode: (x) => ({
       ...state,
-      playMode: x.playMode,
+      animationState: $animationMatch({
+        AnimationInactive: () => state.animationState,
+        AnimationActive: (active) => AnimationActive({
+          ...active,
+          animationPlayMode: x.playMode,
+        }),
+      })(state.animationState),
     }),
     Reset: () => ({
       ...state,
@@ -167,7 +172,7 @@ export const TimeRangeSlider = ({
     selectedDuration: defaultDuration,
 
     animationState: AnimationInactive(),
-    playMode: PlayMode.Pause, // Start with animation inactive
+    defaultAnimationSpeed: AnimationSpeed['5 min/sec'],
   });
 
   /**
@@ -256,6 +261,8 @@ export const TimeRangeSlider = ({
               animationState: AnimationActive({
                 animationStartDateTime: dateRange.start,
                 animationDuration: DateTime.distanceDuration(dateRange.start, dateRange.end),
+                animationPlayMode: aState.animationPlayMode,
+                animationSpeed: aState.animationSpeed,
               }),
             }));
             d(SetSelectedDateTimeAndDuration({
@@ -340,6 +347,8 @@ export const TimeRangeSlider = ({
               ? AnimationActive({
                 animationStartDateTime: s.selectedStartDateTime,
                 animationDuration: DEFAULT_ANIMATION_DURATION,
+                animationPlayMode: PlayMode.Pause,
+                animationSpeed: s.defaultAnimationSpeed,
               })
               : AnimationInactive(),
           }));
@@ -367,9 +376,25 @@ export const TimeRangeSlider = ({
             duration: s.selectedDuration,
           }));
         }}
-        playMode={s.animationState._tag === 'AnimationActive' ? s.playMode : undefined}
+        playMode={s.animationState._tag === 'AnimationActive'
+          ? s.animationState.animationPlayMode
+          : PlayMode.Pause}
         setPlayMode={(mode: PlayMode) => {
           d(SetPlayMode({ playMode: mode }));
+        }}
+        animationSpeed={s.animationState._tag === 'AnimationActive'
+          ? s.animationState.animationSpeed
+          : s.defaultAnimationSpeed}
+        setAnimationSpeed={(speed: AnimationSpeed) => {
+          d(SetAnimationState({
+            animationState: $animationMatch({
+              AnimationInactive: () => s.animationState,
+              AnimationActive: (active) => AnimationActive({
+                ...active,
+                animationSpeed: speed,
+              }),
+            })(s.animationState),
+          }));
         }}
         rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
           ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}

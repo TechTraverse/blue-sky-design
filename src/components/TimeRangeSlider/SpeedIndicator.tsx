@@ -13,7 +13,7 @@ const speedDescriptors: {
   }))
   .sort((a, b) => a.value - b.value);
 
-export const SpeedIndicator = ({ disabled = true }: { disabled: boolean }) => {
+export const SpeedIndicator = ({ disabled = true, animationSpeed, setAnimationSpeed }: { disabled: boolean, animationSpeed: AnimationSpeed, setAnimationSpeed?: (speed: AnimationSpeed) => void }) => {
   return (
     <div className={`speed-indicator ${disabled ? '' : 'enabled'}`}>
       <FormControl
@@ -22,8 +22,10 @@ export const SpeedIndicator = ({ disabled = true }: { disabled: boolean }) => {
         <Select
           labelId="demo-simple-select-standard-label"
           id="demo-simple-select-standard"
-          value={speedDescriptors[6].value}
-          onChange={console.log}
+          value={animationSpeed}
+          onChange={(e) => {
+            setAnimationSpeed?.(e.target.value as AnimationSpeed)
+          }}
           size="small"
         >
           {
