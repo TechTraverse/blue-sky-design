@@ -180,6 +180,7 @@
   width: fit-content;
 
   > legend {
+    font-family: "Roboto","Helvetica","Arial",sans-serif;
     font-size: 12.9px;
     color: rgba(0, 0, 0, 0.6);
   }

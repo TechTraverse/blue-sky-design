@@ -4,7 +4,7 @@ import type { RangeValue } from "@react-types/shared";
 import { DateTime, Option as O, Data as D, Duration } from 'effect';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar } from 'react-aria-components';
-import { createCalendar, parseDate } from '@internationalized/date';
+import { createCalendar, parseDate, Time } from '@internationalized/date';
 import { useLocale, useRangeCalendar } from 'react-aria';
 import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
@@ -15,7 +15,6 @@ import { $animationMatch, AnimationActive, AnimationInactive, PlayMode, TimeDura
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
   initialDuration?: TimeDuration;
-  increment?: TimeDuration;
   onDateRangeSelect?: () => void;
 }
 
@@ -131,7 +130,7 @@ const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 export const TimeRangeSlider = ({
   initialStartDate,
   initialDuration = TimeDuration['10m'],
-  increment = TimeDuration['5m'],
+  viewIncrement = TimeDuration['5m'],
   onDateRangeSelect,
 }: TimeRangeSliderProps) => {
 
@@ -309,9 +308,8 @@ export const TimeRangeSlider = ({
         }}
         aria-label="Range dates"
         visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
-        {/* <HorizontalCalendarGrid offset={{ months: 0 }} /> */}
         <HorizontalCalendar
-          increment={increment}
+          increment={viewIncrement}
           primaryRange={primaryRange}
           subRanges={subRanges}
           viewRange={{ start: s.viewStartDateTime, end: s.viewEndDateTime }}
@@ -359,13 +357,13 @@ export const TimeRangeSlider = ({
         }}
         incrememntStartDateTime={() => {
           d(SetSelectedDateTimeAndDuration({
-            start: DateTime.add(s.selectedStartDateTime, { millis: increment }),
+            start: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
             duration: s.selectedDuration,
           }));
         }}
         decrememntStartDateTime={() => {
           d(SetSelectedDateTimeAndDuration({
-            start: DateTime.subtract(s.selectedStartDateTime, { millis: increment }),
+            start: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
             duration: s.selectedDuration,
           }));
         }}
@@ -373,6 +371,14 @@ export const TimeRangeSlider = ({
         setPlayMode={(mode: PlayMode) => {
           d(SetPlayMode({ playMode: mode }));
         }}
+        rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
+          ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
+        setRange={(timeDuration: TimeDuration) =>
+          d(SetSelectedDateTimeAndDuration({
+            start: s.selectedStartDateTime,
+            duration: Duration.millis(timeDuration),
+          }))
+        }
       />
     </div>
   );

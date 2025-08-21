@@ -8,7 +8,7 @@ import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-co
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Tab, Tabs, Typography } from "@mui/material";
-import { PlayMode } from "./timeSliderTypes";
+import { PlayMode, TimeDuration } from "./timeSliderTypes";
 import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
 import { SpeedIndicator } from "./SpeedIndicator";
@@ -152,6 +152,8 @@ export const RangeDateInput = ({
   setPlayMode,
   incrememntStartDateTime,
   decrememntStartDateTime,
+  rangeValue,
+  setRange
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
@@ -161,6 +163,8 @@ export const RangeDateInput = ({
   setPlayMode?: (mode: PlayMode) => void,
   incrememntStartDateTime?: () => void,
   decrememntStartDateTime?: () => void,
+  rangeValue?: TimeDuration,
+  setRange?: (timeDuration: TimeDuration) => void
 }) => {
 
   const [value, setValue] = useState(animationEnabled ? 1 : 0);
@@ -194,21 +198,23 @@ export const RangeDateInput = ({
           <Select
             labelId="query-range-select-label"
             id="query-range-select"
-            value={300}
+            value={rangeValue}
             label="Range"
             inputProps={{
               id: 'select-multiple-native',
             }}
             variant="standard"
-            onChange={(e) => console.log(e.target.value)}
+            onChange={(e) => setRange?.(e.target.value as TimeDuration)}
           >
-            <MenuItem value={60}>1m</MenuItem>
-            <MenuItem value={300}>5m</MenuItem>
-            <MenuItem value={600}>10m</MenuItem>
-            <MenuItem value={3600}>1h</MenuItem>
-            <MenuItem value={10800}>3h</MenuItem>
-            <MenuItem value={43200}>12h</MenuItem>
-            <MenuItem value={86400}>24h</MenuItem>
+            {
+              Object.entries(TimeDuration).map(([key, value]) => {
+                return isNaN(key as unknown as number) ? (
+                  <MenuItem key={key} value={value}>
+                    {key}
+                  </MenuItem>
+                ) : null;
+              }).filter(Boolean)
+            }
           </Select>
         </FormControl>
       </div>
