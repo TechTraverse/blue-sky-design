@@ -4,13 +4,15 @@ import type { RangeValue } from "@react-types/shared";
 import { DateTime, Option as O, Data as D, Duration } from 'effect';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar } from 'react-aria-components';
-import { createCalendar, parseDate, Time } from '@internationalized/date';
+import { createCalendar, parseDate } from '@internationalized/date';
 import { useLocale, useRangeCalendar } from 'react-aria';
 import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
-import { RangeDateInput } from './RangeDateInput';
+import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { $animationMatch, AnimationActive, AnimationInactive, AnimationSpeed, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
+import { DateAndRangeSelect } from './DateAndRangeSelect';
+import { Divider } from '@mui/material';
 
 export interface TimeRangeSliderProps {
   initialStartDate?: Date;
@@ -299,9 +301,8 @@ export const TimeRangeSlider = ({
               viewStartDateTime: newStart,
               viewEndDateTime: newEnd,
             }));
-            if (onDateRangeSelect) {
-              onDateRangeSelect();
-            }
+            // TODO: Pass date range to onDateRangeSelect(s)
+            onDateRangeSelect?.();
           }}
           title='Previous'
         />
@@ -332,14 +333,34 @@ export const TimeRangeSlider = ({
               viewStartDateTime: newStart,
               viewEndDateTime: newEnd,
             }));
-            if (onDateRangeSelect) {
-              onDateRangeSelect();
-            }
+            onDateRangeSelect?.();
           }}
           title='Next'
         />
       </button>
-      <RangeDateInput
+      <DateAndRangeSelect
+        startDateTime={s.selectedStartDateTime}
+        setStartDateTime={(date: DateTime.DateTime) => {
+          d(SetSelectedDateTimeAndDuration({
+            start: date,
+            duration: DateTime.distanceDuration(date, DateTime.addDuration(date, s.selectedDuration))
+          }));
+          d(SetViewStartAndEndDateTimes({
+            viewStartDateTime: date,
+            viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
+          }));
+        }}
+        rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
+          ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
+        setRange={(timeDuration: TimeDuration) =>
+          d(SetSelectedDateTimeAndDuration({
+            start: s.selectedStartDateTime,
+            duration: Duration.millis(timeDuration),
+          }))
+        }
+      />
+      <Divider variant="middle" orientation={"vertical"} flexItem />
+      <AnimateAndStepControls
         animationEnabled={s.animationState._tag === 'AnimationActive'}
         setAnimationEnabled={(enabled: boolean) => {
           d(SetAnimationState({
@@ -351,17 +372,6 @@ export const TimeRangeSlider = ({
                 animationSpeed: s.defaultAnimationSpeed,
               })
               : AnimationInactive(),
-          }));
-        }}
-        startDateTime={s.selectedStartDateTime}
-        setStartDateTime={(date: DateTime.DateTime) => {
-          d(SetSelectedDateTimeAndDuration({
-            start: date,
-            duration: DateTime.distanceDuration(date, DateTime.addDuration(date, s.selectedDuration))
-          }));
-          d(SetViewStartAndEndDateTimes({
-            viewStartDateTime: date,
-            viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
           }));
         }}
         incrememntStartDateTime={() => {
@@ -396,14 +406,6 @@ export const TimeRangeSlider = ({
             })(s.animationState),
           }));
         }}
-        rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
-          ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
-        setRange={(timeDuration: TimeDuration) =>
-          d(SetSelectedDateTimeAndDuration({
-            start: s.selectedStartDateTime,
-            duration: Duration.millis(timeDuration),
-          }))
-        }
       />
     </div>
   );
