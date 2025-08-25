@@ -1,7 +1,7 @@
 import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
-import { DateTime, Option as O, Data as D, Duration } from 'effect';
+import { Schedule, DateTime, Option as O, Data as D, Duration, Effect as E } from 'effect';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar } from 'react-aria-components';
 import { createCalendar, parseDate } from '@internationalized/date';
@@ -134,6 +134,16 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
 
 const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 
+
+// Define an effect that logs a message to the console
+const action = E.sync(() => console.log("success"));
+
+// Define a schedule that repeats the action 2 more times with a delay
+const policy = Schedule.addDelay(Schedule.once, () => "1000 millis")
+
+// Repeat the action according to the schedule
+const program = E.repeat(action, policy)
+
 export const TimeRangeSlider = ({
   initialStartDate,
   initialDuration = TimeDuration['10m'],
@@ -243,6 +253,7 @@ export const TimeRangeSlider = ({
   });
   const [subRanges, setSubRanges] = useState<SubRange<DateTime.DateTime>[]>([]);
 
+  /* Update range based on animation vs. step mode */
   useEffect(() => {
     $animationMatch({
       AnimationInactive: () => {
@@ -287,6 +298,68 @@ export const TimeRangeSlider = ({
         }]);
       },
     })(s.animationState);
+  }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
+
+  /* Repeatedly update if animation active and playing */
+  useEffect(() => {
+    match(s.animationState)
+      .with({ _tag: 'AnimationActive', animationPlayMode: PlayMode.Play }, ({ animationSpeed }) => animationSpeed > 0, ({
+        animationStartDateTime,
+        animationDuration,
+        animationSpeed
+      }) => {
+        const jumpDuration = Duration.millis(animationSpeed);
+        const animationEndDateTime = DateTime.addDuration(animationStartDateTime, animationDuration);
+        const nextSelectedStartDateTime = DateTime.addDuration(
+          s.selectedStartDateTime,
+          jumpDuration);
+        const nextSelectedEndDateTime = DateTime.addDuration(
+          nextSelectedStartDateTime,
+          s.selectedDuration);
+        const newSelectedStartDateTime = DateTime.greaterThan(nextSelectedEndDateTime, animationEndDateTime)
+          ? animationStartDateTime
+          : nextSelectedStartDateTime;
+
+        const action = () => {
+          d(SetSelectedDateTimeAndDuration({
+            start: newSelectedStartDateTime,
+            duration: s.selectedDuration,
+          }))
+        };
+        // Wait 1 second then update state
+        const program = E.delay(E.sync(action), Duration.seconds(1));
+        // Run the program and log the number of repetitions
+        E.runPromise(program).then();
+      })
+      .with({ _tag: 'AnimationActive', animationPlayMode: PlayMode.Play }, ({
+        animationStartDateTime,
+        animationDuration,
+        animationSpeed
+      }) => {
+        const jumpDuration = Duration.millis(Math.abs(animationSpeed));
+        const nextSelectedStartDateTime = DateTime.subtractDuration(
+          s.selectedStartDateTime,
+          jumpDuration);
+        const nextSelectedEndDateTime = DateTime.addDuration(
+          nextSelectedStartDateTime,
+          s.selectedDuration);
+        const animationEndDateTime = DateTime.addDuration(animationStartDateTime, animationDuration);
+        const newSelectedStartDateTime = DateTime.lessThan(nextSelectedEndDateTime, animationStartDateTime)
+          ? DateTime.subtractDuration(animationEndDateTime, s.selectedDuration)
+          : nextSelectedStartDateTime;
+
+        const action = () => {
+          d(SetSelectedDateTimeAndDuration({
+            start: newSelectedStartDateTime,
+            duration: s.selectedDuration,
+          }))
+        };
+        // Wait 1 second then update state
+        const program = E.delay(E.sync(action), Duration.seconds(1));
+        // Run the program and log the number of repetitions
+        E.runPromise(program).then();
+      })
+      .otherwise(() => { /* no-op */ });
   }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
 
   return (

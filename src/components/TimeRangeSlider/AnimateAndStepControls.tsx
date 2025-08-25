@@ -54,7 +54,7 @@ const AnimateNavControls = ({
           : <Button variant="contained" onClick={() => {
             setPlayMode?.(PlayMode.Play)
             // Run the program and log the number of repetitions
-            Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+            // Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
           }}>
             <TbPlayerPlay />
           </Button>}
