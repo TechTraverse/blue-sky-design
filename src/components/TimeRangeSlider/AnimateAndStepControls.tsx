@@ -1,13 +1,8 @@
-import { DateTime, Effect, pipe, Schedule } from "effect";
+import { Effect, Schedule } from "effect";
 import "./rangeDateInput.css";
-import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Popover, Text } from 'react-aria-components';
-import { CalendarDateTime } from "@internationalized/date";
-import { FaCalendarAlt } from "react-icons/fa";
-import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
-import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
-import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Tab, Tabs } from "@mui/material";
-import { AnimationSpeed, PlayMode, TimeDuration } from "./timeSliderTypes";
+import { Button, Tab, Tabs } from "@mui/material";
+import { AnimationSpeed, PlayMode } from "./timeSliderTypes";
 import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
 import { SpeedIndicator } from "./SpeedIndicator";
@@ -33,17 +28,21 @@ const AnimateNavControls = ({
   playMode,
   setPlayMode,
   animationSpeed,
-  setAnimationSpeed
+  setAnimationSpeed,
+  incrementAnimationSpeed,
+  decrementAnimationSpeed
 }: {
   playMode: PlayMode,
   setPlayMode?: (mode: PlayMode) => void
   animationSpeed: AnimationSpeed,
-  setAnimationSpeed?: (speed: number) => void
+  setAnimationSpeed?: (speed: number) => void,
+  incrementAnimationSpeed?: () => void,
+  decrementAnimationSpeed?: () => void
 }) => {
   return (
     <div className="animate-container">
       <div className="playback-nav-controls">
-        <Button variant="contained" slot="previous">
+        <Button variant="contained" slot="previous" onClick={() => decrementAnimationSpeed?.()}>
           <FiRewind />
         </Button>
         {playMode === PlayMode.Play
@@ -59,7 +58,7 @@ const AnimateNavControls = ({
           }}>
             <TbPlayerPlay />
           </Button>}
-        <Button variant="contained" slot="next">
+        <Button variant="contained" slot="next" onClick={() => incrementAnimationSpeed?.()}>
           <FiFastForward />
         </Button>
       </div>
@@ -94,8 +93,10 @@ export const AnimateAndStepControls = ({
   setPlayMode,
   animationSpeed,
   setAnimationSpeed,
-  incrememntStartDateTime,
-  decrememntStartDateTime,
+  incrementStartDateTime,
+  decrementStartDateTime,
+  incrementAnimationSpeed,
+  decrementAnimationSpeed,
 }: {
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
@@ -103,8 +104,10 @@ export const AnimateAndStepControls = ({
   setPlayMode?: (mode: PlayMode) => void,
   animationSpeed: AnimationSpeed,
   setAnimationSpeed?: (speed: number) => void,
-  incrememntStartDateTime?: () => void,
-  decrememntStartDateTime?: () => void,
+  incrementStartDateTime?: () => void,
+  decrementStartDateTime?: () => void,
+  incrementAnimationSpeed?: () => void,
+  decrementAnimationSpeed?: () => void,
 }) => {
 
   const [value, setValue] = useState(animationEnabled ? 1 : 0);
@@ -129,10 +132,13 @@ export const AnimateAndStepControls = ({
             playMode={playMode}
             setPlayMode={setPlayMode}
             animationSpeed={animationSpeed}
-            setAnimationSpeed={setAnimationSpeed} />
+            setAnimationSpeed={setAnimationSpeed}
+            incrementAnimationSpeed={incrementAnimationSpeed}
+            decrementAnimationSpeed={decrementAnimationSpeed}
+          />
           : <StepNavControls
-            fwd={incrememntStartDateTime}
-            rev={decrememntStartDateTime} />}
+            fwd={incrementStartDateTime}
+            rev={decrementStartDateTime} />}
       </div>
     </>);
 }

@@ -361,6 +361,21 @@ export const TimeRangeSlider = ({
       />
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <AnimateAndStepControls
+        /* Step controls */
+        incrementStartDateTime={() => {
+          d(SetSelectedDateTimeAndDuration({
+            start: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+            duration: s.selectedDuration,
+          }));
+        }}
+        decrementStartDateTime={() => {
+          d(SetSelectedDateTimeAndDuration({
+            start: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
+            duration: s.selectedDuration,
+          }));
+        }}
+
+        /* Animation toggle */
         animationEnabled={s.animationState._tag === 'AnimationActive'}
         setAnimationEnabled={(enabled: boolean) => {
           d(SetAnimationState({
@@ -374,24 +389,16 @@ export const TimeRangeSlider = ({
               : AnimationInactive(),
           }));
         }}
-        incrememntStartDateTime={() => {
-          d(SetSelectedDateTimeAndDuration({
-            start: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-            duration: s.selectedDuration,
-          }));
-        }}
-        decrememntStartDateTime={() => {
-          d(SetSelectedDateTimeAndDuration({
-            start: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
-            duration: s.selectedDuration,
-          }));
-        }}
+
+        /* Play toggle */
         playMode={s.animationState._tag === 'AnimationActive'
           ? s.animationState.animationPlayMode
           : PlayMode.Pause}
         setPlayMode={(mode: PlayMode) => {
           d(SetPlayMode({ playMode: mode }));
         }}
+
+        /* Animation speed settings */
         animationSpeed={s.animationState._tag === 'AnimationActive'
           ? s.animationState.animationSpeed
           : s.defaultAnimationSpeed}
@@ -402,6 +409,58 @@ export const TimeRangeSlider = ({
               AnimationActive: (active) => AnimationActive({
                 ...active,
                 animationSpeed: speed,
+              }),
+            })(s.animationState),
+          }));
+        }}
+        incrementAnimationSpeed={() => {
+          const animationSpeed = s.animationState._tag === 'AnimationActive'
+            ? s.animationState.animationSpeed
+            : s.defaultAnimationSpeed;
+          const newSpeed = match(animationSpeed)
+            .with(AnimationSpeed['-1 hour/sec'], () => AnimationSpeed['-30 min/sec'])
+            .with(AnimationSpeed['-30 min/sec'], () => AnimationSpeed['-10 min/sec'])
+            .with(AnimationSpeed['-10 min/sec'], () => AnimationSpeed['-5 min/sec'])
+            .with(AnimationSpeed['-5 min/sec'], () => AnimationSpeed['-1 min/sec'])
+            .with(AnimationSpeed['-1 min/sec'], () => AnimationSpeed['1 min/sec'])
+            .with(AnimationSpeed['1 min/sec'], () => AnimationSpeed['5 min/sec'])
+            .with(AnimationSpeed['5 min/sec'], () => AnimationSpeed['10 min/sec'])
+            .with(AnimationSpeed['10 min/sec'], () => AnimationSpeed['30 min/sec'])
+            .with(AnimationSpeed['30 min/sec'], () => AnimationSpeed['1 hour/sec'])
+            .with(AnimationSpeed['1 hour/sec'], () => AnimationSpeed['1 min/sec'])
+            .otherwise(() => animationSpeed);
+          d(SetAnimationState({
+            animationState: $animationMatch({
+              AnimationInactive: () => s.animationState,
+              AnimationActive: (active) => AnimationActive({
+                ...active,
+                animationSpeed: newSpeed,
+              }),
+            })(s.animationState),
+          }));
+        }}
+        decrementAnimationSpeed={() => {
+          const animationSpeed = s.animationState._tag === 'AnimationActive'
+            ? s.animationState.animationSpeed
+            : s.defaultAnimationSpeed;
+          const newSpeed = match(animationSpeed)
+            .with(AnimationSpeed['1 hour/sec'], () => AnimationSpeed['30 min/sec'])
+            .with(AnimationSpeed['30 min/sec'], () => AnimationSpeed['10 min/sec'])
+            .with(AnimationSpeed['10 min/sec'], () => AnimationSpeed['5 min/sec'])
+            .with(AnimationSpeed['5 min/sec'], () => AnimationSpeed['1 min/sec'])
+            .with(AnimationSpeed['1 min/sec'], () => AnimationSpeed['-1 min/sec'])
+            .with(AnimationSpeed['-1 min/sec'], () => AnimationSpeed['-5 min/sec'])
+            .with(AnimationSpeed['-5 min/sec'], () => AnimationSpeed['-10 min/sec'])
+            .with(AnimationSpeed['-10 min/sec'], () => AnimationSpeed['-30 min/sec'])
+            .with(AnimationSpeed['-30 min/sec'], () => AnimationSpeed['-1 hour/sec'])
+            .with(AnimationSpeed['-1 hour/sec'], () => AnimationSpeed['-1 min/sec'])
+            .otherwise(() => animationSpeed);
+          d(SetAnimationState({
+            animationState: $animationMatch({
+              AnimationInactive: () => s.animationState,
+              AnimationActive: (active) => AnimationActive({
+                ...active,
+                animationSpeed: newSpeed,
               }),
             })(s.animationState),
           }));
