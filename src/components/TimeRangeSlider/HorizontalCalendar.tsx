@@ -145,7 +145,7 @@ export const HorizontalCalendar = ({
       const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
       const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
       if (!active) {
-        acc = `${acc}, red ${linearGradientStart}% ${linearGradientEnd}%`;
+        acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
       }
       if (idx === sliderSubRanges.length - 1) {
         acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
