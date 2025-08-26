@@ -63,15 +63,6 @@
   margin-bottom: 80px;
 }
 
-.hide-slider-components {
-  .MuiSlider-thumb {
-    display: none;
-  }
-  .MuiSlider-track {
-    display: none;
-  }
-}
-
 .hour-marks, .minute-marks {
   font-size: 11px;
   display: flex;

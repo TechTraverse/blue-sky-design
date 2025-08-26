@@ -144,3 +144,24 @@
     position: relative;
   }
 }
+
+.hide-slider-components {
+  .MuiSlider-thumb {
+    display: none;
+  }
+  .MuiSlider-track {
+    display: none;
+  }
+}
+
+.hide-left-slider-component {
+  [data-index="0"].MuiSlider-thumb {
+    display: none;
+  }
+}
+
+.hide-right-slider-component {
+  [data-index="1"].MuiSlider-thumb {
+    display: none;
+  }
+}

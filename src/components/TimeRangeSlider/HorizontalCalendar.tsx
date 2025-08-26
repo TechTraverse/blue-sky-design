@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { type PrimaryRange, type SubRange } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
+import { match } from "ts-pattern";
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -62,7 +63,13 @@ export const HorizontalCalendar = ({
   /**
    * Slider active state
    */
-  const [sliderActive, setSliderActive] = useState<boolean>(true);
+  enum SliderActive {
+    Active,
+    Inactive,
+    RightActive,
+    LeftActive
+  }
+  const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
 
   /**
    * View range and step settings
@@ -99,24 +106,43 @@ export const HorizontalCalendar = ({
     DateTime.toEpochMillis(primaryRange.end)
   ]);
   useEffect(() => {
-    if (DateTime.between(primaryRange.start, {
+    const startWithinView = DateTime.between(primaryRange.start, {
       minimum: viewRange.start,
       maximum: viewRange.end
-    }) || DateTime.between(primaryRange.end, {
+    });
+    const endWithinView = DateTime.between(primaryRange.end, {
       minimum: viewRange.start,
       maximum: viewRange.end
-    })) {
-      setSliderSelectedDateRange([
-        DateTime.toEpochMillis(primaryRange.start),
-        DateTime.toEpochMillis(primaryRange.end)
-      ]);
-      setSliderActive(true);
-    } else {
-      setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
-      DateTime.toEpochMillis(viewRange.end)]);
-      setSliderActive(false);
-    }
-  }, [primaryRange, viewRange]);
+    });
+    match([startWithinView, endWithinView])
+      .with([true, true], () => {
+        setSliderSelectedDateRange([
+          DateTime.toEpochMillis(primaryRange.start),
+          DateTime.toEpochMillis(primaryRange.end)
+        ]);
+        setSliderActive(SliderActive.Active)
+      })
+      .with([true, false], () => {
+        setSliderSelectedDateRange([
+          DateTime.toEpochMillis(primaryRange.start),
+          DateTime.toEpochMillis(viewRange.end)
+        ]);
+        setSliderActive(SliderActive.LeftActive)
+      })
+      .with([false, true], () => {
+        setSliderSelectedDateRange([
+          DateTime.toEpochMillis(viewRange.start),
+          DateTime.toEpochMillis(primaryRange.end)
+        ]);
+        setSliderActive(SliderActive.RightActive)
+      })
+      .with([false, false], () => {
+        setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
+        DateTime.toEpochMillis(viewRange.end)])
+        setSliderActive(SliderActive.Inactive)
+      })
+      .exhaustive();
+  }, [SliderActive.Active, SliderActive.Inactive, SliderActive.LeftActive, SliderActive.RightActive, primaryRange, viewRange]);
 
   const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
   useEffect(() => {
@@ -185,7 +211,12 @@ export const HorizontalCalendar = ({
           </div>
         </div>
       </div>
-      <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${sliderActive ? "" : "hide-slider-components"}`}>
+      <Box sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${match(sliderActive)
+        .with(SliderActive.Inactive, () => "hide-slider-components")
+        .with(SliderActive.RightActive, () => "hide-left-slider-component")
+        .with(SliderActive.LeftActive, () => "hide-right-slider-component")
+        .otherwise(() => "")
+        }`}>
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
