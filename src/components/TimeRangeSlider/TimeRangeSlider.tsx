@@ -1,7 +1,7 @@
 import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
-import { Schedule, DateTime, Option as O, Data as D, Duration, Effect as E } from 'effect';
+import { DateTime, Option as O, Data as D, Duration, Effect as E } from 'effect';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { RangeCalendar } from 'react-aria-components';
 import { createCalendar, parseDate } from '@internationalized/date';
@@ -133,16 +133,6 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
   .otherwise(() => Duration.hours(21));
 
 const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
-
-
-// Define an effect that logs a message to the console
-const action = E.sync(() => console.log("success"));
-
-// Define a schedule that repeats the action 2 more times with a delay
-const policy = Schedule.addDelay(Schedule.once, () => "1000 millis")
-
-// Repeat the action according to the schedule
-const program = E.repeat(action, policy)
 
 export const TimeRangeSlider = ({
   initialStartDate,
