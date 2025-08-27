@@ -1,4 +1,3 @@
-import { Effect, Schedule } from "effect";
 import "./rangeDateInput.css";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Button, Tab, Tabs } from "@mui/material";
@@ -13,16 +12,6 @@ const a11yProps = (index: number) => {
     'aria-controls': `simple-tabpanel-${index}`,
   };
 }
-
-// Define an effect that logs a message to the console
-const action = Effect.sync(() => console.log("success"));
-
-// Define a schedule that repeats the action 2 more times with a delay
-const policy = Schedule.addDelay(Schedule.recurs(9), () => "1000 millis")
-
-// Repeat the action according to the schedule
-const program = Effect.repeat(action, policy)
-
 
 const AnimateNavControls = ({
   playMode,
@@ -53,8 +42,6 @@ const AnimateNavControls = ({
           </Button>
           : <Button variant="contained" onClick={() => {
             setPlayMode?.(PlayMode.Play)
-            // Run the program and log the number of repetitions
-            // Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
           }}>
             <TbPlayerPlay />
           </Button>}

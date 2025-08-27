@@ -25,6 +25,7 @@ export interface TimeRangeSliderProps {
     start: Date;
     end: Date;
   }) => void;
+  className?: string;
 }
 
 type State = {
@@ -101,9 +102,8 @@ const reducer = (state: State, action: Action): State =>
         : DateTime.greaterThan(DateTime.addDuration(x.start, x.duration), state.viewEndDateTime)
           ? {
             viewStartDateTime:
-              DateTime.addDuration(DateTime.addDuration(x.start, x.duration),
-                Duration.hours(1 - Duration.toHours(state.viewDuration))),
-            viewEndDateTime: DateTime.addDuration(DateTime.addDuration(x.start, x.duration), Duration.hours(1))
+              DateTime.addDuration(x.start, Duration.hours(1)),
+            viewEndDateTime: DateTime.addDuration(DateTime.addDuration(x.start, Duration.hours(1)), state.viewDuration)
           }
           : {};
 
@@ -163,6 +163,7 @@ export const TimeRangeSlider = ({
   initialDuration = TimeDuration['10m'],
   viewIncrement = TimeDuration['5m'],
   onDateRangeSelect,
+  className = ""
 }: TimeRangeSliderProps) => {
 
   const { locale } = useLocale();
@@ -200,13 +201,6 @@ export const TimeRangeSlider = ({
     animationState: AnimationInactive(),
     defaultAnimationSpeed: AnimationSpeed['5 min/sec'],
   });
-
-  // const SetSelectedDateTimeAndDuration = (params: { start: DateTime.DateTime; duration: Duration.Duration; }) => {
-  //   d(_SetSelectedDateTimeAndDuration(params));
-  //   const jsStartDate = DateTime.toDate(params.start);
-  //   const jsEndDate = DateTime.toDate(DateTime.addDuration(params.start, params.duration));
-  //   onDateRangeSelect({ start: jsStartDate, end: jsEndDate });
-  // }
 
   /**
    * Calendar ref, state, and props for the range calendar.
@@ -398,7 +392,7 @@ export const TimeRangeSlider = ({
   }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
 
   return (
-    <div {...calendarProps} ref={sliderRef} className="time-range-slider">
+    <div {...calendarProps} ref={sliderRef} className={`${className} time-range-slider`}>
       <button className="next-prev-date-range" {...prevButtonProps}>
         <IoIosArrowBack
           onClick={() => {

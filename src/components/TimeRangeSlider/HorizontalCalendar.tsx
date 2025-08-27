@@ -231,7 +231,6 @@ export const HorizontalCalendar = ({
             } else {
               const [oldX] = sliderSelectedDateRange;
               const [newX, newY] = newValue;
-              console.log("Percent: ", ((newX - viewRangeAndStep.start) / (viewRangeAndStep.end - viewRangeAndStep.start)) * 100);
               const newDateTime = oldX === newX ? newY : newX;
               const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
               const dateTimeEnd = DateTime.addDuration(
