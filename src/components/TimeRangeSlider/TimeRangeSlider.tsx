@@ -413,6 +413,26 @@ export const TimeRangeSlider = ({
             viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
           }));
         }}
+        returnToDefaultDateTime={() => {
+          d(SetSelectedDateTimeAndDuration({
+            start: s.defaultStartDateTime,
+            duration: s.selectedDuration,
+          }));
+          d(SetViewStartAndEndDateTimes({
+            viewStartDateTime: s.defaultStartDateTime,
+            viewEndDateTime: DateTime.addDuration(s.defaultStartDateTime, s.viewDuration),
+          }));
+          match(s.animationState)
+            .with({ _tag: 'AnimationActive' }, (aState) => {
+              d(SetAnimationState({
+                animationState: AnimationActive({
+                  ...aState,
+                  animationStartDateTime: s.defaultStartDateTime,
+                  animationPlayMode: PlayMode.Pause,
+                })
+              }));
+            })
+        }}
         rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
           ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
         setRange={(timeDuration: TimeDuration) =>

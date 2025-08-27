@@ -2,7 +2,7 @@ import "./dateAndRangeSelect.css";
 import { DateTime, pipe } from "effect";
 import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
-import { FaCalendarAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaUndo } from "react-icons/fa";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { Box, Button, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
@@ -13,6 +13,7 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
+  returnToDefaultDateTime?: () => void;
 }
 
 function FieldsetBox({
@@ -30,7 +31,7 @@ function FieldsetBox({
 }
 
 const SliderDatePicker = <T extends DateValue>(
-  { label, description, errorMessage, firstDayOfWeek,
+  { label, description, errorMessage, firstDayOfWeek, returnToDefaultDateTime,
     ...props }:
     LocalDatePickerProps<T>
 ) => {
@@ -54,14 +55,20 @@ const SliderDatePicker = <T extends DateValue>(
                 <MdOutlineKeyboardArrowLeft />
               </CalendarButton>
               <Heading />
-              <Button slot="next">
+              <CalendarButton slot="next">
                 <MdOutlineKeyboardArrowRight />
-              </Button>
+              </CalendarButton>
             </header>
             <CalendarGrid>
               {(date) => <CalendarCell date={date} />}
             </CalendarGrid>
           </Calendar>
+          <Button onClick={returnToDefaultDateTime}>
+            <div className="default-date">
+              <FaUndo />
+              <span>Today</span>
+            </div>
+          </Button>
         </Dialog>
       </Popover>
     </DatePicker>);
@@ -71,12 +78,14 @@ export const DateAndRangeSelect = ({
   startDateTime,
   setStartDateTime,
   rangeValue,
-  setRange
+  setRange,
+  returnToDefaultDateTime,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   rangeValue?: TimeDuration,
-  setRange?: (timeDuration: TimeDuration) => void
+  setRange?: (timeDuration: TimeDuration) => void,
+  returnToDefaultDateTime?: () => void,
 }) => {
 
   const calendarDateTime = startDateTime ? pipe(
@@ -100,6 +109,7 @@ export const DateAndRangeSelect = ({
           millis: d.millisecond
         }))}
         firstDayOfWeek={"sun"}
+        returnToDefaultDateTime={returnToDefaultDateTime}
       />
       <FormControl sx={{ m: 1 }} className="query-range-select">
         <InputLabel shrink>
