@@ -85,11 +85,29 @@ const reducer = (state: State, action: Action): State =>
       ...state,
       ...x,
     }),
-    SetSelectedDateTimeAndDuration: (x) => ({
-      ...state,
-      selectedStartDateTime: x.start,
-      selectedDuration: x.duration,
-    }),
+    SetSelectedDateTimeAndDuration: (x) => {
+      const updatedViewTimes = DateTime.lessThan(x.start, state.viewStartDateTime)
+        ? {
+          viewStartDateTime:
+            DateTime.subtractDuration(x.start, Duration.hours(1)),
+          viewEndDateTime: DateTime.addDuration(DateTime.subtractDuration(x.start, Duration.hours(1)), state.viewDuration)
+        }
+        : DateTime.greaterThan(DateTime.addDuration(x.start, x.duration), state.viewEndDateTime)
+          ? {
+            viewStartDateTime:
+              DateTime.addDuration(DateTime.addDuration(x.start, x.duration),
+                Duration.hours(1 - Duration.toHours(state.viewDuration))),
+            viewEndDateTime: DateTime.addDuration(DateTime.addDuration(x.start, x.duration), Duration.hours(1))
+          }
+          : {};
+
+      return ({
+        ...state,
+        ...updatedViewTimes,
+        selectedStartDateTime: x.start,
+        selectedDuration: x.duration,
+      })
+    },
     SetAnimationState: (x) => {
       const { animationState } = x;
       return $animationMatch({
