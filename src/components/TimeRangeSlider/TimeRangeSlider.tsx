@@ -18,7 +18,13 @@ export interface TimeRangeSliderProps {
   initialStartDate?: Date;
   initialDuration?: TimeDuration;
   viewIncrement?: TimeDuration;
-  onDateRangeSelect?: () => void;
+  onDateRangeSelect: ({
+    start,
+    end
+  }: {
+    start: Date;
+    end: Date;
+  }) => void;
 }
 
 type State = {
@@ -195,6 +201,13 @@ export const TimeRangeSlider = ({
     defaultAnimationSpeed: AnimationSpeed['5 min/sec'],
   });
 
+  // const SetSelectedDateTimeAndDuration = (params: { start: DateTime.DateTime; duration: Duration.Duration; }) => {
+  //   d(_SetSelectedDateTimeAndDuration(params));
+  //   const jsStartDate = DateTime.toDate(params.start);
+  //   const jsEndDate = DateTime.toDate(DateTime.addDuration(params.start, params.duration));
+  //   onDateRangeSelect({ start: jsStartDate, end: jsEndDate });
+  // }
+
   /**
    * Calendar ref, state, and props for the range calendar.
    */
@@ -241,22 +254,34 @@ export const TimeRangeSlider = ({
         resizeObserver.unobserve(sliderRef.current);
       }
     };
-  }, []);
+  }, [d]);
 
   /**
    * Determine primary and sub-ranges for the calendar.
    */
-  const setSelectedRangeWrapper = (dateRange: RangeValue<DateTime.DateTime>) => {
-    d(SetSelectedDateTimeAndDuration({
+  const selectedRangeWithCallbackWrapper = ({ start, duration }: { start: DateTime.DateTime, duration: Duration.Duration }) => {
+    // Side-effect to call the onDateRangeSelect callback
+    const jsStartDate = DateTime.toDate(start);
+    const jsEndDate = DateTime.toDate(DateTime.addDuration(start, duration));
+    onDateRangeSelect({ start: jsStartDate, end: jsEndDate });
+
+    return d(SetSelectedDateTimeAndDuration({
+      start,
+      duration
+    }));
+  }
+
+  const selectedRangeToDurationWrapper = (dateRange: RangeValue<DateTime.DateTime>) => {
+    return selectedRangeWithCallbackWrapper({
       start: dateRange.start,
       duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
-    }));
+    });
   }
 
   const [primaryRange, setPrimaryRange] = useState<PrimaryRange<DateTime.DateTime>>({
     start: s.selectedStartDateTime,
     end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-    set: setSelectedRangeWrapper,
+    set: selectedRangeToDurationWrapper,
     duration: s.selectedDuration,
   });
   const [subRanges, setSubRanges] = useState<SubRange<DateTime.DateTime>[]>([]);
@@ -268,7 +293,7 @@ export const TimeRangeSlider = ({
         setPrimaryRange({
           start: s.selectedStartDateTime,
           end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-          set: setSelectedRangeWrapper,
+          set: selectedRangeToDurationWrapper,
           duration: s.selectedDuration,
         });
         setSubRanges([]);
@@ -286,10 +311,10 @@ export const TimeRangeSlider = ({
                 animationSpeed: aState.animationSpeed,
               }),
             }));
-            d(SetSelectedDateTimeAndDuration({
+            selectedRangeWithCallbackWrapper({
               start: dateRange.start,
               duration: s.selectedDuration,
-            }));
+            });
           },
           duration: aState.animationDuration,
         });
@@ -297,15 +322,16 @@ export const TimeRangeSlider = ({
           start: s.selectedStartDateTime,
           end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
           set: (dateRange: RangeValue<DateTime.DateTime>) => {
-            d(SetSelectedDateTimeAndDuration({
+            selectedRangeWithCallbackWrapper({
               start: dateRange.start,
               duration: DateTime.distanceDuration(dateRange.start, dateRange.end)
-            }));
+            });
           },
           active: false,
         }]);
       },
     })(s.animationState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
 
   /* Repeatedly update if animation active and playing */
@@ -329,10 +355,10 @@ export const TimeRangeSlider = ({
           : nextSelectedStartDateTime;
 
         const action = () => {
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: newSelectedStartDateTime,
             duration: s.selectedDuration,
-          }))
+          })
         };
         // Wait 1 second then update state
         const program = E.delay(E.sync(action), Duration.seconds(1));
@@ -357,10 +383,10 @@ export const TimeRangeSlider = ({
           : nextSelectedStartDateTime;
 
         const action = () => {
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: newSelectedStartDateTime,
             duration: s.selectedDuration,
-          }))
+          })
         };
         // Wait 1 second then update state
         const program = E.delay(E.sync(action), Duration.seconds(1));
@@ -368,6 +394,7 @@ export const TimeRangeSlider = ({
         E.runPromise(program).then();
       })
       .otherwise(() => { /* no-op */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
 
   return (
@@ -382,8 +409,6 @@ export const TimeRangeSlider = ({
               viewStartDateTime: newStart,
               viewEndDateTime: newEnd,
             }));
-            // TODO: Pass date range to onDateRangeSelect(s)
-            onDateRangeSelect?.();
           }}
           title='Previous'
         />
@@ -414,7 +439,6 @@ export const TimeRangeSlider = ({
               viewStartDateTime: newStart,
               viewEndDateTime: newEnd,
             }));
-            onDateRangeSelect?.();
           }}
           title='Next'
         />
@@ -422,20 +446,20 @@ export const TimeRangeSlider = ({
       <DateAndRangeSelect
         startDateTime={s.selectedStartDateTime}
         setStartDateTime={(date: DateTime.DateTime) => {
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: date,
             duration: DateTime.distanceDuration(date, DateTime.addDuration(date, s.selectedDuration))
-          }));
+          });
           d(SetViewStartAndEndDateTimes({
             viewStartDateTime: date,
             viewEndDateTime: DateTime.addDuration(date, s.viewDuration),
           }));
         }}
         returnToDefaultDateTime={() => {
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: s.defaultStartDateTime,
             duration: s.selectedDuration,
-          }));
+          });
           d(SetViewStartAndEndDateTimes({
             viewStartDateTime: s.defaultStartDateTime,
             viewEndDateTime: DateTime.addDuration(s.defaultStartDateTime, s.viewDuration),
@@ -454,26 +478,26 @@ export const TimeRangeSlider = ({
         rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
           ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
         setRange={(timeDuration: TimeDuration) =>
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: s.selectedStartDateTime,
             duration: Duration.millis(timeDuration),
-          }))
+          })
         }
       />
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <AnimateAndStepControls
         /* Step controls */
         incrementStartDateTime={() => {
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
             duration: s.selectedDuration,
-          }));
+          });
         }}
         decrementStartDateTime={() => {
-          d(SetSelectedDateTimeAndDuration({
+          selectedRangeWithCallbackWrapper({
             start: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
             duration: s.selectedDuration,
-          }));
+          });
         }}
 
         /* Animation toggle */
