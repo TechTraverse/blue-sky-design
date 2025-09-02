@@ -73,6 +73,20 @@ const {
   SetSelectedDateTimeAndDuration,
   SetAnimationState, SetPlayMode } = D.taggedEnum<Action>();
 
+
+const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateTime.DateTime => DateTime.nearest(dateTime, "day").pipe(
+  DateTime.toParts,
+  (parts) => {
+    const roundedToFiveFloorMins = Math.floor(parts.minutes / 5) * 5;
+    return DateTime.unsafeMake({
+      ...parts,
+      minutes: roundedToFiveFloorMins,
+      seconds: 0,
+      milliseconds: 0,
+    });
+  });
+
+
 const reducer = (state: State, action: Action): State =>
   $actionMatch({
     SetViewDuration: (x) => ({
@@ -84,22 +98,30 @@ const reducer = (state: State, action: Action): State =>
       ...state,
       ...x,
     }),
-    SetViewStartAndEndDateTimes: (x) => ({
-      ...state,
-      ...x,
-    }),
+    SetViewStartAndEndDateTimes: ({ viewStartDateTime, viewEndDateTime }) => {
+      const roundedViewStart = roundDateTimeDownToNearestFiveMinutes(viewStartDateTime);
+      const roundedViewEnd = roundDateTimeDownToNearestFiveMinutes(viewEndDateTime);
+      const newViewDuration = DateTime.distanceDuration(roundedViewStart, roundedViewEnd);
+
+      return {
+        ...state,
+        viewStartDateTime: roundedViewStart,
+        viewEndDateTime: roundedViewEnd,
+        viewDuration: newViewDuration,
+      }
+    },
     SetSelectedDateTimeAndDuration: (x) => {
       const updatedViewTimes = DateTime.lessThan(x.start, state.viewStartDateTime)
         ? {
           viewStartDateTime:
-            DateTime.subtractDuration(x.start, Duration.hours(1)),
-          viewEndDateTime: DateTime.addDuration(DateTime.subtractDuration(x.start, Duration.hours(1)), state.viewDuration)
+            DateTime.subtractDuration(x.start, Duration.hours(1)).pipe(roundDateTimeDownToNearestFiveMinutes),
+          viewEndDateTime: DateTime.addDuration(DateTime.subtractDuration(x.start, Duration.hours(1)), state.viewDuration).pipe(roundDateTimeDownToNearestFiveMinutes)
         }
         : DateTime.greaterThan(DateTime.addDuration(x.start, x.duration), state.viewEndDateTime)
           ? {
             viewStartDateTime:
-              DateTime.addDuration(x.start, Duration.hours(1)),
-            viewEndDateTime: DateTime.addDuration(DateTime.addDuration(x.start, Duration.hours(1)), state.viewDuration)
+              DateTime.addDuration(x.start, Duration.hours(1)).pipe(roundDateTimeDownToNearestFiveMinutes),
+            viewEndDateTime: DateTime.addDuration(DateTime.addDuration(x.start, Duration.hours(1)), state.viewDuration).pipe(roundDateTimeDownToNearestFiveMinutes)
           }
           : {};
 
@@ -179,10 +201,11 @@ export const TimeRangeSlider = ({
    */
   const defaultViewDuration = Duration.days(7);
   const defaultDuration = Duration.millis(initialDuration);
+  const startViewDateTime = roundDateTimeDownToNearestFiveMinutes(initStartDateTime);
   const [s, d] = useReducer(reducer, {
     viewDuration: defaultViewDuration,
-    viewStartDateTime: initStartDateTime,
-    viewEndDateTime: DateTime.addDuration(initStartDateTime, defaultViewDuration), // Default view duration of 7 days
+    viewStartDateTime: startViewDateTime,
+    viewEndDateTime: DateTime.addDuration(startViewDateTime, defaultViewDuration), // Default view duration of 7 days
 
     defaultStartDateTime: initStartDateTime,
     defaultDuration,
