@@ -75,8 +75,7 @@ const {
   SetSelectedDateTimeAndDuration,
   SetAnimationState, SetPlayMode } = D.taggedEnum<Action>();
 
-
-const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateTime.DateTime => DateTime.nearest(dateTime, "day").pipe(
+const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateTime.DateTime => dateTime.pipe(
   DateTime.toParts,
   (parts) => {
     const roundedToFiveFloorMins = Math.floor(parts.minutes / 5) * 5;
@@ -87,7 +86,6 @@ const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): Dat
       milliseconds: 0,
     });
   });
-
 
 const reducer = (state: State, action: Action): State =>
   $actionMatch({
