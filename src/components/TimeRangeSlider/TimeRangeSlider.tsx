@@ -330,7 +330,7 @@ export const TimeRangeSlider = ({
         animationDuration,
         animationSpeed
       }) => {
-        const jumpDuration = Duration.millis((1000 / s.animationRequestFrequency) * animationSpeed);
+        const jumpDuration = Duration.millis((s.animationRequestFrequency / 1000) * animationSpeed);
         const animationEndDateTime = DateTime.addDuration(animationStartDateTime, animationDuration);
         const nextSelectedStartDateTime = DateTime.addDuration(
           s.selectedStartDateTime,
@@ -358,7 +358,7 @@ export const TimeRangeSlider = ({
         animationDuration,
         animationSpeed
       }) => {
-        const jumpDuration = Duration.millis(Math.abs((1000 / s.animationRequestFrequency) * animationSpeed));
+        const jumpDuration = Duration.millis(Math.abs((s.animationRequestFrequency / 1000) * animationSpeed));
         const nextSelectedStartDateTime = DateTime.subtractDuration(
           s.selectedStartDateTime,
           jumpDuration);
