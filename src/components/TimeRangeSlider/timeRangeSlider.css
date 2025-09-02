@@ -1,4 +1,7 @@
 .time-range-slider {
+  background: #fff;
+  color: #555;
+  z-index: 10000;
   height: 76px;
   position: fixed;
   width: 100%;
