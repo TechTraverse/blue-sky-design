@@ -3,10 +3,6 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Option as O, Data as D, Duration, Effect as E } from 'effect';
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
-import { RangeCalendar } from 'react-aria-components';
-import { createCalendar, parseDate } from '@internationalized/date';
-import { useLocale, useRangeCalendar } from 'react-aria';
-import { useRangeCalendarState, type RangeCalendarState } from 'react-stately';
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
@@ -166,8 +162,6 @@ export const TimeRangeSlider = ({
   className = ""
 }: TimeRangeSliderProps) => {
 
-  const { locale } = useLocale();
-
   /**
    * Initialize the start and end dates for the range calendar.
    * If no dates are provided, use the current date and a 1 hour range.
@@ -179,8 +173,6 @@ export const TimeRangeSlider = ({
         "No start date for range or invalide date provided, using current date.");
       return DateTime.unsafeFromDate(new Date()) as DateTime.DateTime;
     }));
-
-  const initEndDateTime: DateTime.DateTime = DateTime.add(initStartDateTime, { millis: initialDuration });
 
   /**
    * Update local state with initial start and end dates.
@@ -201,29 +193,6 @@ export const TimeRangeSlider = ({
     animationState: AnimationInactive(),
     defaultAnimationSpeed: AnimationSpeed['5 min/sec'],
   });
-
-  /**
-   * Calendar ref, state, and props for the range calendar.
-   */
-  const rangeCalendarRef = useRef<HTMLDivElement>(null);
-  const rangeCalendarState: RangeCalendarState = useRangeCalendarState({
-    value: {
-      start: parseDate(DateTime.formatIsoDate(initStartDateTime)),
-      end: parseDate(DateTime.formatIsoDate(initEndDateTime)),
-    },
-    createCalendar,
-    locale
-  });
-  const { calendarProps, prevButtonProps, nextButtonProps } = useRangeCalendar({}, rangeCalendarState, rangeCalendarRef);
-  useEffect(() => {
-    rangeCalendarState.setValue({
-      start: parseDate(DateTime.formatIsoDate(s.selectedStartDateTime)),
-      end: parseDate(DateTime.formatIsoDate(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration))),
-    });
-  }, [
-    s.selectedStartDateTime,
-    s.selectedDuration,
-    rangeCalendarState]);
 
   /**
    * Update view duration based on the width of the slider.
@@ -392,8 +361,8 @@ export const TimeRangeSlider = ({
   }, [s.animationState, s.selectedDuration, s.selectedStartDateTime]);
 
   return (
-    <div {...calendarProps} ref={sliderRef} className={`${className} time-range-slider`}>
-      <button className="next-prev-date-range" {...prevButtonProps}>
+    <div ref={sliderRef} className={`${className} time-range-slider`}>
+      <button className="next-prev-date-range">
         <IoIosArrowBack
           onClick={() => {
             const newStart = DateTime.subtractDuration(
@@ -407,23 +376,15 @@ export const TimeRangeSlider = ({
           title='Previous'
         />
       </button>
-      <RangeCalendar
-        ref={rangeCalendarRef}
-        className={"horizontal-calendar-grid-body"}
-        defaultValue={{
-          start: parseDate(DateTime.formatIsoDate(s.selectedStartDateTime)),
-          end: parseDate(DateTime.formatIsoDate(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration))),
-        }}
-        aria-label="Range dates"
-        visibleDuration={{ days: Duration.toDays(s.viewDuration) }}>
+      <div className={"horizontal-calendar-grid-body"} >
         <HorizontalCalendar
           increment={viewIncrement}
           primaryRange={primaryRange}
           subRanges={subRanges}
           viewRange={{ start: s.viewStartDateTime, end: s.viewEndDateTime }}
         />
-      </RangeCalendar>
-      <button className="next-prev-date-range" {...nextButtonProps}>
+      </div>
+      <button className="next-prev-date-range">
         <IoIosArrowForward
           onClick={() => {
             const newEnd = DateTime.addDuration(
