@@ -24,6 +24,12 @@ export enum AnimationSpeed {
   '1 hour/sec' = Duration.toMillis(Duration.hours(1)),
 }
 
+export enum AnimationRequestFrequency {
+  '1 fps' = 1000, // 1 frame per second
+  '2 fps' = 500, // 2 frames per second
+  '5 fps' = 200, // 5 frames per second
+}
+
 export enum PlayMode {
   Play,
   Pause,

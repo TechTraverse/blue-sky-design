@@ -6,7 +6,7 @@ import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
-import { $animationMatch, AnimationActive, AnimationInactive, AnimationSpeed, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
+import { $animationMatch, AnimationActive, AnimationInactive, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider } from '@mui/material';
 
@@ -21,6 +21,7 @@ export interface TimeRangeSliderProps {
     start: Date;
     end: Date;
   }) => void;
+  animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
 }
 
@@ -41,6 +42,7 @@ type State = {
   // Animation state for the calendar
   animationState: AnimationState;
   defaultAnimationSpeed: AnimationSpeed;
+  animationRequestFrequency: AnimationRequestFrequency;
 };
 
 type Action = D.TaggedEnum<{
@@ -181,7 +183,8 @@ export const TimeRangeSlider = ({
   initialDuration = TimeDuration['10m'],
   viewIncrement = TimeDuration['5m'],
   onDateRangeSelect,
-  className = ""
+  animationRequestFrequency = AnimationRequestFrequency['1 fps'],
+  className = "",
 }: TimeRangeSliderProps) => {
 
   /**
@@ -215,6 +218,7 @@ export const TimeRangeSlider = ({
 
     animationState: AnimationInactive(),
     defaultAnimationSpeed: AnimationSpeed['5 min/sec'],
+    animationRequestFrequency,
   });
 
   /**
@@ -328,7 +332,7 @@ export const TimeRangeSlider = ({
         animationDuration,
         animationSpeed
       }) => {
-        const jumpDuration = Duration.millis(animationSpeed);
+        const jumpDuration = Duration.millis((1000 / s.animationRequestFrequency) * animationSpeed);
         const animationEndDateTime = DateTime.addDuration(animationStartDateTime, animationDuration);
         const nextSelectedStartDateTime = DateTime.addDuration(
           s.selectedStartDateTime,
@@ -347,7 +351,7 @@ export const TimeRangeSlider = ({
           })
         };
         // Wait 1 second then update state
-        const program = E.delay(E.sync(action), Duration.seconds(1));
+        const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
         // Run the program and log the number of repetitions
         E.runPromise(program).then();
       })
@@ -356,7 +360,7 @@ export const TimeRangeSlider = ({
         animationDuration,
         animationSpeed
       }) => {
-        const jumpDuration = Duration.millis(Math.abs(animationSpeed));
+        const jumpDuration = Duration.millis(Math.abs((1000 / s.animationRequestFrequency) * animationSpeed));
         const nextSelectedStartDateTime = DateTime.subtractDuration(
           s.selectedStartDateTime,
           jumpDuration);
