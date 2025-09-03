@@ -190,7 +190,7 @@ export const TimeRangeSlider = ({
    * Initialize the start and end dates for the range calendar.
    * If no dates are provided, use the current date and a 1 hour range.
    */
-  const [externalStartDateTime, setExternalStartDateTime] = useState<DateTime.DateTime>(DateTime.unsafeFromDate(externalStartDate));
+  const [externalStartDateTime, setExternalStartDateTime] = useState<DateTime.DateTime>(DateTime.unsafeFromDate(new Date(externalStartDate)));
   useEffect(() => {
     const newStartDateTime: DateTime.DateTime = O.fromNullable(externalStartDate).pipe(
       O.flatMap(DateTime.make),
@@ -237,8 +237,9 @@ export const TimeRangeSlider = ({
       start: externalStartDateTime,
       duration: defaultDuration,
     }));
+    // Omit defaultDuration to prevent endless loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalStartDateTime, defaultDuration]);
+  }, [externalStartDate]);
 
   /**
    * Update view duration based on the width of the slider.

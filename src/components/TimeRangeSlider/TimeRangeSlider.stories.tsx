@@ -13,7 +13,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     user: {},
-    initialStartDate: 1752991200000,
+    externalStartDate: 1752991200000,
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);
     }
