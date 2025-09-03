@@ -11,7 +11,7 @@ import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider } from '@mui/material';
 
 export interface TimeRangeSliderProps {
-  initialStartDate?: Date;
+  externalStartDate?: Date;
   initialDuration?: TimeDuration;
   viewIncrement?: TimeDuration;
   onDateRangeSelect: ({
@@ -71,6 +71,7 @@ type Action = D.TaggedEnum<{
 const {
   $match: $actionMatch,
   SetViewDuration,
+  SetDefaultStartDateTimeAndDuration,
   SetViewStartAndEndDateTimes,
   SetSelectedDateTimeAndDuration,
   SetAnimationState, SetPlayMode } = D.taggedEnum<Action>();
@@ -177,7 +178,7 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
 const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 
 export const TimeRangeSlider = ({
-  initialStartDate,
+  externalStartDate = new Date(),
   initialDuration = TimeDuration['10m'],
   viewIncrement = TimeDuration['5m'],
   onDateRangeSelect,
@@ -189,35 +190,55 @@ export const TimeRangeSlider = ({
    * Initialize the start and end dates for the range calendar.
    * If no dates are provided, use the current date and a 1 hour range.
    */
-  const initStartDateTime: DateTime.DateTime = O.fromNullable(initialStartDate).pipe(
-    O.flatMap(DateTime.make),
-    O.getOrElse(() => {
-      console.warn(
-        "No start date for range or invalide date provided, using current date.");
-      return DateTime.unsafeFromDate(new Date()) as DateTime.DateTime;
-    }));
+  const [externalStartDateTime, setExternalStartDateTime] = useState<DateTime.DateTime>(DateTime.unsafeFromDate(externalStartDate));
+  useEffect(() => {
+    const newStartDateTime: DateTime.DateTime = O.fromNullable(externalStartDate).pipe(
+      O.flatMap(DateTime.make),
+      O.getOrElse(() => {
+        console.warn(
+          "No start date for range or invalide date provided, using current date.");
+        return DateTime.unsafeFromDate(new Date()) as DateTime.DateTime;
+      }));
+    setExternalStartDateTime(newStartDateTime);
+  }, [externalStartDate, initialDuration]);
 
   /**
    * Update local state with initial start and end dates.
    */
   const defaultViewDuration = Duration.days(7);
   const defaultDuration = Duration.millis(initialDuration);
-  const startViewDateTime = roundDateTimeDownToNearestFiveMinutes(initStartDateTime);
+  const startViewDateTime = roundDateTimeDownToNearestFiveMinutes(externalStartDateTime);
   const [s, d] = useReducer(reducer, {
     viewDuration: defaultViewDuration,
     viewStartDateTime: startViewDateTime,
     viewEndDateTime: DateTime.addDuration(startViewDateTime, defaultViewDuration), // Default view duration of 7 days
 
-    defaultStartDateTime: initStartDateTime,
+    defaultStartDateTime: externalStartDateTime,
     defaultDuration,
 
-    selectedStartDateTime: initStartDateTime,
+    selectedStartDateTime: externalStartDateTime,
     selectedDuration: defaultDuration,
 
     animationState: AnimationInactive(),
     defaultAnimationSpeed: AnimationSpeed['5 min/sec'],
     animationRequestFrequency,
   });
+
+  useEffect(() => {
+    d(SetDefaultStartDateTimeAndDuration({
+      defaultStartDateTime: externalStartDateTime,
+      defaultDuration,
+    }));
+    d(SetViewStartAndEndDateTimes({
+      viewStartDateTime: externalStartDateTime,
+      viewEndDateTime: DateTime.addDuration(externalStartDateTime, s.viewDuration),
+    }));
+    d(SetSelectedDateTimeAndDuration({
+      start: externalStartDateTime,
+      duration: defaultDuration,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalStartDateTime, defaultDuration]);
 
   /**
    * Update view duration based on the width of the slider.
