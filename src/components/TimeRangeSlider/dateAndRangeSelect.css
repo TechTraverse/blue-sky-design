@@ -111,6 +111,8 @@
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 12px;;
+  top: unset !important;
+  left: unset !important;
 
   header {
     display: flex;
