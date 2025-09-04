@@ -1,6 +1,11 @@
 import type { RangeValue } from "@react-types/shared";
 import { Data as D, Duration, type DateTime } from "effect";
 
+export enum AnimationOrStepMode {
+  Animation,
+  Step,
+}
+
 export enum TimeDuration {
   "1m" = 60000, // 1 minute in milliseconds
   "5m" = 300000, // 5 minutes in milliseconds
@@ -35,20 +40,20 @@ export enum PlayMode {
   Pause,
 }
 
-export type AnimationState = D.TaggedEnum<{
-  AnimationInactive: object;
-  AnimationActive: {
-    animationStartDateTime: DateTime.DateTime;
-    animationDuration: Duration.Duration;
-    animationPlayMode: PlayMode;
-    animationSpeed: AnimationSpeed;
-  }
-}>;
+// export type AnimationState = D.TaggedEnum<{
+//   AnimationInactive: object;
+//   AnimationActive: {
+//     animationStartDateTime: DateTime.DateTime;
+//     animationDuration: Duration.Duration;
+//     animationPlayMode: PlayMode;
+//     animationSpeed: AnimationSpeed;
+//   }
+// }>;
 
-export const {
-  $match: $animationMatch,
-  AnimationInactive,
-  AnimationActive } = D.taggedEnum<AnimationState>();
+// export const {
+//   $match: $animationMatch,
+//   AnimationInactive,
+//   AnimationActive } = D.taggedEnum<AnimationState>();
 
 export type PrimaryRange<T> = RangeValue<T> & {
   set?: (range: { start: T; end: T }) => void;

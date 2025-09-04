@@ -6,21 +6,18 @@ import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
-import { $animationMatch, AnimationActive, AnimationInactive, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, type AnimationState, type PrimaryRange, type SubRange } from './timeSliderTypes';
+import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, type PrimaryRange, type SubRange } from './timeSliderTypes';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider } from '@mui/material';
 
+/**
+ * Local types for state, actions, and props
+ */
+
 export interface TimeRangeSliderProps {
-  externalStartDate?: Date;
-  initialDuration?: TimeDuration;
-  viewIncrement?: TimeDuration;
-  onDateRangeSelect: ({
-    start,
-    end
-  }: {
-    start: Date;
-    end: Date;
-  }) => void;
+  dateRange?: RangeValue<Date>;
+  dateRangeForReset?: RangeValue<Date>;
+  onDateRangeSelect: (rv: RangeValue<Date>) => void;
   animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
 }
@@ -28,53 +25,86 @@ export interface TimeRangeSliderProps {
 type State = {
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
-  viewEndDateTime: DateTime.DateTime;
   viewDuration: Duration.Duration;
 
-  // Default date range on init, also what to reset to
-  defaultStartDateTime: DateTime.DateTime;
-  defaultDuration: Duration.Duration;
+  // Default date and duration to reset to
+  resetStartDateTime: DateTime.DateTime;
+  resetDuration: Duration.Duration;
 
   // User-selected date range
   selectedStartDateTime: DateTime.DateTime;
   selectedDuration: Duration.Duration;
 
+  // Two modes: animation or step
+  animationOrStepMode: AnimationOrStepMode;
+
   // Animation state for the calendar
-  animationState: AnimationState;
-  defaultAnimationSpeed: AnimationSpeed;
+  resetAnimationSpeed: AnimationSpeed;
+  resetAnimationDuration: Duration.Duration;
+  animationStartDateTime: DateTime.DateTime;
+  animationDuration: Duration.Duration;
   animationRequestFrequency: AnimationRequestFrequency;
+  animationPlayMode: PlayMode;
+  animationSpeed: AnimationSpeed;
 };
 
 type Action = D.TaggedEnum<{
+  SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
   SetViewDuration: { viewDuration: Duration.Duration; };
-  SetViewStartAndEndDateTimes: {
-    viewStartDateTime: DateTime.DateTime;
-    viewEndDateTime: DateTime.DateTime;
-  }
-  SetDefaultStartDateTimeAndDuration: {
-    defaultStartDateTime: DateTime.DateTime;
-    defaultDuration: Duration.Duration;
-  };
-  SetSelectedDateTimeAndDuration: {
-    start: DateTime.DateTime;
-    duration: Duration.Duration;
-  };
-  SetAnimationState: {
-    animationState: AnimationState;
-  };
-  SetPlayMode: {
-    playMode: PlayMode;
-  };
-  Reset: object;
+
+  SetResetStartDateTime:
+  { resetStartDateTime: DateTime.DateTime; };
+  SetResetDuration: { resetDuration: Duration.Duration; };
+
+  SetSelectedStartDateTime:
+  { selectedStartDateTime: DateTime.DateTime; };
+  SetSelectedDuration: { selectedDuration: Duration.Duration; };
+
+  SetAnimationOrStepMode:
+  { animationOrStepMode: AnimationOrStepMode; };
+
+  SetAnimationStartDateTime:
+  { animationStartDateTime: DateTime.DateTime; };
+  SetAnimationDuration: { animationDuration: Duration.Duration; };
+  SetAnimationRequestFrequency:
+  { animationRequestFrequency: AnimationRequestFrequency; };
+  SetAnimationPlayMode: { playMode: PlayMode; };
+  SetDefaultAnimationSpeed:
+  { defaultAnimationSpeed: AnimationSpeed; };
+
+  ResetAll: object;
 }>;
+
+
+/**
+ * Constants
+ */
+
+const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 
 const {
   $match: $actionMatch,
+  SetViewStartDateTime,
   SetViewDuration,
-  SetDefaultStartDateTimeAndDuration,
-  SetViewStartAndEndDateTimes,
-  SetSelectedDateTimeAndDuration,
-  SetAnimationState, SetPlayMode } = D.taggedEnum<Action>();
+
+  SetResetStartDateTime,
+  SetResetDuration,
+
+  SetSelectedStartDateTime,
+  SetSelectedDuration,
+
+  SetAnimationOrStepMode,
+
+  SetAnimationStartDateTime,
+  SetAnimationDuration,
+  SetAnimationRequestFrequency,
+  SetAnimationPlayMode,
+  SetDefaultAnimationSpeed } = D.taggedEnum<Action>();
+
+
+/**
+ * Helper functions
+ */
 
 const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateTime.DateTime => dateTime.pipe(
   DateTime.toParts,
@@ -88,84 +118,6 @@ const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): Dat
     });
   });
 
-const reducer = (state: State, action: Action): State =>
-  $actionMatch({
-    SetViewDuration: (x) => ({
-      ...state,
-      viewDuration: x.viewDuration,
-      viewEndDateTime: DateTime.addDuration(state.viewStartDateTime, x.viewDuration),
-    }),
-    SetDefaultStartDateTimeAndDuration: (x) => ({
-      ...state,
-      ...x,
-    }),
-    SetViewStartAndEndDateTimes: ({ viewStartDateTime, viewEndDateTime }) => {
-      const roundedViewStart = roundDateTimeDownToNearestFiveMinutes(viewStartDateTime);
-      const roundedViewEnd = roundDateTimeDownToNearestFiveMinutes(viewEndDateTime);
-      const newViewDuration = DateTime.distanceDuration(roundedViewStart, roundedViewEnd);
-
-      return {
-        ...state,
-        viewStartDateTime: roundedViewStart,
-        viewEndDateTime: roundedViewEnd,
-        viewDuration: newViewDuration,
-      }
-    },
-    SetSelectedDateTimeAndDuration: (x) => {
-      const updatedViewTimes = DateTime.lessThan(x.start, state.viewStartDateTime)
-        ? {
-          viewStartDateTime:
-            DateTime.subtractDuration(x.start, Duration.hours(1)).pipe(roundDateTimeDownToNearestFiveMinutes),
-          viewEndDateTime: DateTime.addDuration(DateTime.subtractDuration(x.start, Duration.hours(1)), state.viewDuration).pipe(roundDateTimeDownToNearestFiveMinutes)
-        }
-        : DateTime.greaterThan(DateTime.addDuration(x.start, x.duration), state.viewEndDateTime)
-          ? {
-            viewStartDateTime:
-              DateTime.addDuration(x.start, Duration.hours(1)).pipe(roundDateTimeDownToNearestFiveMinutes),
-            viewEndDateTime: DateTime.addDuration(DateTime.addDuration(x.start, Duration.hours(1)), state.viewDuration).pipe(roundDateTimeDownToNearestFiveMinutes)
-          }
-          : {};
-
-      return ({
-        ...state,
-        ...updatedViewTimes,
-        selectedStartDateTime: x.start,
-        selectedDuration: x.duration,
-      })
-    },
-    SetAnimationState: (x) => {
-      const { animationState } = x;
-      return $animationMatch({
-        AnimationInactive: () => ({
-          ...state,
-          animationState: AnimationInactive(),
-        }),
-        AnimationActive: (active) => ({
-          ...state,
-          animationState: AnimationActive(active),
-        }),
-      })(animationState);
-    },
-    SetPlayMode: (x) => ({
-      ...state,
-      animationState: $animationMatch({
-        AnimationInactive: () => state.animationState,
-        AnimationActive: (active) => AnimationActive({
-          ...active,
-          animationPlayMode: x.playMode,
-        }),
-      })(state.animationState),
-    }),
-    Reset: () => ({
-      ...state,
-      selectedStartDateTime: state.defaultStartDateTime,
-      selectedDuration: state.defaultDuration,
-      viewStartDateTime: state.defaultStartDateTime,
-      viewEndDateTime: DateTime.addDuration(state.defaultStartDateTime, state.viewDuration),
-      animationState: AnimationInactive(),
-    }),
-  })(action);
-
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
   .with(P.number.lt(350), () => Duration.hours(1))
   .with(P.number.lt(700), () => Duration.hours(2))
@@ -175,7 +127,107 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
   .with(P.number.lt(2100), () => Duration.hours(6))
   .otherwise(() => Duration.hours(21));
 
-const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
+
+/**
+ * State management: reducer
+ */
+
+const reducer = (state: State, action: Action): State =>
+  $actionMatch({
+    SetViewStartDateTime: (x) => ({
+      ...state,
+      viewStartDateTime:
+        roundDateTimeDownToNearestFiveMinutes(x.viewStartDateTime),
+    }),
+    SetViewDuration: (x) => ({
+      ...state,
+      viewDuration: x.viewDuration,
+    }),
+
+    SetResetStartDateTime: (x) => ({
+      ...state,
+      resetStartDateTime: x.resetStartDateTime,
+    }),
+    SetResetDuration: (x) => ({
+      ...state,
+      resetDuration: x.resetDuration,
+    }),
+
+    // TODO: Update view if outside of current view range
+    SetSelectedStartDateTime: (x) => {
+      const start = x.selectedStartDateTime;
+      const end = DateTime.addDuration(start, state.selectedDuration);
+
+      const updatedViewStartDateTime =
+        DateTime.lessThan(start, state.viewStartDateTime)
+          ? {
+            viewStartDateTime:
+              DateTime
+                .subtractDuration(start, Duration.hours(1)).pipe(
+                  roundDateTimeDownToNearestFiveMinutes),
+          }
+          : DateTime.greaterThan(end, DateTime.addDuration(state.viewStartDateTime, state.viewDuration))
+            ? {
+              viewStartDateTime: start.pipe(
+                roundDateTimeDownToNearestFiveMinutes),
+            }
+            : {};
+
+      return {
+        ...state,
+        ...updatedViewStartDateTime,
+        selectedStartDateTime: start,
+      }
+    },
+    SetSelectedDuration: (x) => ({
+      ...state,
+      selectedDuration: x.selectedDuration,
+    }),
+
+    SetAnimationOrStepMode: (x) => ({
+      ...state,
+      animationOrStepMode: x.animationOrStepMode,
+    }),
+
+    SetAnimationStartDateTime: (x) => ({
+      ...state,
+      animationStartDateTime: x.animationStartDateTime,
+    }),
+    SetAnimationDuration: (x) => ({
+      ...state,
+      animationDuration: x.animationDuration,
+    }),
+    SetAnimationRequestFrequency: (x) => ({
+      ...state,
+      animationRequestFrequency: x.animationRequestFrequency,
+    }),
+    SetAnimationPlayMode: (x) => ({
+      ...state,
+      animationPlayMode: x.playMode,
+    }),
+    SetDefaultAnimationSpeed: (x) => ({
+      ...state,
+      resetAnimationSpeed: x.defaultAnimationSpeed,
+    }),
+
+    ResetAll: () => ({
+      ...state,
+      viewStartDateTime: state.resetStartDateTime,
+      viewDuration: state.resetDuration,
+      selectedStartDateTime: state.resetStartDateTime,
+      selectedDuration: state.resetDuration,
+      animationOrStepMode: AnimationOrStepMode.Step,
+      animationStartDateTime: state.resetStartDateTime,
+      animationDuration: state.resetAnimationDuration,
+      animationPlayMode: PlayMode.Pause,
+      animationSpeed: state.resetAnimationSpeed,
+    }),
+  })(action);
+
+
+/**
+ * Component
+ */
 
 export const TimeRangeSlider = ({
   externalStartDate = new Date(),
