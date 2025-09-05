@@ -85,6 +85,7 @@ type Action = D.TaggedEnum<{
  */
 
 const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
+const DEFAULT_VIEW_INCREMENT = Duration.minutes(5).pipe(Duration.toMillis);
 
 const {
   $match: $actionMatch,
@@ -106,7 +107,8 @@ const {
   SetAnimationRequestFrequency,
   SetAnimationPlayMode,
   SetAnimationSpeed,
-  SetResetAnimationSpeed } = D.taggedEnum<Action>();
+  SetResetAnimationSpeed,
+  ResetAll } = D.taggedEnum<Action>();
 
 
 /**
@@ -401,53 +403,33 @@ export const TimeRangeSlider = ({
     }));
   }, [onDateRangeSelect]);
 
+  /**
+   * Update selected date if animation active and playing
+   */
 
-  /* Repeatedly update if animation active and playing */
   useEffect(() => {
-    if (s.animationPlayMode === PlayMode.Play && s.animationSpeed > 0) {
-      const jumpDuration = Duration.millis((s.animationRequestFrequency / 1000) * s.animationSpeed);
-      const animationEndDateTime = DateTime.addDuration(s.animationStartDateTime, s.animationDuration);
-      const nextSelectedStartDateTime = DateTime.addDuration(
-        s.selectedStartDateTime,
-        jumpDuration);
-      const nextSelectedEndDateTime = DateTime.addDuration(
-        nextSelectedStartDateTime,
-        s.selectedDuration);
-      const newSelectedStartDateTime = DateTime.greaterThan(nextSelectedEndDateTime, animationEndDateTime)
-        ? s.animationStartDateTime
-        : nextSelectedStartDateTime;
+    if (s.animationOrStepMode !== AnimationOrStepMode.Animation
+      || s.animationPlayMode !== PlayMode.Play)
+      return;
 
-      const action = () => {
-        selectedRangeWithCallbackWrapper({
-          start: newSelectedStartDateTime,
-          duration: s.selectedDuration,
-        })
-      };
-      const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
-      E.runPromise(program).then();
-    } else if (s.animationPlayMode === PlayMode.Play && s.animationSpeed < 0) {
-      const jumpDuration = Duration.millis(Math.abs((s.animationRequestFrequency / 1000) * s.animationSpeed));
-      const nextSelectedStartDateTime = DateTime.subtractDuration(
-        s.selectedStartDateTime,
-        jumpDuration);
-      const nextSelectedEndDateTime = DateTime.addDuration(
-        nextSelectedStartDateTime,
-        s.selectedDuration);
-      const animationEndDateTime = DateTime.addDuration(s.animationStartDateTime, s.animationDuration);
-      const newSelectedStartDateTime = DateTime.lessThan(nextSelectedEndDateTime, s.animationStartDateTime)
-        ? DateTime.subtractDuration(animationEndDateTime, s.selectedDuration)
-        : nextSelectedStartDateTime;
+    const dateTimeJump = Duration.millis(Math.abs((
+      s.animationRequestFrequency / 1000) * s.animationSpeed));
+    const selectedStartDateTime = s.animationSpeed > 0
+      ? DateTime.addDuration(s.selectedStartDateTime, dateTimeJump)
+      : DateTime.subtractDuration(s.selectedStartDateTime, dateTimeJump);
 
-      const action = () => {
-        selectedRangeWithCallbackWrapper({
-          start: newSelectedStartDateTime,
-          duration: s.selectedDuration,
-        })
-      };
-      const program = E.delay(E.sync(action), Duration.seconds(1));
-      E.runPromise(program).then();
-    }
-  }, [s.animationPlayMode, s.animationSpeed, s.animationStartDateTime, s.animationDuration, s.selectedDuration, s.selectedStartDateTime, s.animationRequestFrequency]);
+    const action = () =>
+      d(SetAnimationSelectedStartDateTime({ selectedStartDateTime }));
+    const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
+    E.runPromise(program).then();
+  }, [
+    s.animationOrStepMode,
+    s.animationPlayMode,
+    s.animationSpeed,
+    s.animationRequestFrequency,
+    s.selectedStartDateTime
+  ]);
+
 
   return (
     <div ref={sliderRef} className={`${className} time-range-slider`}>
@@ -456,18 +438,45 @@ export const TimeRangeSlider = ({
           onClick={() => {
             const newStart = DateTime.subtractDuration(
               s.viewStartDateTime, s.viewDuration);
-            const newEnd = s.viewStartDateTime;
             d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-            // No viewEndDateTime, so just update start
           }}
           title='Previous'
         />
       </button>
       <div className={"horizontal-calendar-grid-body"} >
         <HorizontalCalendar
-          increment={viewIncrement}
-          primaryRange={primaryRange}
-          subRanges={subRanges}
+          increment={DEFAULT_VIEW_INCREMENT}
+          primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
+            ? {
+              start: s.selectedStartDateTime,
+              end: DateTime.addDuration(s.selectedStartDateTime, s.animationDuration),
+              set: (r: RangeValue<DateTime.DateTime>) => {
+                d(SetAnimationSelectedStartDateTime({ selectedStartDateTime: r.start }));
+                d(SetAnimationDuration({
+                  animationDuration: DateTime.distanceDuration(r.start, r.end)
+                }));
+              },
+              duration: s.animationDuration
+            }
+            : {
+              start: s.selectedStartDateTime,
+              end: DateTime.addDuration(
+                s.selectedStartDateTime, s.selectedDuration),
+              set: (r: RangeValue<DateTime.DateTime>) => {
+                d(SetSelectedStartDateTime({ selectedStartDateTime: r.start }));
+                d(SetSelectedDuration({
+                  selectedDuration: DateTime.distanceDuration(r.start, r.end)
+                }));
+              },
+              duration: s.selectedDuration
+            }}
+          subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
+            ? [{
+              start: s.selectedStartDateTime,
+              end: DateTime.addDuration(s.selectedStartDateTime, s.animationDuration),
+              active: s.animationPlayMode === PlayMode.Play,
+            }]
+            : []}
           viewRange={{ start: s.viewStartDateTime, end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration) }}
         />
       </div>
@@ -484,63 +493,43 @@ export const TimeRangeSlider = ({
       <DateAndRangeSelect
         startDateTime={s.selectedStartDateTime}
         setStartDateTime={(date: DateTime.DateTime) => {
-          selectedRangeWithCallbackWrapper({
-            start: date,
-            duration: DateTime.distanceDuration(date, DateTime.addDuration(date, s.selectedDuration))
-          });
-          d(SetViewStartDateTime({ viewStartDateTime: date }));
+          d(SetSelectedStartDateTime({ selectedStartDateTime: date }));
         }}
         returnToDefaultDateTime={() => {
-          selectedRangeWithCallbackWrapper({
-            start: s.resetStartDateTime,
-            duration: s.selectedDuration,
-          });
-          d(SetViewStartDateTime({ viewStartDateTime: s.resetStartDateTime }));
-          d(SetViewDuration({ viewDuration: s.resetDuration }));
-          d(SetAnimationStartDateTime({ animationStartDateTime: s.resetStartDateTime }));
-          d(SetAnimationDuration({ animationDuration: DEFAULT_ANIMATION_DURATION }));
-          d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
-          d(SetAnimationSpeed({ animationSpeed: s.resetAnimationSpeed }));
+          d(ResetAll());
         }}
         rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
           ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
-        setRange={(timeDuration: TimeDuration) =>
-          selectedRangeWithCallbackWrapper({
-            start: s.selectedStartDateTime,
-            duration: Duration.millis(timeDuration),
-          })
+        setRange={
+          (timeDuration: TimeDuration) =>
+            d(SetSelectedDuration({ selectedDuration: Duration.millis(timeDuration) }))
         }
       />
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <AnimateAndStepControls
         /* Step controls */
         incrementStartDateTime={() => {
-          selectedRangeWithCallbackWrapper({
-            start: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-            duration: s.selectedDuration,
-          });
+          d(SetSelectedStartDateTime({
+            selectedStartDateTime: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration)
+          }));
         }}
         decrementStartDateTime={() => {
-          selectedRangeWithCallbackWrapper({
-            start: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
-            duration: s.selectedDuration,
-          });
+          d(SetSelectedStartDateTime({
+            selectedStartDateTime: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration)
+          }));
         }}
 
         /* Animation toggle */
         animationEnabled={s.animationPlayMode !== PlayMode.Pause}
         setAnimationEnabled={(enabled: boolean) => {
-          if (enabled) {
-            d(SetAnimationStartDateTime({ animationStartDateTime: s.selectedStartDateTime }));
-            d(SetAnimationDuration({ animationDuration: DEFAULT_ANIMATION_DURATION }));
-            d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
-            d(SetAnimationSpeed({ animationSpeed: s.animationSpeed }));
-          } else {
-            d(SetAnimationStartDateTime({ animationStartDateTime: s.selectedStartDateTime }));
-            d(SetAnimationDuration({ animationDuration: DEFAULT_ANIMATION_DURATION }));
-            d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
-            d(SetAnimationSpeed({ animationSpeed: s.defaultAnimationSpeed }));
-          }
+          d(SetAnimationOrStepMode({
+            animationOrStepMode: enabled
+              ? AnimationOrStepMode.Animation
+              : AnimationOrStepMode.Step
+          }));
+          d(SetAnimationPlayMode({
+            playMode: enabled ? PlayMode.Play : PlayMode.Pause
+          }));
         }}
 
         /* Play toggle */
