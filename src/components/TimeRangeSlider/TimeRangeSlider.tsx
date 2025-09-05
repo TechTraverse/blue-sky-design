@@ -65,6 +65,8 @@ type Action = D.TaggedEnum<{
   SetAnimationOrStepMode:
   { animationOrStepMode: AnimationOrStepMode; };
 
+  SetAnimationSelectedStartDateTime:
+  { selectedStartDateTime: DateTime.DateTime; };
   SetAnimationDuration: { animationDuration: Duration.Duration; };
   SetAnimationRequestFrequency:
   { animationRequestFrequency: AnimationRequestFrequency; };
@@ -86,6 +88,7 @@ const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
 
 const {
   $match: $actionMatch,
+  $is: $actionIs,
   SetViewStartDateTime,
   SetViewDuration,
 
@@ -98,6 +101,7 @@ const {
 
   SetAnimationOrStepMode,
 
+  SetAnimationSelectedStartDateTime,
   SetAnimationDuration,
   SetAnimationRequestFrequency,
   SetAnimationPlayMode,
@@ -213,6 +217,8 @@ const reducer = (state: State, action: Action): State =>
       animationOrStepMode: x.animationOrStepMode,
     }),
 
+    // Handled at the middleware level but kept here for completeness
+    SetAnimationSelectedStartDateTime: () => state,
     SetAnimationDuration: (x) => ({
       ...state,
       animationDuration: x.animationDuration,
@@ -246,6 +252,26 @@ const reducer = (state: State, action: Action): State =>
       animationSpeed: state.resetAnimationSpeed,
     }),
   })(action);
+
+
+/**
+ * Middleware for streaming dispatch state updates
+ */
+
+function withMiddleware(
+  reducer: (state: State, action: Action) => State
+): (state: State, action: Action) => State {
+  return (state, action) => {
+    if (!$actionIs("SetAnimationSelectedStartDateTime"))
+      return reducer(state, action);
+
+    console.log("Animation date range selected", action);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _tag, ...rest } = action as Extract<Action, { _tag: "SetAnimationSelectedStartDateTime" }>;
+    return reducer(state, SetSelectedStartDateTime(rest));
+  };
+}
 
 
 /**
@@ -289,7 +315,7 @@ export const TimeRangeSlider = ({
       DateTime.unsafeFromDate(dateRange.end))
     : Duration.hours(2);
 
-  const [s, d] = useReducer(reducer, {
+  const [s, d] = useReducer(withMiddleware(reducer), {
     viewStartDateTime: initViewStartDateTime,
     viewDuration: initViewDuration,
 
