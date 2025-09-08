@@ -392,28 +392,28 @@ export const TimeRangeSlider = ({
       || s.animationPlayMode !== PlayMode.Play)
       return;
 
-    const dateTimeJump = Duration.millis(Math.abs((
-      s.animationRequestFrequency / 1000) * s.animationSpeed));
+    // Animation operates within the overall animation duration
+    // The selected range moves by its own duration for each step
+    const animationStart = s.selectedStartDateTime;
+    const animationEnd = DateTime.addDuration(animationStart, s.animationDuration);
+    const maxSelectedStart = DateTime.subtractDuration(animationEnd, s.selectedDuration);
     
     let selectedStartDateTime: DateTime.DateTime;
     if (s.animationSpeed > 0) {
-      // Forward animation
-      selectedStartDateTime = DateTime.addDuration(s.selectedStartDateTime, dateTimeJump);
-      // Check if we've reached the end of the animation range
-      const animationEnd = DateTime.addDuration(s.selectedStartDateTime, s.animationDuration);
-      const nextEnd = DateTime.addDuration(selectedStartDateTime, s.selectedDuration);
-      if (DateTime.greaterThan(nextEnd, animationEnd)) {
-        // Reset to start of animation range
-        selectedStartDateTime = s.selectedStartDateTime;
+      // Forward animation: move by selected duration
+      selectedStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
+      // Check if selected range would extend past animation end
+      if (DateTime.greaterThan(selectedStartDateTime, maxSelectedStart)) {
+        // Loop back to animation start
+        selectedStartDateTime = animationStart;
       }
     } else {
-      // Backward animation
-      selectedStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, dateTimeJump);
-      // Check if we've reached the beginning of the animation range  
-      if (DateTime.lessThan(selectedStartDateTime, s.selectedStartDateTime)) {
-        // Reset to end of animation range
-        const animationEnd = DateTime.addDuration(s.selectedStartDateTime, s.animationDuration);
-        selectedStartDateTime = DateTime.subtractDuration(animationEnd, s.selectedDuration);
+      // Backward animation: move back by selected duration
+      selectedStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
+      // Check if we've gone before animation start
+      if (DateTime.lessThan(selectedStartDateTime, animationStart)) {
+        // Loop to end of animation range (accounting for selected duration)
+        selectedStartDateTime = maxSelectedStart;
       }
     }
 
@@ -521,16 +521,16 @@ export const TimeRangeSlider = ({
         }}
 
         /* Animation toggle */
-        animationEnabled={s.animationPlayMode !== PlayMode.Pause}
+        animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}
         setAnimationEnabled={(enabled: boolean) => {
           d(SetAnimationOrStepMode({
             animationOrStepMode: enabled
               ? AnimationOrStepMode.Animation
               : AnimationOrStepMode.Step
           }));
-          d(SetAnimationPlayMode({
-            playMode: enabled ? PlayMode.Play : PlayMode.Pause
-          }));
+          if (enabled) {
+            d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
+          }
         }}
 
         /* Play toggle */
