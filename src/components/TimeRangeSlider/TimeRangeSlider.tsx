@@ -264,7 +264,7 @@ function withMiddleware(
   reducer: (state: State, action: Action) => State
 ): (state: State, action: Action) => State {
   return (state, action) => {
-    if (!$actionIs("SetAnimationSelectedStartDateTime"))
+    if (!$actionIs("SetAnimationSelectedStartDateTime")(action))
       return reducer(state, action);
 
     console.log("Animation date range selected", action);
