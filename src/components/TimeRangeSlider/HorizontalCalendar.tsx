@@ -31,7 +31,7 @@ type Step = {
   value: number;
 }
 const createStepsOverRange = (start: number, end: number, step: number): Step[] => {
-  const steps: { label: string, value: number }[] = [];
+  const steps: Step[] = [];
   for (let i = start; i <= end; i += step) {
     const minutes = DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "minutes");
     const label = minutes === 0
