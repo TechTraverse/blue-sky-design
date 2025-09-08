@@ -1,5 +1,5 @@
 import type { RangeValue } from "@react-types/shared";
-import { Data as D, Duration, type DateTime } from "effect";
+import { Duration } from "effect";
 
 export enum AnimationOrStepMode {
   Animation,
