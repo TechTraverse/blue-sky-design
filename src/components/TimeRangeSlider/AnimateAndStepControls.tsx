@@ -104,9 +104,9 @@ export const AnimateAndStepControls = ({
     }
   };
 
-  const handleCenterButtonDoubleClick = () => {
+  const handleCenterButtonLongPress = () => {
     if (animationEnabled) {
-      // Double click in animate mode: switch to step mode
+      // Long press in animate mode: switch to step mode
       setAnimationEnabled(false);
     }
   };
@@ -126,8 +126,8 @@ export const AnimateAndStepControls = ({
             title={
               animationEnabled 
                 ? playMode === PlayMode.Play 
-                  ? "Pause (double-click for step mode)"
-                  : "Play (double-click for step mode)"
+                  ? "Pause (long press for step mode)"
+                  : "Play (long press for step mode)"
                 : "Switch to animation mode"
             }
             PopperProps={{
@@ -137,7 +137,16 @@ export const AnimateAndStepControls = ({
             <Button
               variant="contained"
               onClick={handleCenterButtonClick}
-              onDoubleClick={handleCenterButtonDoubleClick}
+              onMouseDown={(e) => {
+                const timer = setTimeout(handleCenterButtonLongPress, 500);
+                const clearTimer = () => {
+                  clearTimeout(timer);
+                  document.removeEventListener('mouseup', clearTimer);
+                  document.removeEventListener('mouseleave', clearTimer);
+                };
+                document.addEventListener('mouseup', clearTimer);
+                document.addEventListener('mouseleave', clearTimer);
+              }}
               sx={{
                 backgroundColor: animationEnabled && playMode === PlayMode.Play ? '#1976d2' : undefined,
                 '&:hover': {
