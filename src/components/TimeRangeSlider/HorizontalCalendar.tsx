@@ -170,7 +170,7 @@ export const HorizontalCalendar = ({
     const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
       const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
       const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
-      if (!active) {
+      if (active) {
         acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
       }
       if (idx === sliderSubRanges.length - 1) {

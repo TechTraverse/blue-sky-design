@@ -480,7 +480,7 @@ export const TimeRangeSlider = ({
             ? [{
               start: s.selectedStartDateTime,
               end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-              active: s.animationPlayMode === PlayMode.Play,
+              active: true,
             }]
             : []}
           viewRange={{ start: s.viewStartDateTime, end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration) }}
