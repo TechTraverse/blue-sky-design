@@ -27,6 +27,12 @@ export const SpeedIndicator = ({ disabled = true, animationSpeed, setAnimationSp
             setAnimationSpeed?.(e.target.value as AnimationSpeed)
           }}
           size="small"
+          MenuProps={{
+            sx: { zIndex: 10004 },
+            PaperProps: {
+              sx: { zIndex: 10004 }
+            }
+          }}
         >
           {
             speedDescriptors.map((descriptor) => (

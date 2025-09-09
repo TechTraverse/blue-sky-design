@@ -1,17 +1,10 @@
 import "./rangeDateInput.css";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
-import { Button, Tab, Tabs } from "@mui/material";
+import { Button, Tooltip } from "@mui/material";
 import { AnimationSpeed, PlayMode } from "./timeSliderTypes";
-import { useState } from "react";
 import { FiFastForward, FiRewind } from "react-icons/fi";
-import { SpeedIndicator } from "./SpeedIndicator";
-
-const a11yProps = (index: number) => {
-  return {
-    id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
-  };
-}
+import { AnimationSettings } from "./AnimationSettings";
+import { Duration } from "effect";
 
 const AnimateNavControls = ({
   playMode,
@@ -80,6 +73,8 @@ export const AnimateAndStepControls = ({
   setPlayMode,
   animationSpeed,
   setAnimationSpeed,
+  animationDuration,
+  setAnimationDuration,
   incrementStartDateTime,
   decrementStartDateTime,
   incrementAnimationSpeed,
@@ -90,42 +85,97 @@ export const AnimateAndStepControls = ({
   playMode?: PlayMode,
   setPlayMode?: (mode: PlayMode) => void,
   animationSpeed: AnimationSpeed,
-  setAnimationSpeed?: (speed: number) => void,
+  setAnimationSpeed?: (speed: AnimationSpeed) => void,
+  animationDuration?: Duration.Duration,
+  setAnimationDuration?: (duration: Duration.Duration) => void,
   incrementStartDateTime?: () => void,
   decrementStartDateTime?: () => void,
   incrementAnimationSpeed?: () => void,
   decrementAnimationSpeed?: () => void,
 }) => {
 
-  const [value, setValue] = useState(animationEnabled ? 1 : 0);
+  const handleCenterButtonClick = () => {
+    if (animationEnabled) {
+      // In animate mode: toggle play/pause
+      setPlayMode?.(playMode === PlayMode.Play ? PlayMode.Pause : PlayMode.Play);
+    } else {
+      // In step mode: switch to animate mode
+      setAnimationEnabled(true);
+    }
+  };
+
+  const handleCenterButtonDoubleClick = () => {
+    if (animationEnabled) {
+      // Double click in animate mode: switch to step mode
+      setAnimationEnabled(false);
+    }
+  };
 
   return (
     <>
-      <div className={`playback-section ${value ? "animate" : "step"}`}>
-        <Tabs
-          orientation="vertical"
-          value={value}
-          className="playback-tabs"
-          onChange={(__, x) => {
-            setValue(x);
-            setAnimationEnabled(Boolean(x));
-          }}
-          aria-label="basic tabs example">
-          <Tab label="Step" {...a11yProps(0)} />
-          <Tab label="Animate" {...a11yProps(1)} />
-        </Tabs>
-        {animationEnabled && playMode !== undefined
-          ? <AnimateNavControls
-            playMode={playMode}
-            setPlayMode={setPlayMode}
-            animationSpeed={animationSpeed}
-            setAnimationSpeed={setAnimationSpeed}
-            incrementAnimationSpeed={incrementAnimationSpeed}
-            decrementAnimationSpeed={decrementAnimationSpeed}
-          />
-          : <StepNavControls
-            fwd={incrementStartDateTime}
-            rev={decrementStartDateTime} />}
+      <div className={`playback-section ${animationEnabled ? "animate" : "step"}`} style={{ position: 'relative' }}>
+        <div className="playback-nav-controls">
+          <Button 
+            variant="contained" 
+            onClick={() => animationEnabled ? decrementAnimationSpeed?.() : decrementStartDateTime?.()}
+          >
+            {animationEnabled ? <FiRewind /> : <TbPlayerSkipBack />}
+          </Button>
+          
+          <Tooltip 
+            title={
+              animationEnabled 
+                ? playMode === PlayMode.Play 
+                  ? "Pause (double-click for step mode)"
+                  : "Play (double-click for step mode)"
+                : "Switch to animation mode"
+            }
+            PopperProps={{
+              sx: { zIndex: 10003 }
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={handleCenterButtonClick}
+              onDoubleClick={handleCenterButtonDoubleClick}
+              sx={{
+                backgroundColor: animationEnabled && playMode === PlayMode.Play ? '#1976d2' : undefined,
+                '&:hover': {
+                  backgroundColor: animationEnabled && playMode === PlayMode.Play ? '#1565c0' : undefined,
+                }
+              }}
+            >
+              {animationEnabled 
+                ? (playMode === PlayMode.Play ? <TbPlayerPause /> : <TbPlayerPlay />)
+                : <TbPlayerPlay />
+              }
+            </Button>
+          </Tooltip>
+
+          <Button 
+            variant="contained" 
+            onClick={() => animationEnabled ? incrementAnimationSpeed?.() : incrementStartDateTime?.()}
+          >
+            {animationEnabled ? <FiFastForward /> : <TbPlayerSkipForward />}
+          </Button>
+        </div>
+
+        {animationEnabled && animationDuration && (
+          <div style={{
+            position: 'absolute',
+            top: -12,
+            right: 10,
+            zIndex: 10001
+          }}>
+            <AnimationSettings
+              animationSpeed={animationSpeed}
+              setAnimationSpeed={setAnimationSpeed}
+              animationDuration={animationDuration}
+              setAnimationDuration={setAnimationDuration}
+              disabled={false}
+            />
+          </div>
+        )}
       </div>
     </>);
 }

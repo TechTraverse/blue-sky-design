@@ -550,6 +550,10 @@ export const TimeRangeSlider = ({
         setAnimationSpeed={(speed: AnimationSpeed) => {
           d(SetAnimationSpeed({ animationSpeed: speed }));
         }}
+        animationDuration={s.animationDuration}
+        setAnimationDuration={(duration: Duration.Duration) => {
+          d(SetAnimationDuration({ animationDuration: duration }));
+        }}
         incrementAnimationSpeed={() => {
           const animationSpeed = s.animationSpeed;
           const newSpeed = match(animationSpeed)
