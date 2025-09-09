@@ -14,7 +14,7 @@ export const Default: Story = {
   args: {
     dateRange: {
       start: new Date(1752991200000),
-      end: new Date(1752991200000 + 3600000) // 1 hour later
+      end: new Date(1752991500000)
     },
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);

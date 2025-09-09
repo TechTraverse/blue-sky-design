@@ -41,6 +41,7 @@ type State = {
   // Animation state for the calendar
   resetAnimationSpeed: AnimationSpeed;
   resetAnimationDuration: Duration.Duration;
+  animationStartDateTime: DateTime.DateTime;
   animationDuration: Duration.Duration;
   animationRequestFrequency: AnimationRequestFrequency;
   animationPlayMode: PlayMode;
@@ -62,8 +63,8 @@ type Action = D.TaggedEnum<{
   SetAnimationOrStepMode:
   { animationOrStepMode: AnimationOrStepMode; };
 
-  SetAnimationSelectedStartDateTime:
-  { selectedStartDateTime: DateTime.DateTime; };
+  SetAnimationStartDateTime:
+  { animationStartDateTime: DateTime.DateTime; };
   SetAnimationDuration: { animationDuration: Duration.Duration; };
   SetAnimationRequestFrequency:
   { animationRequestFrequency: AnimationRequestFrequency; };
@@ -98,7 +99,7 @@ const {
 
   SetAnimationOrStepMode,
 
-  SetAnimationSelectedStartDateTime,
+  SetAnimationStartDateTime,
   SetAnimationDuration,
   SetAnimationPlayMode,
   SetAnimationSpeed,
@@ -192,8 +193,10 @@ const reducer = (state: State, action: Action): State =>
       animationOrStepMode: x.animationOrStepMode,
     }),
 
-    // Handled at the middleware level but kept here for completeness
-    SetAnimationSelectedStartDateTime: () => state,
+    SetAnimationStartDateTime: (x) => ({
+      ...state,
+      animationStartDateTime: x.animationStartDateTime,
+    }),
     SetAnimationDuration: (x) => ({
       ...state,
       animationDuration: x.animationDuration,
@@ -239,11 +242,10 @@ function withMiddleware(
 ): (state: State, action: Action) => State {
   return (state, action) => {
     const newState = reducer(state, action);
-    
+
     // Call callback for actions that change the selected range
-    if ($actionIs("SetSelectedStartDateTime")(action) || 
-        $actionIs("SetSelectedDuration")(action) ||
-        $actionIs("SetAnimationSelectedStartDateTime")(action)) {
+    if ($actionIs("SetSelectedStartDateTime")(action) ||
+      $actionIs("SetSelectedDuration")(action)) {
       const start = newState.selectedStartDateTime;
       const end = DateTime.addDuration(start, newState.selectedDuration);
       onDateRangeSelect({
@@ -251,15 +253,7 @@ function withMiddleware(
         end: DateTime.toDate(end)
       });
     }
-    
-    // Handle animation-specific actions
-    if ($actionIs("SetAnimationSelectedStartDateTime")(action)) {
-      console.log("Animation date range selected", action);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { _tag, ...rest } = action as Extract<Action, { _tag: "SetAnimationSelectedStartDateTime" }>;
-      return reducer(newState, SetSelectedStartDateTime(rest));
-    }
-    
+
     return newState;
   };
 }
@@ -320,6 +314,7 @@ export const TimeRangeSlider = ({
 
     resetAnimationSpeed: AnimationSpeed['5 min/sec'],
     resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
+    animationStartDateTime: initSelectedStartDateTime,
     animationDuration: DEFAULT_ANIMATION_DURATION,
     animationRequestFrequency,
     animationPlayMode: PlayMode.Pause,
@@ -392,12 +387,19 @@ export const TimeRangeSlider = ({
       || s.animationPlayMode !== PlayMode.Play)
       return;
 
+    console.log('Animation useEffect triggered', { 
+      selectedStartDateTime: DateTime.toDate(s.selectedStartDateTime),
+      animationStartDateTime: DateTime.toDate(s.animationStartDateTime),
+      animationSpeed: s.animationSpeed,
+      animationRequestFrequency: s.animationRequestFrequency
+    });
+
     // Animation operates within the overall animation duration
     // The selected range moves by its own duration for each step
-    const animationStart = s.selectedStartDateTime;
+    const animationStart = s.animationStartDateTime;
     const animationEnd = DateTime.addDuration(animationStart, s.animationDuration);
     const maxSelectedStart = DateTime.subtractDuration(animationEnd, s.selectedDuration);
-    
+
     let selectedStartDateTime: DateTime.DateTime;
     if (s.animationSpeed > 0) {
       // Forward animation: move by selected duration
@@ -417,8 +419,10 @@ export const TimeRangeSlider = ({
       }
     }
 
+    console.log('Next selectedStartDateTime will be:', DateTime.toDate(selectedStartDateTime));
+
     const action = () =>
-      d(SetAnimationSelectedStartDateTime({ selectedStartDateTime }));
+      d(SetSelectedStartDateTime({ selectedStartDateTime }));
     const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
     E.runPromise(program).then();
   }, [
@@ -427,6 +431,7 @@ export const TimeRangeSlider = ({
     s.animationSpeed,
     s.animationRequestFrequency,
     s.selectedStartDateTime,
+    s.animationStartDateTime,
     s.animationDuration,
     s.selectedDuration
   ]);
@@ -449,10 +454,10 @@ export const TimeRangeSlider = ({
           increment={DEFAULT_VIEW_INCREMENT}
           primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
             ? {
-              start: s.selectedStartDateTime,
-              end: DateTime.addDuration(s.selectedStartDateTime, s.animationDuration),
+              start: s.animationStartDateTime,
+              end: DateTime.addDuration(s.animationStartDateTime, s.animationDuration),
               set: (r: RangeValue<DateTime.DateTime>) => {
-                d(SetAnimationSelectedStartDateTime({ selectedStartDateTime: r.start }));
+                d(SetAnimationStartDateTime({ animationStartDateTime: r.start }));
                 d(SetAnimationDuration({
                   animationDuration: DateTime.distanceDuration(r.start, r.end)
                 }));
@@ -474,7 +479,7 @@ export const TimeRangeSlider = ({
           subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
             ? [{
               start: s.selectedStartDateTime,
-              end: DateTime.addDuration(s.selectedStartDateTime, s.animationDuration),
+              end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
               active: s.animationPlayMode === PlayMode.Play,
             }]
             : []}
@@ -529,6 +534,7 @@ export const TimeRangeSlider = ({
               : AnimationOrStepMode.Step
           }));
           if (enabled) {
+            d(SetAnimationStartDateTime({ animationStartDateTime: s.selectedStartDateTime }));
             d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
           }
         }}
