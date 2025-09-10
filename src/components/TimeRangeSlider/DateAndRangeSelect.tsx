@@ -66,7 +66,7 @@ const SliderDatePicker = <T extends DateValue>(
           <Button onClick={returnToDefaultDateTime}>
             <div className="default-date">
               <FaUndo />
-              <span>Today</span>
+              <span>Default</span>
             </div>
           </Button>
         </Dialog>
