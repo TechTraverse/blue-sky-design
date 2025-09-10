@@ -2,7 +2,7 @@ import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration, Effect as E } from 'effect';
-import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
+import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
@@ -387,7 +387,7 @@ export const TimeRangeSlider = ({
       || s.animationPlayMode !== PlayMode.Play)
       return;
 
-    console.log('Animation useEffect triggered', { 
+    console.log('Animation useEffect triggered', {
       selectedStartDateTime: DateTime.toDate(s.selectedStartDateTime),
       animationStartDateTime: DateTime.toDate(s.animationStartDateTime),
       animationSpeed: s.animationSpeed,
@@ -439,16 +439,11 @@ export const TimeRangeSlider = ({
 
   return (
     <div ref={sliderRef} className={`${className} time-range-slider`}>
-      <button className="next-prev-date-range">
-        <IoIosArrowBack
-          onClick={() => {
-            const newStart = DateTime.subtractDuration(
-              s.viewStartDateTime, s.viewDuration);
-            d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-          }}
-          title='Previous'
-        />
-      </button>
+      <PrevDateButton onClick={() => {
+        const newStart = DateTime.subtractDuration(
+          s.viewStartDateTime, s.viewDuration);
+        d(SetViewStartDateTime({ viewStartDateTime: newStart }));
+      }} />
       <div className={"horizontal-calendar-grid-body"} >
         <HorizontalCalendar
           increment={DEFAULT_VIEW_INCREMENT}
@@ -487,16 +482,11 @@ export const TimeRangeSlider = ({
           viewRange={{ start: s.viewStartDateTime, end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration) }}
         />
       </div>
-      <button className="next-prev-date-range">
-        <IoIosArrowForward
-          onClick={() => {
-            const newStart = DateTime.addDuration(
-              s.viewStartDateTime, s.viewDuration);
-            d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-          }}
-          title='Next'
-        />
-      </button>
+      <NextDateButton onClick={() => {
+        const newStart = DateTime.addDuration(
+          s.viewStartDateTime, s.viewDuration);
+        d(SetViewStartDateTime({ viewStartDateTime: newStart }));
+      }} />
       <DateAndRangeSelect
         startDateTime={s.selectedStartDateTime}
         setStartDateTime={(date: DateTime.DateTime) => {
