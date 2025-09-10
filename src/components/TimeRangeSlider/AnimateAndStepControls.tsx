@@ -3,6 +3,7 @@ import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } fr
 import { Button, Tooltip } from "@mui/material";
 import { AnimationSpeed, PlayMode } from "./timeSliderTypes";
 import { FiFastForward, FiRewind } from "react-icons/fi";
+import { MdPlayArrow, MdSkipNext } from "react-icons/md";
 import { AnimationSettings } from "./AnimationSettings";
 import { Duration } from "effect";
 
@@ -98,16 +99,15 @@ export const AnimateAndStepControls = ({
     if (animationEnabled) {
       // In animate mode: toggle play/pause
       setPlayMode?.(playMode === PlayMode.Play ? PlayMode.Pause : PlayMode.Play);
-    } else {
-      // In step mode: switch to animate mode
-      setAnimationEnabled(true);
     }
+    // Mode switching now handled by toggle switch
   };
 
-  const handleCenterButtonLongPress = () => {
-    if (animationEnabled) {
-      // Long press in animate mode: switch to step mode
-      setAnimationEnabled(false);
+  const handleModeToggle = () => {
+    setAnimationEnabled(!animationEnabled);
+    if (!animationEnabled) {
+      // Switching to animation mode - start playing
+      setPlayMode?.(PlayMode.Play);
     }
   };
 
@@ -115,58 +115,137 @@ export const AnimateAndStepControls = ({
     <>
       <div className={`playback-section ${animationEnabled ? "animate" : "step"}`} style={{ position: 'relative' }}>
         <div className="playback-nav-controls">
-          <Button 
-            variant="contained" 
-            onClick={() => animationEnabled ? decrementAnimationSpeed?.() : decrementStartDateTime?.()}
-          >
-            {animationEnabled ? <FiRewind /> : <TbPlayerSkipBack />}
-          </Button>
-          
-          <Tooltip 
-            title={
-              animationEnabled 
-                ? playMode === PlayMode.Play 
-                  ? "Pause (long press for step mode)"
-                  : "Play (long press for step mode)"
-                : "Switch to animation mode"
-            }
-            PopperProps={{
-              sx: { zIndex: 10003 }
-            }}
-          >
-            <Button
-              variant="contained"
-              onClick={handleCenterButtonClick}
-              onMouseDown={(e) => {
-                const timer = setTimeout(handleCenterButtonLongPress, 500);
-                const clearTimer = () => {
-                  clearTimeout(timer);
-                  document.removeEventListener('mouseup', clearTimer);
-                  document.removeEventListener('mouseleave', clearTimer);
-                };
-                document.addEventListener('mouseup', clearTimer);
-                document.addEventListener('mouseleave', clearTimer);
-              }}
-              sx={{
-                backgroundColor: animationEnabled && playMode === PlayMode.Play ? '#1976d2' : undefined,
-                '&:hover': {
-                  backgroundColor: animationEnabled && playMode === PlayMode.Play ? '#1565c0' : undefined,
-                }
+          {/* Micro Toggle Switch */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginRight: '12px',
+            gap: '4px',
+            flex: '0 0 auto' // Prevent flex shrinking/growing
+          }}>
+            <Tooltip 
+              title={`${animationEnabled ? 'Animation' : 'Step'} mode - Click to switch`}
+              PopperProps={{
+                sx: { zIndex: 10003 }
               }}
             >
-              {animationEnabled 
-                ? (playMode === PlayMode.Play ? <TbPlayerPause /> : <TbPlayerPlay />)
-                : <TbPlayerPlay />
-              }
-            </Button>
-          </Tooltip>
+              <div
+                onClick={handleModeToggle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '12px',
+                  backgroundColor: '#f5f5f5',
+                  border: '1px solid #e0e0e0',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {/* Step Mode */}
+                <div
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: !animationEnabled ? '#1976d2' : '#f0f0f0',
+                    color: !animationEnabled ? 'white' : '#999',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    transform: !animationEnabled ? 'scale(1.1)' : 'scale(1)',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial, sans-serif'
+                  }}
+                  title="Step Mode"
+                >
+                  S
+                </div>
+                
+                {/* Animation Mode */}
+                <div
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: animationEnabled ? '#4caf50' : '#f0f0f0',
+                    color: animationEnabled ? 'white' : '#999',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    transform: animationEnabled ? 'scale(1.1)' : 'scale(1)',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial, sans-serif'
+                  }}
+                  title="Animation Mode"
+                >
+                  A
+                </div>
+              </div>
+            </Tooltip>
+          </div>
 
-          <Button 
-            variant="contained" 
-            onClick={() => animationEnabled ? incrementAnimationSpeed?.() : incrementStartDateTime?.()}
-          >
-            {animationEnabled ? <FiFastForward /> : <TbPlayerSkipForward />}
-          </Button>
+          {/* Button container with fixed layout */}
+          <div style={{
+            display: 'flex',
+            gap: '7px',
+            flex: '1 1 auto',
+            justifyContent: 'center'
+          }}>
+            <Button 
+              variant="contained" 
+              onClick={() => animationEnabled ? decrementAnimationSpeed?.() : decrementStartDateTime?.()}
+              sx={{
+                transition: 'all 0.3s ease',
+                width: animationEnabled ? '44px' : '66px', // Wider when in step mode
+                flex: '0 0 auto'
+              }}
+            >
+              {animationEnabled ? <FiRewind /> : <TbPlayerSkipBack />}
+            </Button>
+            
+            {animationEnabled && (
+              <Tooltip 
+                title={playMode === PlayMode.Play ? "Pause" : "Play"}
+                PopperProps={{
+                  sx: { zIndex: 10003 }
+                }}
+              >
+                <Button
+                  variant="contained"
+                  onClick={handleCenterButtonClick}
+                  sx={{
+                    backgroundColor: playMode === PlayMode.Play ? '#1976d2' : undefined,
+                    '&:hover': {
+                      backgroundColor: playMode === PlayMode.Play ? '#1565c0' : undefined,
+                    },
+                    transition: 'all 0.3s ease',
+                    width: '44px',
+                    flex: '0 0 auto'
+                  }}
+                >
+                  {playMode === PlayMode.Play ? <TbPlayerPause /> : <TbPlayerPlay />}
+                </Button>
+              </Tooltip>
+            )}
+
+            <Button 
+              variant="contained" 
+              onClick={() => animationEnabled ? incrementAnimationSpeed?.() : incrementStartDateTime?.()}
+              sx={{
+                transition: 'all 0.3s ease',
+                width: animationEnabled ? '44px' : '66px', // Wider when in step mode
+                flex: '0 0 auto'
+              }}
+            >
+              {animationEnabled ? <FiFastForward /> : <TbPlayerSkipForward />}
+            </Button>
+          </div>
         </div>
 
         {animationEnabled && animationDuration && (
