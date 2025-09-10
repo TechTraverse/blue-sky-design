@@ -253,28 +253,36 @@ export const HorizontalCalendar = ({
           min={viewRangeAndStep.start}
           max={viewRangeAndStep.end}
           slotProps={{
-            thumb: () => {
+            thumb: (ownerState, thumbProps) => {
+              // Access data-index from thumbProps to differentiate thumbs
+              const dataIndex = thumbProps?.['data-index'];
+              
               if (isStepMode) {
+                // Step mode - different colors for left/right thumbs
+                const isLeftThumb = dataIndex === 0;
                 return {
                   style: {
                     width: '3px',
                     height: '24px',
                     borderRadius: '0px',
-                    backgroundColor: '#1976d2',
+                    backgroundColor: isLeftThumb ? '#1976d2' : '#f44336', // Blue left, Red right
                     border: 'none',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                     cursor: 'ew-resize',
                   }
                 };
               } else {
-                // Animation mode - triangular thumbs for both
+                // Animation mode - different colored triangular thumbs
+                const isLeftThumb = dataIndex === 0;
                 return {
                   style: {
                     width: '0px',
                     height: '0px',
                     backgroundColor: 'transparent',
                     border: '8px solid transparent',
-                    borderLeft: '12px solid #1976d2',
+                    borderLeft: isLeftThumb 
+                      ? '12px solid #4caf50'  // Green left thumb
+                      : '12px solid #ff9800', // Orange right thumb
                     borderRadius: '0px',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                     cursor: 'ew-resize',
