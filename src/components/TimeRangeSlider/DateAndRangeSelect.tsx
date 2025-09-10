@@ -122,6 +122,12 @@ export const DateAndRangeSelect = ({
           label="Range/Step"
           variant="standard"
           onChange={(e) => setRange?.(e.target.value as TimeDuration)}
+          MenuProps={{
+            sx: { zIndex: 10004 },
+            PaperProps: {
+              sx: { zIndex: 10004 }
+            }
+          }}
         >{Object.entries(TimeDuration).map(([key, value]) => {
           return isNaN(key as unknown as number) ? (
             <MenuItem key={key} value={value}>

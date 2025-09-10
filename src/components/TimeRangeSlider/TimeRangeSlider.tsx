@@ -452,6 +452,7 @@ export const TimeRangeSlider = ({
       <div className={"horizontal-calendar-grid-body"} >
         <HorizontalCalendar
           increment={DEFAULT_VIEW_INCREMENT}
+          isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
           primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
             ? {
               start: s.animationStartDateTime,

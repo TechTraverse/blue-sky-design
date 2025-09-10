@@ -53,11 +53,13 @@ export const HorizontalCalendar = ({
   primaryRange,
   viewRange,
   subRanges,
+  isStepMode = false,
 }: {
   increment?: number,
   primaryRange: PrimaryRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
   subRanges?: SubRange<DateTime.DateTime>[],
+  isStepMode?: boolean,
 }) => {
 
   /**
@@ -184,7 +186,7 @@ export const HorizontalCalendar = ({
         background: gradient,
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges]);
+  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -247,10 +249,40 @@ export const HorizontalCalendar = ({
             return DateTime.formatIsoDate(date);
           }}
           step={null}
-          // getAriaValueText={valuetext}
           marks={viewRangeAndStep.stepArr}
           min={viewRangeAndStep.start}
           max={viewRangeAndStep.end}
+          slotProps={{
+            thumb: () => {
+              if (isStepMode) {
+                return {
+                  style: {
+                    width: '3px',
+                    height: '24px',
+                    borderRadius: '0px',
+                    backgroundColor: '#1976d2',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                    cursor: 'ew-resize',
+                  }
+                };
+              } else {
+                // Animation mode - triangular thumbs for both
+                return {
+                  style: {
+                    width: '0px',
+                    height: '0px',
+                    backgroundColor: 'transparent',
+                    border: '8px solid transparent',
+                    borderLeft: '12px solid #1976d2',
+                    borderRadius: '0px',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                    cursor: 'ew-resize',
+                  }
+                };
+              }
+            }
+          }}
         />
       </Box>
     </div>);
