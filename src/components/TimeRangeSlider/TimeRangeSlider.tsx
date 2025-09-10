@@ -330,14 +330,17 @@ const reducer = (state: State, action: Action): State =>
 
 function withMiddleware(
   reducer: (state: State, action: Action) => State,
-  onDateRangeSelect: (rv: RangeValue<Date>) => void
+  onDateRangeSelect: (rv: RangeValue<Date>) => void,
+  isUpdatingFromProps: React.MutableRefObject<boolean>
 ): (state: State, action: Action) => State {
   return (state, action) => {
     const newState = reducer(state, action);
 
     // Call callback for actions that change the selected range
-    if ($actionIs("SetSelectedStartDateTime")(action) ||
-      $actionIs("SetSelectedDuration")(action)) {
+    // but only if we're not updating from external props
+    if (($actionIs("SetSelectedStartDateTime")(action) ||
+      $actionIs("SetSelectedDuration")(action)) &&
+      !isUpdatingFromProps.current) {
       const start = newState.selectedStartDateTime;
       const end = DateTime.addDuration(start, newState.selectedDuration);
       onDateRangeSelect({
@@ -392,7 +395,10 @@ export const TimeRangeSlider = ({
       DateTime.unsafeFromDate(dateRange.end))
     : Duration.hours(2);
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), {
+  // Track when we're updating from external props to prevent callback loops
+  const isUpdatingFromProps = useRef(false);
+  
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, isUpdatingFromProps), {
     viewStartDateTime: initViewStartDateTime,
     viewDuration: initViewDuration,
 
@@ -447,10 +453,15 @@ export const TimeRangeSlider = ({
 
   useEffect(() => {
     if (dateRange) {
+      isUpdatingFromProps.current = true;
       const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
       const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
       d(SetSelectedStartDateTime({ selectedStartDateTime: newStartDateTime }));
       d(SetSelectedDuration({ selectedDuration: newDuration }));
+      // Reset flag after state updates are complete
+      setTimeout(() => {
+        isUpdatingFromProps.current = false;
+      }, 0);
     }
   }, [dateRange]);
 
