@@ -70,8 +70,42 @@
 .playback-button-container {
   display: flex;
   gap: 7px;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   justify-content: center;
+}
+
+.playback-button-container.step-mode {
+  width: 160px;
+  min-width: 160px;
+  position: relative;
+  justify-content: center;
+}
+
+.playback-button-container.step-mode .MuiButton-root:first-child {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  position: absolute;
+  left: 16px;
+}
+
+.playback-button-container.step-mode .MuiButton-root:last-child {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  position: absolute;
+  left: 84px;
+}
+
+.playback-button-container.animation-mode {
+  width: 160px;
+  min-width: 160px;
+  gap: 7px;
+}
+
+.playback-button-container.animation-mode .MuiButton-root {
+  width: 44px !important;
+  min-width: 44px !important;
 }
 
 .playback-btn {
@@ -80,7 +114,7 @@
   flex: 0 0 auto;
 }
 .playback-btn.step-mode {
-  width: 66px;
+  width: 67px;
 }
 .playback-btn svg {
   margin-top: 0;
@@ -93,18 +127,61 @@
   background-color: var(--primary-color-dark) !important;
 }
 
-.animation-settings-container {
-  position: absolute;
-  top: -12px;
-  right: 10px;
-  z-index: 10001;
+/* Unified control panel layout */
+.unified-control-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 300px;
+  min-width: 300px;
+  background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.step-settings-container {
-  position: absolute;
-  top: -12px;
-  right: 10px;
-  z-index: 10001;
+.control-settings-inline {
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid #dee2e6;
+}
+
+.playback-button-container {
+  padding-left: 4px;
+  border-left: 1px solid #dee2e6;
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  button {
+    min-width: 18px !important;
+    min-height: 18px !important;
+    max-width: 20px;
+    max-height: 20px;
+  }
+}
+
+.control-section.mode-section {
+  /* Mode toggle styling */
+}
+
+.control-section.settings-section {
+  /* Settings section styling */
+}
+
+.center-button-container {
+  width: 44px;
+  min-width: 44px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 /* .slider-control-panel {
   height: 100%;
@@ -146,8 +223,8 @@
 
 /* } */
 
-.animate-container, .playback-nav-controls {
-  width: 220px;
+.animate-container, .unified-control-panel {
+  width: 260px;
   box-sizing: border-box;
 }
 
@@ -248,7 +325,7 @@
      }
    }
 
-  .playback-nav-controls {
+  .unified-control-panel {
     display: flex;
     justify-content: center;
     gap: 7px;

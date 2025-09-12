@@ -57,102 +57,110 @@ export const AnimateAndStepControls = ({
   return (
     <>
       <div className={`playback-section ${animationEnabled ? "animate" : "step"} playback-section-relative`}>
-        <div className="playback-nav-controls">
-          {/* Micro Toggle Switch */}
-          <div className="playback-toggle-container">
-            <Tooltip
-              title={`${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
-              PopperProps={{
-                sx: { zIndex: 10003 }
-              }}
-            >
-              <div
-                onClick={handleModeToggle}
-                className="playback-toggle-switch"
+        <div className="unified-control-panel">
+          {/* Mode Section */}
+          <div className="control-section mode-section">
+            <div className="playback-toggle-container">
+              <Tooltip
+                title={`${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
+                PopperProps={{
+                  sx: { zIndex: 10003 }
+                }}
               >
-                {/* Step Mode */}
                 <div
-                  className={`playback-toggle-step${!animationEnabled ? ' active' : ''}`}
-                  title="Step Mode"
+                  onClick={handleModeToggle}
+                  className="playback-toggle-switch"
                 >
-                  S
-                </div>
+                  {/* Step Mode */}
+                  <div
+                    className={`playback-toggle-step${!animationEnabled ? ' active' : ''}`}
+                    title="Step Mode"
+                  >
+                    S
+                  </div>
 
-                {/* Animation Mode */}
-                <div
-                  className={`playback-toggle-animate${animationEnabled ? ' active' : ''}`}
-                  title="Animation Mode"
-                >
-                  A
+                  {/* Animation Mode */}
+                  <div
+                    className={`playback-toggle-animate${animationEnabled ? ' active' : ''}`}
+                    title="Animation Mode"
+                  >
+                    A
+                  </div>
                 </div>
-              </div>
-            </Tooltip>
+              </Tooltip>
+            </div>
           </div>
 
-          {/* Button container with fixed layout */}
-          <div className="playback-button-container">
+          {/* Playback Controls */}
+          <div className={`playback-button-container ${animationEnabled ? 'animation-mode' : 'step-mode'}`}>
             <Button
               variant="contained"
               onClick={() => animationEnabled ? decrementAnimationSpeed?.() : decrementStartDateTime?.()}
               sx={{
                 transition: 'all 0.3s ease',
-                width: animationEnabled ? '44px' : '66px', // Wider when in step mode
+                width: animationEnabled ? '44px' : '67px', // Wider when in step mode
                 flex: '0 0 auto'
               }}
             >
               {animationEnabled ? <FiRewind /> : <TbPlayerSkipBack />}
             </Button>
 
-            {animationEnabled && (
-              <Tooltip
-                title={playMode === PlayMode.Play ? "Pause" : "Play"}
-                PopperProps={{
-                  sx: { zIndex: 10003 }
-                }}
-              >
-                <Button
-                  variant="contained"
-                  onClick={handleCenterButtonClick}
-                  sx={{
-                    backgroundColor: playMode === PlayMode.Play ? '#1976d2' : undefined,
-                    '&:hover': {
-                      backgroundColor: playMode === PlayMode.Play ? '#1565c0' : undefined,
-                    },
-                    transition: 'all 0.3s ease',
-                    width: '44px',
-                    flex: '0 0 auto'
+            {/* Always reserve space for center button */}
+            <div className="center-button-container">
+              {animationEnabled && (
+                <Tooltip
+                  title={playMode === PlayMode.Play ? "Pause" : "Play"}
+                  PopperProps={{
+                    sx: { zIndex: 10003 }
                   }}
                 >
-                  {playMode === PlayMode.Play ? <TbPlayerPause /> : <TbPlayerPlay />}
-                </Button>
-              </Tooltip>
-            )}
+                  <Button
+                    variant="contained"
+                    onClick={handleCenterButtonClick}
+                    sx={{
+                      backgroundColor: playMode === PlayMode.Play ? '#1976d2' : undefined,
+                      '&:hover': {
+                        backgroundColor: playMode === PlayMode.Play ? '#1565c0' : undefined,
+                      },
+                      transition: 'all 0.3s ease',
+                      width: '44px',
+                      flex: '0 0 auto'
+                    }}
+                  >
+                    {playMode === PlayMode.Play ? <TbPlayerPause /> : <TbPlayerPlay />}
+                  </Button>
+                </Tooltip>
+              )}
+            </div>
 
             <Button
               variant="contained"
               onClick={() => animationEnabled ? incrementAnimationSpeed?.() : incrementStartDateTime?.()}
               sx={{
                 transition: 'all 0.3s ease',
-                width: animationEnabled ? '44px' : '66px', // Wider when in step mode
+                width: animationEnabled ? '44px' : '67px', // Wider when in step mode
                 flex: '0 0 auto'
               }}
             >
               {animationEnabled ? <FiFastForward /> : <TbPlayerSkipForward />}
             </Button>
           </div>
-        </div>
 
-        <div className={animationEnabled ? "animation-settings-container" : "step-settings-container"}>
-          <ControlSettings
-            animationEnabled={animationEnabled}
-            animationSpeed={animationSpeed}
-            setAnimationSpeed={setAnimationSpeed}
-            animationDuration={animationDuration}
-            setAnimationDuration={setAnimationDuration}
-            rangeValue={rangeValue}
-            setRange={setRange}
-            disabled={false}
-          />
+          {/* Settings Section */}
+          <div className="control-section settings-section">
+            <div className="control-settings-inline">
+              <ControlSettings
+                animationEnabled={animationEnabled}
+                animationSpeed={animationSpeed}
+                setAnimationSpeed={setAnimationSpeed}
+                animationDuration={animationDuration}
+                setAnimationDuration={setAnimationDuration}
+                rangeValue={rangeValue}
+                setRange={setRange}
+                disabled={false}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </>);

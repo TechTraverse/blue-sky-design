@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { IconButton, Popover, Typography, Box, Tooltip, FormControl, Select, MenuItem } from "@mui/material";
-import { IoSettingsOutline } from "react-icons/io5";
+import { Popover, Typography, Box, Tooltip, FormControl, Select, MenuItem } from "@mui/material";
 import { AnimationSpeed, TimeDuration } from "./timeSliderTypes";
 import { Duration } from "effect";
 
@@ -66,33 +65,55 @@ export const ControlSettings = ({
           sx: { zIndex: 10003 }
         }}
       >
-        <IconButton
+        <button
           onClick={handleClick}
           disabled={disabled}
-          size="small"
-          sx={{
-            width: 24,
-            height: 24,
+          style={{
+            width: '20px',
+            height: '20px',
             border: '1px solid #dae9f8',
             borderRadius: '50%',
-            backgroundColor: '#f8f9fa',
+            backgroundColor: '#f0f0f0',
             color: '#666',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
             transition: 'all 0.2s ease-in-out',
-            '&:hover': {
-              backgroundColor: '#fff',
-              borderColor: '#1976d2',
-              color: '#1976d2',
-              transform: 'scale(1.1)',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-            },
-            '& svg': {
-              fontSize: '14px',
+            padding: '0',
+            margin: '0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: disabled ? 'default' : 'pointer',
+            outline: 'none',
+          }}
+          onMouseEnter={(e) => {
+            if (!disabled) {
+              e.currentTarget.style.backgroundColor = '#fff';
+              e.currentTarget.style.borderColor = '#1976d2';
+              e.currentTarget.style.color = '#1976d2';
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!disabled) {
+              e.currentTarget.style.backgroundColor = '#f0f0f0';
+              e.currentTarget.style.borderColor = '#dae9f8';
+              e.currentTarget.style.color = '#666';
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.12)';
             }
           }}
         >
-          <IoSettingsOutline />
-        </IconButton>
+          <span style={{ 
+            fontSize: '14px', 
+            fontWeight: 'bold',
+            lineHeight: 1,
+            letterSpacing: '1px',
+            userSelect: 'none'
+          }}>
+            ⋯
+          </span>
+        </button>
       </Tooltip>
       
       <Popover
