@@ -1,6 +1,7 @@
+
 .time-range-slider {
-  background: #fff;
-  color: #555;
+  background: var(--background-color);
+  color: var(--text-color);
   z-index: 10000;
   height: 76px;
   position: fixed;
@@ -9,12 +10,12 @@
   justify-content: space-around;
   align-items: center;
   box-sizing: content-box;
-  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--font-family-secondary);
   bottom: 0;
   left: 0;
 
   /* Shadow above bottom navigation */
-  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -1px 2px var(--shadow-color);
 
   > div {
     display: flex;
@@ -25,21 +26,21 @@
 .month-header {
   margin-left: 4px;
   font-size: 14px;
-  color: #555;
+  color: var(--text-color);
   min-height: 20px;
 }
 
 .next-prev-date-range {
   height: 100%;
-  border: 1px solid white;
+  border: 1px solid var(--background-color);
   padding: 0 10px;
-  color: #fff;
-  background-color: #eee;
-  border: 1px solid #dae9f8;
+  color: var(--text-color-inverse);
+  background-color: var(--surface-color-alt);
+  border: 1px solid var(--border-color-alt);
   border-radius: 2px;
 
   svg {
-    color: #1976d2;
+    color: var(--primary-color);
     transform: scale(1.7);
   }
 }

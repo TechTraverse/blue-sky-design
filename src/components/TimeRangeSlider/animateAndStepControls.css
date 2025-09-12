@@ -4,6 +4,7 @@
 }
 
 /* Toggle container for mode switch */
+
 .playback-toggle-container {
   display: flex;
   align-items: center;
@@ -15,40 +16,55 @@
 .playback-toggle-switch {
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: space-between;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 12px;
-  background-color: #f5f5f5;
-  border: 1px solid #e0e0e0;
+  padding: 6px 6px;
+  border-radius: 999px;
+  background-color: var(--surface-color, #f5f5f5);
+  border: 1px solid var(--border-color, #e0e0e0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   transition: all 0.2s ease;
+  width: 58px;
+  min-width: 58px;
+  max-width: 58px;
+  box-sizing: border-box;
+  gap: 10px;
 }
+
 
 .playback-toggle-step,
 .playback-toggle-animate {
   width: 18px;
+  min-width: 18px;
+  max-width: 18px;
   height: 18px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
   font-size: 11px;
   font-weight: bold;
-  font-family: Arial, sans-serif;
-  background-color: #f0f0f0;
-  color: #999;
-  transform: scale(1);
+  font-family: var(--font-family-main, Arial, sans-serif);
+  background-color: var(--surface-color-alt, #f0f0f0);
+  color: var(--text-color-muted, #999);
+  box-shadow: 0 0 0 2px transparent;
 }
 .playback-toggle-step.active {
-  background-color: #1976d2;
-  color: white;
-  transform: scale(1.1);
+  background-color: var(--primary-color, #1976d2);
+  color: var(--text-color-inverse, #fff);
+  box-shadow: 0 0 0 2px var(--primary-color, #1976d2);
+}
+.playback-toggle-step:not(.active) {
+  box-shadow: 0 0 0 2px transparent;
 }
 .playback-toggle-animate.active {
-  background-color: #4caf50;
-  color: white;
-  transform: scale(1.1);
+  background-color: var(--accent-color, #4caf50);
+  color: var(--text-color-inverse, #fff);
+  box-shadow: 0 0 0 2px var(--accent-color, #4caf50);
+}
+.playback-toggle-animate:not(.active) {
+  box-shadow: 0 0 0 2px transparent;
 }
 
 .playback-button-container {
@@ -71,10 +87,10 @@
   transform: scale(1.4);
 }
 .center-btn.playing {
-  background-color: #1976d2 !important;
+  background-color: var(--primary-color) !important;
 }
 .center-btn.playing:hover {
-  background-color: #1565c0 !important;
+  background-color: var(--primary-color-dark) !important;
 }
 
 .animation-settings-container {
