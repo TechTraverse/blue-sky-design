@@ -1,3 +1,17 @@
+/* Force font and color for date picker input and its container */
+/* Using local font and color values for maximum specificity and to override third-party styles */
+.slider-date-picker-input {
+  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  color: #555 !important;
+}
+/* Using local font and color values for maximum specificity and to override third-party styles */
+.slider-date-picker-input input {
+  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  color: #555 !important;
+  background: #fff !important;
+  border: 1px solid #e1e1e1 !important;
+  box-shadow: none !important;
+}
 .date-and-query-range-container {
   height: 100%;
   display: flex;
@@ -47,8 +61,8 @@
     padding: 0;
   }
 }
-.slider-date-picker-group {
-  border: 1px solid var(--border-color);
+ .slider-date-picker-group {
+  border: 1px solid #e1e1e1;
   border-radius: 2px;
   padding-block: 0 0;
   box-sizing: border-box;
@@ -76,7 +90,7 @@
     background: transparent;
     padding: 0;
     cursor: pointer;
-    color: var(--text-color);
+    color: #555;
     width: 24px;
     min-width: 24px;
     height: 34px;
@@ -91,16 +105,17 @@
       color: #000;
     }
   }
+
 }
 
-.slider-date-picker {
-  z-index: 10000;;
+ .slider-date-picker {
+  z-index: 10000;
   --background-color: #fff;
   right: 310px;
   bottom: 100px;
   border: 1px solid var(--border-color);
   background: var(--background-color);
-  color: var(--text-color);
+  color: #555;
   border-radius: 2px;
   outline: none;
   min-width: fit-content;
@@ -108,7 +123,7 @@
   transition: transform .2s,opacity .2s;
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 12px;;
+  font-size: 12px;
   top: unset !important;
   left: unset !important;
 

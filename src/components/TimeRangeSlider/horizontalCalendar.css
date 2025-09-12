@@ -13,10 +13,12 @@
 }
 
 .horizontal-calendar-grid-header-label {
+  /* Using local font and color values for maximum specificity and to override third-party styles */
   position: relative;
   font-size: 13px;
-  color: var(--text-color);
-}
+  color: #555;
+  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  }
 
 .month-column {
   display: flex;
