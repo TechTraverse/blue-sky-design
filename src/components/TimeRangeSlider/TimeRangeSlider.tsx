@@ -193,12 +193,18 @@ const calculateOptimalViewRange = (
 };
 
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
-  .with(P.number.lt(350), () => Duration.hours(1))
-  .with(P.number.lt(700), () => Duration.hours(2))
-  .with(P.number.lt(1050), () => Duration.hours(3))
-  .with(P.number.lt(1400), () => Duration.hours(4))
-  .with(P.number.lt(1750), () => Duration.hours(5))
-  .with(P.number.lt(2100), () => Duration.hours(6))
+  .with(P.number.lt(100), () => Duration.minutes(30))
+  .with(P.number.lt(200), () => Duration.hours(1))
+  .with(P.number.lt(400), () => Duration.hours(2))
+  .with(P.number.lt(600), () => Duration.hours(3))
+  .with(P.number.lt(800), () => Duration.hours(4))
+  .with(P.number.lt(1000), () => Duration.hours(5))
+  .with(P.number.lt(1200), () => Duration.hours(6))
+  .with(P.number.lt(1400), () => Duration.hours(7))
+  .with(P.number.lt(1600), () => Duration.hours(8))
+  .with(P.number.lt(1800), () => Duration.hours(9))
+  .with(P.number.lt(2000), () => Duration.hours(10))
+  .with(P.number.lt(2200), () => Duration.hours(12))
   .otherwise(() => Duration.hours(21));
 
 
@@ -397,7 +403,7 @@ export const TimeRangeSlider = ({
 
   // Track when we're updating from external props to prevent callback loops
   const isUpdatingFromProps = useRef(false);
-  
+
   const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, isUpdatingFromProps), {
     viewStartDateTime: initViewStartDateTime,
     viewDuration: initViewDuration,
@@ -541,13 +547,13 @@ export const TimeRangeSlider = ({
 
 
   return (
-    <div ref={sliderRef} className={`${className} time-range-slider`}>
+    <div className={`${className} time-range-slider`}>
       <PrevDateButton onClick={() => {
         const newStart = DateTime.subtractDuration(
           s.viewStartDateTime, s.viewDuration);
         d(SetViewStartDateTime({ viewStartDateTime: newStart }));
       }} />
-      <div className={"horizontal-calendar-grid-body"} >
+      <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
         <HorizontalCalendar
           increment={DEFAULT_VIEW_INCREMENT}
           isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
