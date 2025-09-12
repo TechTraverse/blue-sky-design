@@ -1,71 +1,10 @@
-import "./rangeDateInput.css";
+import "./animateAndStepControls.css";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Button, Tooltip } from "@mui/material";
 import { AnimationSpeed, PlayMode } from "./timeSliderTypes";
 import { FiFastForward, FiRewind } from "react-icons/fi";
-import { MdPlayArrow, MdSkipNext } from "react-icons/md";
 import { AnimationSettings } from "./AnimationSettings";
 import { Duration } from "effect";
-
-const AnimateNavControls = ({
-  playMode,
-  setPlayMode,
-  animationSpeed,
-  setAnimationSpeed,
-  incrementAnimationSpeed,
-  decrementAnimationSpeed
-}: {
-  playMode: PlayMode,
-  setPlayMode?: (mode: PlayMode) => void
-  animationSpeed: AnimationSpeed,
-  setAnimationSpeed?: (speed: number) => void,
-  incrementAnimationSpeed?: () => void,
-  decrementAnimationSpeed?: () => void
-}) => {
-  return (
-    <div className="animate-container">
-      <div className="playback-nav-controls">
-        <Button variant="contained" slot="previous" onClick={() => decrementAnimationSpeed?.()}>
-          <FiRewind />
-        </Button>
-        {playMode === PlayMode.Play
-          ? <Button variant="contained" onClick={() => {
-            setPlayMode?.(PlayMode.Pause)
-          }}>
-            <TbPlayerPause />
-          </Button>
-          : <Button variant="contained" onClick={() => {
-            setPlayMode?.(PlayMode.Play)
-          }}>
-            <TbPlayerPlay />
-          </Button>}
-        <Button variant="contained" slot="next" onClick={() => incrementAnimationSpeed?.()}>
-          <FiFastForward />
-        </Button>
-      </div>
-      <SpeedIndicator
-        disabled={playMode === PlayMode.Pause}
-        animationSpeed={animationSpeed}
-        setAnimationSpeed={setAnimationSpeed} />
-    </div>
-  );
-}
-
-const StepNavControls = ({ fwd, rev }: {
-  fwd?: () => void,
-  rev?: () => void
-}) => {
-  return (
-    <div className="playback-nav-controls">
-      <Button variant="contained" slot="previous" onClick={() => rev?.()}>
-        <TbPlayerSkipBack />
-      </Button>
-      <Button variant="contained" slot="next" onClick={() => fwd?.()}>
-        <TbPlayerSkipForward />
-      </Button>
-    </div>
-  );
-}
 
 export const AnimateAndStepControls = ({
   animationEnabled = false,
@@ -113,17 +52,11 @@ export const AnimateAndStepControls = ({
 
   return (
     <>
-      <div className={`playback-section ${animationEnabled ? "animate" : "step"}`} style={{ position: 'relative' }}>
+      <div className={`playback-section ${animationEnabled ? "animate" : "step"} playback-section-relative`}>
         <div className="playback-nav-controls">
           {/* Micro Toggle Switch */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginRight: '12px',
-            gap: '4px',
-            flex: '0 0 auto' // Prevent flex shrinking/growing
-          }}>
-            <Tooltip 
+          <div className="playback-toggle-container">
+            <Tooltip
               title={`${animationEnabled ? 'Animation' : 'Step'} mode - Click to switch`}
               PopperProps={{
                 sx: { zIndex: 10003 }
@@ -131,57 +64,19 @@ export const AnimateAndStepControls = ({
             >
               <div
                 onClick={handleModeToggle}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  borderRadius: '12px',
-                  backgroundColor: '#f5f5f5',
-                  border: '1px solid #e0e0e0',
-                  transition: 'all 0.2s ease'
-                }}
+                className="playback-toggle-switch"
               >
                 {/* Step Mode */}
                 <div
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    backgroundColor: !animationEnabled ? '#1976d2' : '#f0f0f0',
-                    color: !animationEnabled ? 'white' : '#999',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    transform: !animationEnabled ? 'scale(1.1)' : 'scale(1)',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    fontFamily: 'Arial, sans-serif'
-                  }}
+                  className={`playback-toggle-step${!animationEnabled ? ' active' : ''}`}
                   title="Step Mode"
                 >
                   S
                 </div>
-                
+
                 {/* Animation Mode */}
                 <div
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    backgroundColor: animationEnabled ? '#4caf50' : '#f0f0f0',
-                    color: animationEnabled ? 'white' : '#999',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    transform: animationEnabled ? 'scale(1.1)' : 'scale(1)',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    fontFamily: 'Arial, sans-serif'
-                  }}
+                  className={`playback-toggle-animate${animationEnabled ? ' active' : ''}`}
                   title="Animation Mode"
                 >
                   A
@@ -191,14 +86,9 @@ export const AnimateAndStepControls = ({
           </div>
 
           {/* Button container with fixed layout */}
-          <div style={{
-            display: 'flex',
-            gap: '7px',
-            flex: '1 1 auto',
-            justifyContent: 'center'
-          }}>
-            <Button 
-              variant="contained" 
+          <div className="playback-button-container">
+            <Button
+              variant="contained"
               onClick={() => animationEnabled ? decrementAnimationSpeed?.() : decrementStartDateTime?.()}
               sx={{
                 transition: 'all 0.3s ease',
@@ -208,9 +98,9 @@ export const AnimateAndStepControls = ({
             >
               {animationEnabled ? <FiRewind /> : <TbPlayerSkipBack />}
             </Button>
-            
+
             {animationEnabled && (
-              <Tooltip 
+              <Tooltip
                 title={playMode === PlayMode.Play ? "Pause" : "Play"}
                 PopperProps={{
                   sx: { zIndex: 10003 }
@@ -234,8 +124,8 @@ export const AnimateAndStepControls = ({
               </Tooltip>
             )}
 
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={() => animationEnabled ? incrementAnimationSpeed?.() : incrementStartDateTime?.()}
               sx={{
                 transition: 'all 0.3s ease',
@@ -249,12 +139,7 @@ export const AnimateAndStepControls = ({
         </div>
 
         {animationEnabled && animationDuration && (
-          <div style={{
-            position: 'absolute',
-            top: -12,
-            right: 10,
-            zIndex: 10001
-          }}>
+          <div className="animation-settings-container">
             <AnimationSettings
               animationSpeed={animationSpeed}
               setAnimationSpeed={setAnimationSpeed}
