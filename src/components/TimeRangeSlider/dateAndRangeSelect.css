@@ -19,9 +19,9 @@
   align-items: center;
   justify-content: space-around;
   gap: 10px;
-  min-width: 280px;
+  min-width: 180px;
   max-width: 284px;
-  margin-right: 10px;
+  margin: 0 10px;
 }
 
 .slider-date-picker-container {

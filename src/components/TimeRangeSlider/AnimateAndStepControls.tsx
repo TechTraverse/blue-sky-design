@@ -1,9 +1,9 @@
 import "./animateAndStepControls.css";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Button, Tooltip } from "@mui/material";
-import { AnimationSpeed, PlayMode } from "./timeSliderTypes";
+import { AnimationSpeed, PlayMode, TimeDuration } from "./timeSliderTypes";
 import { FiFastForward, FiRewind } from "react-icons/fi";
-import { AnimationSettings } from "./AnimationSettings";
+import { ControlSettings } from "./ControlSettings";
 import { Duration } from "effect";
 
 export const AnimateAndStepControls = ({
@@ -15,6 +15,8 @@ export const AnimateAndStepControls = ({
   setAnimationSpeed,
   animationDuration,
   setAnimationDuration,
+  rangeValue,
+  setRange,
   incrementStartDateTime,
   decrementStartDateTime,
   incrementAnimationSpeed,
@@ -28,6 +30,8 @@ export const AnimateAndStepControls = ({
   setAnimationSpeed?: (speed: AnimationSpeed) => void,
   animationDuration?: Duration.Duration,
   setAnimationDuration?: (duration: Duration.Duration) => void,
+  rangeValue?: TimeDuration,
+  setRange?: (timeDuration: TimeDuration) => void,
   incrementStartDateTime?: () => void,
   decrementStartDateTime?: () => void,
   incrementAnimationSpeed?: () => void,
@@ -138,17 +142,18 @@ export const AnimateAndStepControls = ({
           </div>
         </div>
 
-        {animationEnabled && animationDuration && (
-          <div className="animation-settings-container">
-            <AnimationSettings
-              animationSpeed={animationSpeed}
-              setAnimationSpeed={setAnimationSpeed}
-              animationDuration={animationDuration}
-              setAnimationDuration={setAnimationDuration}
-              disabled={false}
-            />
-          </div>
-        )}
+        <div className={animationEnabled ? "animation-settings-container" : "step-settings-container"}>
+          <ControlSettings
+            animationEnabled={animationEnabled}
+            animationSpeed={animationSpeed}
+            setAnimationSpeed={setAnimationSpeed}
+            animationDuration={animationDuration}
+            setAnimationDuration={setAnimationDuration}
+            rangeValue={rangeValue}
+            setRange={setRange}
+            disabled={false}
+          />
+        </div>
       </div>
     </>);
 }

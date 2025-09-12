@@ -99,6 +99,13 @@
   right: 10px;
   z-index: 10001;
 }
+
+.step-settings-container {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  z-index: 10001;
+}
 /* .slider-control-panel {
   height: 100%;
   min-width:456px;

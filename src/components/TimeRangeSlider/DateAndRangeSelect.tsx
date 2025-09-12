@@ -5,8 +5,7 @@ import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo } from "react-icons/fa";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
-import { Box, Button, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
-import { TimeDuration } from "./timeSliderTypes";
+import { Button, Box } from "@mui/material";
 
 
 interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
@@ -77,14 +76,10 @@ const SliderDatePicker = <T extends DateValue>(
 export const DateAndRangeSelect = ({
   startDateTime,
   setStartDateTime,
-  rangeValue,
-  setRange,
   returnToDefaultDateTime,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
-  rangeValue?: TimeDuration,
-  setRange?: (timeDuration: TimeDuration) => void,
   returnToDefaultDateTime?: () => void,
 }) => {
 
@@ -111,31 +106,5 @@ export const DateAndRangeSelect = ({
         firstDayOfWeek={"sun"}
         returnToDefaultDateTime={returnToDefaultDateTime}
       />
-      <FormControl sx={{ m: 1 }} className="query-range-select">
-        <InputLabel shrink>
-          Range/Step
-        </InputLabel>
-        <Select
-          labelId="query-range-select-label"
-          id="query-range-select"
-          value={rangeValue}
-          label="Range/Step"
-          variant="standard"
-          onChange={(e) => setRange?.(e.target.value as TimeDuration)}
-          MenuProps={{
-            sx: { zIndex: 10004 },
-            PaperProps: {
-              sx: { zIndex: 10004 }
-            }
-          }}
-        >{Object.entries(TimeDuration).map(([key, value]) => {
-          return isNaN(key as unknown as number) ? (
-            <MenuItem key={key} value={value}>
-              {key}
-            </MenuItem>
-          ) : null;
-        }).filter(Boolean)
-          }</Select>
-      </FormControl>
     </div>);
 }
