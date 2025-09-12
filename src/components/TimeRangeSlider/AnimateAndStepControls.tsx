@@ -61,7 +61,7 @@ export const AnimateAndStepControls = ({
           {/* Micro Toggle Switch */}
           <div className="playback-toggle-container">
             <Tooltip
-              title={`${animationEnabled ? 'Animation' : 'Step'} mode - Click to switch`}
+              title={`${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
               PopperProps={{
                 sx: { zIndex: 10003 }
               }}

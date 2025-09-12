@@ -1,10 +1,28 @@
 import { useState } from "react";
 import { IconButton, Popover, Typography, Box, Tooltip, FormControl, Select, MenuItem } from "@mui/material";
 import { IoSettingsOutline } from "react-icons/io5";
-import { SpeedIndicator } from "./SpeedIndicator";
-import { DurationIndicator } from "./DurationIndicator";
 import { AnimationSpeed, TimeDuration } from "./timeSliderTypes";
 import { Duration } from "effect";
+
+// Speed options for animation
+const speedOptions = Object.entries(AnimationSpeed)
+  .filter(([key]) => isNaN(Number(key)))
+  .map(([key, value]) => ({
+    label: key,
+    value: Number(value),
+  }))
+  .sort((a, b) => a.value - b.value);
+
+// Duration options for animation
+const durationOptions = [
+  { label: "30 minutes", value: Duration.minutes(30) },
+  { label: "1 hour", value: Duration.hours(1) },
+  { label: "2 hours", value: Duration.hours(2) },
+  { label: "4 hours", value: Duration.hours(4) },
+  { label: "6 hours", value: Duration.hours(6) },
+  { label: "12 hours", value: Duration.hours(12) },
+  { label: "1 day", value: Duration.days(1) },
+];
 
 export const ControlSettings = ({
   animationEnabled,
@@ -113,22 +131,57 @@ export const ControlSettings = ({
                 <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
                   Speed
                 </Typography>
-                <SpeedIndicator
-                  disabled={false}
-                  animationSpeed={animationSpeed}
-                  setAnimationSpeed={setAnimationSpeed}
-                />
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={animationSpeed}
+                    onChange={(e) => setAnimationSpeed?.(e.target.value as AnimationSpeed)}
+                    variant="outlined"
+                    MenuProps={{
+                      sx: { zIndex: 10004 },
+                      PaperProps: {
+                        sx: { zIndex: 10004 }
+                      }
+                    }}
+                  >
+                    {speedOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
               
               <Box>
                 <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
                   Duration
                 </Typography>
-                <DurationIndicator
-                  disabled={false}
-                  animationDuration={animationDuration}
-                  setAnimationDuration={setAnimationDuration}
-                />
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={Duration.toMillis(animationDuration)}
+                    onChange={(e) => {
+                      const selectedDuration = durationOptions.find(
+                        option => Duration.toMillis(option.value) === e.target.value
+                      );
+                      if (selectedDuration) {
+                        setAnimationDuration?.(selectedDuration.value);
+                      }
+                    }}
+                    variant="outlined"
+                    MenuProps={{
+                      sx: { zIndex: 10004 },
+                      PaperProps: {
+                        sx: { zIndex: 10004 }
+                      }
+                    }}
+                  >
+                    {durationOptions.map((option) => (
+                      <MenuItem key={Duration.toMillis(option.value)} value={Duration.toMillis(option.value)}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
             </>
           ) : (
