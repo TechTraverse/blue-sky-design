@@ -36,7 +36,7 @@
     width: fit-content;
 
     &.enabled {
-      color: #555;
+      color: var(--text-color);
     }
   }
 

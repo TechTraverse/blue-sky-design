@@ -47,10 +47,8 @@
     padding: 0;
   }
 }
-
-
 .slider-date-picker-group {
-  border: 1px solid #e1e1e1;
+  border: 1px solid var(--border-color);
   border-radius: 2px;
   padding-block: 0 0;
   box-sizing: border-box;
@@ -69,7 +67,7 @@
   }
 
   &:hover {
-    border: 1px solid #1976d2;
+    border: 1px solid var(--primary-color);
   }
 
   button {
@@ -78,7 +76,7 @@
     background: transparent;
     padding: 0;
     cursor: pointer;
-    color: #555;
+    color: var(--text-color);
     width: 24px;
     min-width: 24px;
     height: 34px;

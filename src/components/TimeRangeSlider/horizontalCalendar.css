@@ -15,7 +15,7 @@
 .horizontal-calendar-grid-header-label {
   position: relative;
   font-size: 13px;
-  color: #555;
+  color: var(--text-color);
 }
 
 .month-column {
@@ -38,12 +38,12 @@
   text-align: left;
   font-size: 12px;
   cursor: pointer;
-  color: 555;
+  color: var(--text-color);
 
   &:focus {
     outline: none;
-    background-color: #2d2d5a;
-    color: white;
+    background-color: var(--focus-bg);
+    color: var(--text-color-inverse);
   }
 }
 
@@ -165,4 +165,3 @@
     display: none;
   }
 }
-
