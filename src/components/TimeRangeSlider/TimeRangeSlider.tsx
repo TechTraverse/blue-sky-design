@@ -347,6 +347,7 @@ function withMiddleware(
     if (($actionIs("SetSelectedStartDateTime")(action) ||
       $actionIs("SetSelectedDuration")(action)) &&
       !isUpdatingFromProps.current) {
+      console.log('onDateRangeSelect callback triggered from action:', action);
       const start = newState.selectedStartDateTime;
       const end = DateTime.addDuration(start, newState.selectedDuration);
       onDateRangeSelect({
@@ -462,14 +463,24 @@ export const TimeRangeSlider = ({
       isUpdatingFromProps.current = true;
       const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
       const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
-      d(SetSelectedStartDateTime({ selectedStartDateTime: newStartDateTime }));
-      d(SetSelectedDuration({ selectedDuration: newDuration }));
-      // Reset flag after state updates are complete
-      setTimeout(() => {
+      
+      // Check if the values are actually different to prevent unnecessary updates
+      const currentStart = s.selectedStartDateTime;
+      const currentDuration = s.selectedDuration;
+      const startChanged = Duration.toMillis(DateTime.distance(currentStart, newStartDateTime)) !== 0;
+      const durationChanged = Duration.toMillis(currentDuration) !== Duration.toMillis(newDuration);
+      
+      if (startChanged || durationChanged) {
+        d(SetSelectedStartDateTime({ selectedStartDateTime: newStartDateTime }));
+        d(SetSelectedDuration({ selectedDuration: newDuration }));
+      }
+      
+      // Reset flag after allowing React to process both dispatches
+      queueMicrotask(() => {
         isUpdatingFromProps.current = false;
-      }, 0);
+      });
     }
-  }, [dateRange]);
+  }, [dateRange, s.selectedStartDateTime, s.selectedDuration]);
 
 
   /**
