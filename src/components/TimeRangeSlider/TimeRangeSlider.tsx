@@ -63,11 +63,11 @@ type Action = D.TaggedEnum<{
 
   SetSelectedStartDateTime: {
     selectedStartDateTime: DateTime.DateTime;
-    updateSource?: UpdateSource;
+    updateSource: UpdateSource;
   };
   SetSelectedDuration: {
     selectedDuration: Duration.Duration;
-    updateSource?: UpdateSource;
+    updateSource: UpdateSource;
   };
 
   SetAnimationOrStepMode:
@@ -354,15 +354,15 @@ function withMiddleware(
     match(action)
       .with({
         _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration"),
-      }, ({ updateSource: uS }) =>
-        uS === undefined || uS === UpdateSource.UserInteraction, () => {
-          const start = newState.selectedStartDateTime;
-          const end = DateTime.addDuration(start, newState.selectedDuration);
-          onDateRangeSelect({
-            start: DateTime.toDate(start),
-            end: DateTime.toDate(end)
-          });
-        })
+        updateSource: UpdateSource.UserInteraction
+      }, () => {
+        const start = newState.selectedStartDateTime;
+        const end = DateTime.addDuration(start, newState.selectedDuration);
+        onDateRangeSelect({
+          start: DateTime.toDate(start),
+          end: DateTime.toDate(end)
+        });
+      })
       .otherwise(() => { /* No action needed */ });
 
     return newState;
@@ -548,7 +548,7 @@ export const TimeRangeSlider = ({
     console.log('Next selectedStartDateTime will be:', DateTime.toDate(selectedStartDateTime));
 
     const action = () =>
-      d(SetSelectedStartDateTime({ selectedStartDateTime }));
+      d(SetSelectedStartDateTime({ selectedStartDateTime, updateSource: UpdateSource.UserInteraction }));
     const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
     E.runPromise(program).then();
   }, [
@@ -591,9 +591,13 @@ export const TimeRangeSlider = ({
               end: DateTime.addDuration(
                 s.selectedStartDateTime, s.selectedDuration),
               set: (r: RangeValue<DateTime.DateTime>) => {
-                d(SetSelectedStartDateTime({ selectedStartDateTime: r.start }));
+                d(SetSelectedStartDateTime({
+                  selectedStartDateTime: r.start,
+                  updateSource: UpdateSource.UserInteraction
+                }));
                 d(SetSelectedDuration({
-                  selectedDuration: DateTime.distanceDuration(r.start, r.end)
+                  selectedDuration: DateTime.distanceDuration(r.start, r.end),
+                  updateSource: UpdateSource.UserInteraction
                 }));
               },
               duration: s.selectedDuration
@@ -616,7 +620,10 @@ export const TimeRangeSlider = ({
       <DateAndRangeSelect
         startDateTime={s.selectedStartDateTime}
         setStartDateTime={(date: DateTime.DateTime) => {
-          d(SetSelectedStartDateTime({ selectedStartDateTime: date }));
+          d(SetSelectedStartDateTime({
+            selectedStartDateTime: date,
+            updateSource: UpdateSource.UserInteraction
+          }));
         }}
         returnToDefaultDateTime={() => {
           d(ResetAll());
@@ -627,12 +634,14 @@ export const TimeRangeSlider = ({
         /* Step controls */
         incrementStartDateTime={() => {
           d(SetSelectedStartDateTime({
-            selectedStartDateTime: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration)
+            selectedStartDateTime: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+            updateSource: UpdateSource.UserInteraction
           }));
         }}
         decrementStartDateTime={() => {
           d(SetSelectedStartDateTime({
-            selectedStartDateTime: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration)
+            selectedStartDateTime: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
+            updateSource: UpdateSource.UserInteraction
           }));
         }}
 
@@ -702,7 +711,10 @@ export const TimeRangeSlider = ({
           ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
         setRange={
           (timeDuration: TimeDuration) =>
-            d(SetSelectedDuration({ selectedDuration: Duration.millis(timeDuration) }))
+            d(SetSelectedDuration({
+              selectedDuration: Duration.millis(timeDuration),
+              updateSource: UpdateSource.UserInteraction
+            }))
         }
       />
     </div>
