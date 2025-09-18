@@ -22,6 +22,11 @@ export interface TimeRangeSliderProps {
   className?: string;
 }
 
+enum UpdateSource {
+  ExternalProp,
+  UserInteraction
+}
+
 type State = {
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
@@ -56,9 +61,14 @@ type Action = D.TaggedEnum<{
   { resetStartDateTime: DateTime.DateTime; };
   SetResetDuration: { resetDuration: Duration.Duration; };
 
-  SetSelectedStartDateTime:
-  { selectedStartDateTime: DateTime.DateTime; };
-  SetSelectedDuration: { selectedDuration: Duration.Duration; };
+  SetSelectedStartDateTime: {
+    selectedStartDateTime: DateTime.DateTime;
+    updateSource?: UpdateSource;
+  };
+  SetSelectedDuration: {
+    selectedDuration: Duration.Duration;
+    updateSource?: UpdateSource;
+  };
 
   SetAnimationOrStepMode:
   { animationOrStepMode: AnimationOrStepMode; };
@@ -87,7 +97,6 @@ const DEFAULT_VIEW_INCREMENT = Duration.minutes(5).pipe(Duration.toMillis);
 
 const {
   $match: $actionMatch,
-  $is: $actionIs,
   SetViewStartDateTime,
   SetViewDuration,
 
@@ -246,7 +255,7 @@ const reducer = (state: State, action: Action): State =>
 
       // Only update view range if selected date + duration goes outside current view range
       const viewRangeUpdate = match([start, state.selectedDuration])
-        .when(([s, d]) =>
+        .when(([s/*, d */]) =>
           DateTime.lessThanOrEqualTo(
             state.viewStartDateTime,
             DateTime.subtractDuration(s, Duration.minutes(5))
@@ -337,24 +346,21 @@ const reducer = (state: State, action: Action): State =>
 function withMiddleware(
   reducer: (state: State, action: Action) => State,
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
-  isUpdatingFromProps: React.MutableRefObject<boolean>
 ): (state: State, action: Action) => State {
   return (state, action) => {
     const newState = reducer(state, action);
 
-    // Call callback for actions that change the selected range
-    // but only if we're not updating from external props
-    if (($actionIs("SetSelectedStartDateTime")(action) ||
-      $actionIs("SetSelectedDuration")(action)) &&
-      !isUpdatingFromProps.current) {
-      console.log('onDateRangeSelect callback triggered from action:', action);
-      const start = newState.selectedStartDateTime;
-      const end = DateTime.addDuration(start, newState.selectedDuration);
-      onDateRangeSelect({
-        start: DateTime.toDate(start),
-        end: DateTime.toDate(end)
-      });
-    }
+    // Side-effect: Call callback for user interactions that change selected date range
+    match(action)
+      .with({ _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration"), updateSource: P.union(UpdateSource.UserInteraction, undefined) }, () => {
+        const start = newState.selectedStartDateTime;
+        const end = DateTime.addDuration(start, newState.selectedDuration);
+        onDateRangeSelect({
+          start: DateTime.toDate(start),
+          end: DateTime.toDate(end)
+        });
+      })
+      .otherwise(() => {/* No action needed */ });
 
     return newState;
   };
@@ -402,10 +408,7 @@ export const TimeRangeSlider = ({
       DateTime.unsafeFromDate(dateRange.end))
     : Duration.hours(2);
 
-  // Track when we're updating from external props to prevent callback loops
-  const isUpdatingFromProps = useRef(false);
-
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, isUpdatingFromProps), {
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), {
     viewStartDateTime: initViewStartDateTime,
     viewDuration: initViewDuration,
 
@@ -459,26 +462,26 @@ export const TimeRangeSlider = ({
    */
 
   useEffect(() => {
-    if (dateRange) {
-      isUpdatingFromProps.current = true;
-      const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
-      const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
-      
-      // Check if the values are actually different to prevent unnecessary updates
-      const currentStart = s.selectedStartDateTime;
-      const currentDuration = s.selectedDuration;
-      const startChanged = Duration.toMillis(DateTime.distance(currentStart, newStartDateTime)) !== 0;
-      const durationChanged = Duration.toMillis(currentDuration) !== Duration.toMillis(newDuration);
-      
-      if (startChanged || durationChanged) {
-        d(SetSelectedStartDateTime({ selectedStartDateTime: newStartDateTime }));
-        d(SetSelectedDuration({ selectedDuration: newDuration }));
-      }
-      
-      // Reset flag after allowing React to process both dispatches
-      queueMicrotask(() => {
-        isUpdatingFromProps.current = false;
-      });
+    if (!dateRange) return;
+
+    const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
+    const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
+
+    // Check if the values are actually different to prevent unnecessary updates
+    const currentStart = s.selectedStartDateTime;
+    const currentDuration = s.selectedDuration;
+    const startChanged = Duration.toMillis(DateTime.distance(currentStart, newStartDateTime)) !== 0;
+    const durationChanged = Duration.toMillis(currentDuration) !== Duration.toMillis(newDuration);
+
+    if (startChanged || durationChanged) {
+      d(SetSelectedStartDateTime({
+        selectedStartDateTime: newStartDateTime,
+        updateSource: UpdateSource.ExternalProp
+      }));
+      d(SetSelectedDuration({
+        selectedDuration: newDuration,
+        updateSource: UpdateSource.ExternalProp
+      }));
     }
   }, [dateRange, s.selectedStartDateTime, s.selectedDuration]);
 
