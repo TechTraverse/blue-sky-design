@@ -361,7 +361,7 @@ function withMiddleware(
           end: DateTime.toDate(end)
         });
       })
-      .otherwise(() => {/* No action needed */ });
+      .otherwise(console.log);
 
     return newState;
   };
