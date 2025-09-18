@@ -352,16 +352,18 @@ function withMiddleware(
 
     // Side-effect: Call callback for user interactions that change selected date range
     match(action)
-      .with({ _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration"), updateSource: P.not(UpdateSource.ExternalProp) }, () => {
-        console.log('onDateRangeSelect callback triggered from action:', action);
-        const start = newState.selectedStartDateTime;
-        const end = DateTime.addDuration(start, newState.selectedDuration);
-        onDateRangeSelect({
-          start: DateTime.toDate(start),
-          end: DateTime.toDate(end)
-        });
-      })
-      .otherwise(console.log);
+      .with({
+        _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration"),
+      }, ({ updateSource: uS }) =>
+        uS === undefined || uS === UpdateSource.UserInteraction, () => {
+          const start = newState.selectedStartDateTime;
+          const end = DateTime.addDuration(start, newState.selectedDuration);
+          onDateRangeSelect({
+            start: DateTime.toDate(start),
+            end: DateTime.toDate(end)
+          });
+        })
+      .otherwise(() => { /* No action needed */ });
 
     return newState;
   };
