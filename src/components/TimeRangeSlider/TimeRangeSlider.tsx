@@ -9,6 +9,7 @@ import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration } from './timeSliderTypes';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider } from '@mui/material';
+import _ from 'lodash';
 
 /**
  * Local types for state, actions, and props
@@ -464,6 +465,20 @@ export const TimeRangeSlider = ({
    * External updates to the date range prop
    */
 
+  // Throttle the dispatches for external prop updates
+  const throttledExternalUpdate = useRef(
+    _.throttle((newStartDateTime, newDuration) => {
+      d(SetSelectedStartDateTime({
+        selectedStartDateTime: newStartDateTime,
+        updateSource: UpdateSource.ExternalProp
+      }));
+      d(SetSelectedDuration({
+        selectedDuration: newDuration,
+        updateSource: UpdateSource.ExternalProp
+      }));
+    }, 400)
+  );
+
   useEffect(() => {
     if (!dateRange) return;
 
@@ -477,14 +492,7 @@ export const TimeRangeSlider = ({
     const durationChanged = Duration.toMillis(currentDuration) !== Duration.toMillis(newDuration);
 
     if (startChanged || durationChanged) {
-      d(SetSelectedStartDateTime({
-        selectedStartDateTime: newStartDateTime,
-        updateSource: UpdateSource.ExternalProp
-      }));
-      d(SetSelectedDuration({
-        selectedDuration: newDuration,
-        updateSource: UpdateSource.ExternalProp
-      }));
+      throttledExternalUpdate.current(newStartDateTime, newDuration);
     }
   }, [dateRange, s.selectedStartDateTime, s.selectedDuration]);
 
