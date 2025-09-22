@@ -37,7 +37,9 @@ type State = {
   resetDuration: Duration.Duration;
 
   // User-selected date range
+  prevSelectedStartDateTime: DateTime.DateTime;
   selectedStartDateTime: DateTime.DateTime;
+  extSelectedStartDateTimeTimeStamp: DateTime.DateTime;
   selectedDuration: Duration.Duration;
 
   // Two modes: animation or step
@@ -270,7 +272,9 @@ const reducer = (state: State, action: Action): State =>
       return {
         ...state,
         ...viewRangeUpdate,
+        prevSelectedStartDateTime: state.selectedStartDateTime,
         selectedStartDateTime: start,
+        extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
       }
     },
     SetSelectedDuration: (x) => {
@@ -329,7 +333,9 @@ const reducer = (state: State, action: Action): State =>
       ...state,
       viewStartDateTime: state.resetStartDateTime,
       viewDuration: state.resetDuration,
+      prevSelectedStartDateTime: state.resetStartDateTime,
       selectedStartDateTime: state.resetStartDateTime,
+      extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
       selectedDuration: state.resetDuration,
       animationOrStepMode: AnimationOrStepMode.Step,
       animationDuration: state.resetAnimationDuration,
@@ -419,6 +425,8 @@ export const TimeRangeSlider = ({
     resetDuration: initResetDuration,
 
     selectedStartDateTime: initSelectedStartDateTime,
+    prevSelectedStartDateTime: initSelectedStartDateTime,
+    extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
     selectedDuration: initSelectedDuration,
 
     animationOrStepMode: AnimationOrStepMode.Step,
@@ -468,6 +476,17 @@ export const TimeRangeSlider = ({
     if (!dateRange) return;
 
     const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
+    const isWithinLastSecond = DateTime.distance(
+      DateTime.unsafeNow(), s.extSelectedStartDateTimeTimeStamp) < 1000;
+    const isEqualToCurrentTime = DateTime.distance(newStartDateTime,
+      s.selectedStartDateTime) === 0;
+    const isEqualToPreviousTime = DateTime.distance(newStartDateTime,
+      s.prevSelectedStartDateTime) === 0;
+
+    if (isWithinLastSecond && (isEqualToCurrentTime || isEqualToPreviousTime)) {
+      return;
+    }
+
     const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
 
     // Check if the values are actually different to prevent unnecessary updates
@@ -486,7 +505,8 @@ export const TimeRangeSlider = ({
         updateSource: UpdateSource.ExternalProp
       }));
     }
-  }, [dateRange, s.selectedStartDateTime, s.selectedDuration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
 
 
   /**
