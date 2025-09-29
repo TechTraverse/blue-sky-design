@@ -55,6 +55,10 @@ type State = {
   animationSpeed: AnimationSpeed;
 };
 
+/**
+ * Actions for reducer
+ */
+
 type Action = D.TaggedEnum<{
   SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
   SetViewDuration: { viewDuration: Duration.Duration; };
@@ -89,14 +93,6 @@ type Action = D.TaggedEnum<{
   ResetAll: object;
 }>;
 
-
-/**
- * Constants
- */
-
-const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
-const DEFAULT_VIEW_INCREMENT = Duration.minutes(5).pipe(Duration.toMillis);
-
 const {
   $match: $actionMatch,
   SetViewStartDateTime,
@@ -115,6 +111,14 @@ const {
   SetAnimationPlayMode,
   SetAnimationSpeed,
   ResetAll } = D.taggedEnum<Action>();
+
+
+/**
+ * Constants
+ */
+
+const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
+const DEFAULT_VIEW_INCREMENT = Duration.minutes(5).pipe(Duration.toMillis);
 
 
 /**
@@ -145,63 +149,44 @@ const roundDateTimeUpToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateT
     });
   });
 
-const calculateOptimalViewRange = (
-  selectedStart: DateTime.DateTime,
-  selectedDuration: Duration.Duration,
-  currentViewStart: DateTime.DateTime,
-  currentViewDuration: Duration.Duration
-): { viewStartDateTime: DateTime.DateTime; viewDuration: Duration.Duration } => {
-  const selectedEnd = DateTime.addDuration(selectedStart, selectedDuration);
-  const currentViewEnd = DateTime.addDuration(currentViewStart, currentViewDuration);
+const calculateOptimalViewStart = (
+  pStart: DateTime.DateTime,
+  nStart: DateTime.DateTime,
+  nDuration: Duration.Duration,
+  cViewStart: DateTime.DateTime,
+  cViewDuration: Duration.Duration
+): DateTime.DateTime =>
+  match({ pStart, nStart, nDuration, cViewStart, cViewDuration })
+    // Selected range longer than current view, start time in middle of view
+    .when(({ nDuration, cViewDuration }) => Duration.toMillis(nDuration) > Duration.toMillis(cViewDuration), () => {
+      // Adjust view start so selected start is in middle of view
+      const midPoint = nStart;
+      const unroundedViewStart = DateTime.subtractDuration(midPoint, Duration.millis(Math.floor(Duration.toMillis(cViewDuration) / 2)));
+      const optimalViewStart = roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
+      return optimalViewStart;
+    })
+    // Previous selected range was within view, but new one is not
+    // Update so start time is in middle of new view range
+    .when(({ pStart, nStart, nDuration, cViewStart, cViewDuration }) => {
+      const pEnd = DateTime.addDuration(pStart, nDuration);
+      const nEnd = DateTime.addDuration(nStart, nDuration);
+      const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
+      const wasWithinView = DateTime.greaterThanOrEqualTo(pStart, cViewStart)
+        && DateTime.lessThanOrEqualTo(pEnd, cViewEnd);
+      const isNowOutsideView = DateTime.lessThan(nStart, cViewStart)
+        || DateTime.greaterThan(nEnd, cViewEnd);
+      return wasWithinView && isNowOutsideView;
+    }, () => {
+      // Adjust view start so selected start is in middle of view
+      const midPoint = nStart;
+      const unroundedViewStart = DateTime.subtractDuration(midPoint, Duration.millis(Math.floor(Duration.toMillis(cViewDuration) / 2)));
 
-  // Check if selected range fits within current view with 5-minute padding
-  const paddingDuration = Duration.minutes(5);
-  const requiredViewStart = DateTime.subtractDuration(selectedStart, paddingDuration);
-  const requiredViewEnd = DateTime.addDuration(selectedEnd, paddingDuration);
-
-  // If current view accommodates the selected range with padding, keep it
-  // Current view must start before or at the required start AND end after or at the required end
-  if (DateTime.lessThanOrEqualTo(currentViewStart, requiredViewStart) &&
-    DateTime.greaterThanOrEqualTo(currentViewEnd, requiredViewEnd)) {
-    return {
-      viewStartDateTime: currentViewStart,
-      viewDuration: currentViewDuration
-    };
-  }
-
-  // Calculate new view range with proper alignment and smart duration
-  const optimalViewStart = roundDateTimeDownToNearestFiveMinutes(requiredViewStart);
-  const optimalViewEnd = roundDateTimeUpToNearestFiveMinutes(requiredViewEnd);
-  const minRequiredDuration = DateTime.distanceDuration(optimalViewStart, optimalViewEnd);
-
-  // Use the larger of: current view duration, minimum required duration, or 30-minute minimum
-  const minViewDuration = Duration.minutes(30);
-  const preservedDuration = Duration.greaterThan(currentViewDuration, minRequiredDuration)
-    ? currentViewDuration
-    : minRequiredDuration;
-  const finalViewDuration = Duration.greaterThan(preservedDuration, minViewDuration)
-    ? preservedDuration
-    : minViewDuration;
-
-  // If we're using a duration larger than the minimum required, center the selected range
-  if (Duration.greaterThan(finalViewDuration, minRequiredDuration)) {
-    const extraMillis = Duration.toMillis(finalViewDuration) - Duration.toMillis(minRequiredDuration);
-    const halfExtraMillis = Math.floor(extraMillis / 2);
-    const halfExtraDuration = Duration.millis(halfExtraMillis);
-    const centeredViewStart = DateTime.subtractDuration(optimalViewStart, halfExtraDuration);
-    const finalViewStart = roundDateTimeDownToNearestFiveMinutes(centeredViewStart);
-
-    return {
-      viewStartDateTime: finalViewStart,
-      viewDuration: finalViewDuration
-    };
-  } else {
-    return {
-      viewStartDateTime: optimalViewStart,
-      viewDuration: finalViewDuration
-    };
-  }
-};
+      const optimalViewStart = roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
+      return optimalViewStart;
+    })
+    // Previous selected range was within view, and so is new one
+    // No change to view start
+    .otherwise(() => cViewStart);
 
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
   .with(P.number.lt(100), () => Duration.minutes(30))
@@ -248,7 +233,8 @@ const reducer = (state: State, action: Action): State =>
       const start = x.selectedStartDateTime;
 
       // Calculate optimal view range with 5-minute alignment and padding
-      const optimalViewRange = calculateOptimalViewRange(
+      const optimalViewStart = calculateOptimalViewStart(
+        state.selectedStartDateTime, // Old start
         start,
         state.selectedDuration,
         state.viewStartDateTime,
@@ -256,22 +242,22 @@ const reducer = (state: State, action: Action): State =>
       );
 
       // Only update view range if selected date + duration goes outside current view range
-      const viewRangeUpdate = match([start, state.selectedDuration])
+      const viewStartDateTime = match([start, state.selectedDuration])
         .when(([s/*, d */]) =>
           DateTime.lessThanOrEqualTo(
             state.viewStartDateTime,
             DateTime.subtractDuration(s, Duration.minutes(5))
-          ), () => optimalViewRange)
+          ), () => optimalViewStart)
         .when(([s, d]) =>
           DateTime.greaterThanOrEqualTo(
             DateTime.addDuration(state.viewStartDateTime, state.viewDuration),
             DateTime.addDuration(DateTime.addDuration(s, d), Duration.minutes(5))
-          ), () => optimalViewRange)
-        .otherwise(() => ({} as { viewStartDateTime: DateTime.DateTime; viewDuration: Duration.Duration; }));
+          ), () => optimalViewStart)
+        .otherwise(() => (state.viewStartDateTime));
 
       return {
         ...state,
-        ...viewRangeUpdate,
+        viewStartDateTime,
         prevSelectedStartDateTime: state.selectedStartDateTime,
         selectedStartDateTime: start,
         extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
@@ -279,22 +265,17 @@ const reducer = (state: State, action: Action): State =>
     },
     SetSelectedDuration: (x) => {
       // Calculate optimal view range with new duration
-      const optimalViewRange = calculateOptimalViewRange(
+      const viewStartDateTime = calculateOptimalViewStart(
+        state.selectedStartDateTime,
         state.selectedStartDateTime,
         x.selectedDuration,
         state.viewStartDateTime,
         state.viewDuration
       );
 
-      // Only update view range if it changed
-      const viewRangeUpdate = (
-        Duration.toMillis(DateTime.distance(optimalViewRange.viewStartDateTime, state.viewStartDateTime)) !== 0 ||
-        Duration.toMillis(optimalViewRange.viewDuration) !== Duration.toMillis(state.viewDuration)
-      ) ? optimalViewRange : {};
-
       return {
         ...state,
-        ...viewRangeUpdate,
+        viewStartDateTime,
         selectedDuration: x.selectedDuration,
       };
     },
