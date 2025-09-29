@@ -372,8 +372,21 @@ export const TimeRangeSlider = ({
   /**
    * Vals for reducer on component init
    */
-  const initViewStartDateTime = DateTime.unsafeFromDate(
-    dateRange?.start ?? new Date()).pipe(roundDateTimeDownToNearestFiveMinutes);
+  const initSelectedStartDateTime = dateRange
+    ? DateTime.unsafeFromDate(dateRange.start)
+    : DateTime.unsafeFromDate(new Date());
+  const initSelectedDuration = dateRange
+    ? DateTime.distanceDuration(
+      initSelectedStartDateTime,
+      DateTime.unsafeFromDate(dateRange.end))
+    : Duration.hours(2);
+
+  const initViewStartDateTime = calculateOptimalViewStart(
+    initSelectedStartDateTime,
+    initSelectedStartDateTime,
+    initSelectedDuration,
+    DateTime.subtractDuration(initSelectedStartDateTime, Duration.hours(2)),
+    Duration.hours(4));
   const initViewDuration = dateRange
     ? DateTime.distanceDuration(
       initViewStartDateTime,
@@ -389,14 +402,6 @@ export const TimeRangeSlider = ({
       initResetStartDateTime, DateTime.unsafeFromDate(dateRangeForReset.end))
     : Duration.hours(4);
 
-  const initSelectedStartDateTime = dateRange
-    ? DateTime.unsafeFromDate(dateRange.start)
-    : DateTime.unsafeFromDate(new Date());
-  const initSelectedDuration = dateRange
-    ? DateTime.distanceDuration(
-      initSelectedStartDateTime,
-      DateTime.unsafeFromDate(dateRange.end))
-    : Duration.hours(2);
 
   const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), {
     viewStartDateTime: initViewStartDateTime,
