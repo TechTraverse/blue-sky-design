@@ -461,6 +461,11 @@ export const TimeRangeSlider = ({
   useEffect(() => {
     if (!dateRange) return;
 
+    // If animation active and playing, ignore external updates
+    if (s.animationOrStepMode === AnimationOrStepMode.Animation
+      && s.animationPlayMode === PlayMode.Play)
+      return;
+
     const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
     const isWithinLastSecond = DateTime.distance(
       DateTime.unsafeNow(), s.extSelectedStartDateTimeTimeStamp) < 1000;
@@ -519,39 +524,22 @@ export const TimeRangeSlider = ({
       || s.animationPlayMode !== PlayMode.Play)
       return;
 
-    console.log('Animation useEffect triggered', {
-      selectedStartDateTime: DateTime.toDate(s.selectedStartDateTime),
-      animationStartDateTime: DateTime.toDate(s.animationStartDateTime),
-      animationSpeed: s.animationSpeed,
-      animationRequestFrequency: s.animationRequestFrequency
-    });
-
     // Animation operates within the overall animation duration
     // The selected range moves by its own duration for each step
     const animationStart = s.animationStartDateTime;
     const animationEnd = DateTime.addDuration(animationStart, s.animationDuration);
     const maxSelectedStart = DateTime.subtractDuration(animationEnd, s.selectedDuration);
 
-    let selectedStartDateTime: DateTime.DateTime;
-    if (s.animationSpeed > 0) {
-      // Forward animation: move by selected duration
-      selectedStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
-      // Check if selected range would extend past animation end
-      if (DateTime.greaterThan(selectedStartDateTime, maxSelectedStart)) {
-        // Loop back to animation start
-        selectedStartDateTime = animationStart;
-      }
-    } else {
-      // Backward animation: move back by selected duration
-      selectedStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
-      // Check if we've gone before animation start
-      if (DateTime.lessThan(selectedStartDateTime, animationStart)) {
-        // Loop to end of animation range (accounting for selected duration)
-        selectedStartDateTime = maxSelectedStart;
-      }
-    }
 
-    console.log('Next selectedStartDateTime will be:', DateTime.toDate(selectedStartDateTime));
+    const selectedStartDateTime: DateTime.DateTime = match(s.animationSpeed)
+      // Forward animation
+      .when((x) => x > 0, () =>
+        DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration).pipe((x) => DateTime.greaterThan(x, maxSelectedStart) ?
+          animationStart : x))
+      // Backward animation
+      .otherwise(() =>
+        DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration).pipe((x) => DateTime.lessThan(x, animationStart) ?
+          maxSelectedStart : x));
 
     const action = () =>
       d(SetSelectedStartDateTime({ selectedStartDateTime, updateSource: UpdateSource.UserInteraction }));
