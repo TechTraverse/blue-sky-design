@@ -1,6 +1,6 @@
 import "./dateAndRangeSelect.css";
 import { DateTime, pipe } from "effect";
-import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Popover, Text } from 'react-aria-components';
+import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Label, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo } from "react-icons/fa";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
@@ -36,6 +36,7 @@ const SliderDatePicker = <T extends DateValue>(
 ) => {
   return (
     <DatePicker {...props} className={"slider-date-picker-container"}>
+      {label && <Label>{label}</Label>}
       <FieldsetBox label={label} className={"slider-date-picker-group"}>
         <DateInput className={"slider-date-picker-input"}>
           {(segment) => <DateSegment segment={segment} />}

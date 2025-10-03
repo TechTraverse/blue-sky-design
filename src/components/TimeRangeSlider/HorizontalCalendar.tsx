@@ -48,6 +48,16 @@ const createStepsOverRange = (start: number, end: number, step: number): Step[] 
   return steps;
 }
 
+/**
+ * Slider active state
+ */
+enum SliderActive {
+  Active,
+  Inactive,
+  RightActive,
+  LeftActive
+}
+
 export const HorizontalCalendar = ({
   increment,
   primaryRange,
@@ -62,15 +72,6 @@ export const HorizontalCalendar = ({
   isStepMode?: boolean,
 }) => {
 
-  /**
-   * Slider active state
-   */
-  enum SliderActive {
-    Active,
-    Inactive,
-    RightActive,
-    LeftActive
-  }
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
 
   /**
@@ -144,7 +145,7 @@ export const HorizontalCalendar = ({
         setSliderActive(SliderActive.Inactive)
       })
       .exhaustive();
-  }, [SliderActive.Active, SliderActive.Inactive, SliderActive.LeftActive, SliderActive.RightActive, primaryRange, viewRange]);
+  }, [primaryRange, viewRange]);
 
   const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
   useEffect(() => {
@@ -256,7 +257,7 @@ export const HorizontalCalendar = ({
             thumb: (ownerState, thumbProps) => {
               // Access data-index from thumbProps to differentiate thumbs
               const dataIndex = thumbProps?.['data-index'];
-              
+
               if (isStepMode) {
                 // Step mode - different colors for left/right thumbs
                 const isLeftThumb = dataIndex === 0;
@@ -280,7 +281,7 @@ export const HorizontalCalendar = ({
                     height: '0px',
                     backgroundColor: 'transparent',
                     border: '8px solid transparent',
-                    borderLeft: isLeftThumb 
+                    borderLeft: isLeftThumb
                       ? '12px solid #4caf50'  // Green left thumb
                       : '12px solid #ff9800', // Orange right thumb
                     borderRadius: '0px',
