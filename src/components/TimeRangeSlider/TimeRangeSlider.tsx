@@ -430,6 +430,9 @@ export const TimeRangeSlider = ({
   /**
    * Set up observer to update view duration based on the width of the slider
    */
+  // Ref to access current state in delayed animation actions
+  const stateRef = useRef(s);
+  stateRef.current = s;
 
   const sliderRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -541,8 +544,13 @@ export const TimeRangeSlider = ({
         DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration).pipe((x) => DateTime.lessThan(x, animationStart) ?
           maxSelectedStart : x));
 
-    const action = () =>
-      d(SetSelectedStartDateTime({ selectedStartDateTime, updateSource: UpdateSource.UserInteraction }));
+    const action = () => {
+      // Check if animation is still playing when the delayed action executes
+      const currentState = stateRef.current;
+      if (currentState.animationOrStepMode === AnimationOrStepMode.Animation && currentState.animationPlayMode === PlayMode.Play) {
+        d(SetSelectedStartDateTime({ selectedStartDateTime, updateSource: UpdateSource.UserInteraction }));
+      }
+    };
     const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
     E.runPromise(program).then();
   }, [
@@ -604,6 +612,18 @@ export const TimeRangeSlider = ({
             }]
             : []}
           viewRange={{ start: s.viewStartDateTime, end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration) }}
+          onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
+            d(SetSelectedStartDateTime({
+              selectedStartDateTime: date,
+              updateSource: UpdateSource.UserInteraction
+            }));
+          }}
+          onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
+            d(SetAnimationStartDateTime({ animationStartDateTime: date }));
+          }}
+          onPauseAnimation={() => {
+            d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
+          }}
         />
       </div>
       <NextDateButton onClick={() => {
