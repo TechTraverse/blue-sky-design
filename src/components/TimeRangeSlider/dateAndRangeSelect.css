@@ -118,45 +118,78 @@
   color: #555;
   border-radius: 2px;
   outline: none;
-  min-width: fit-content;
-  max-width: 204px;
+  width: 280px;
+  min-height: 350px;
   transition: transform .2s,opacity .2s;
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 12px;
   top: unset !important;
   left: unset !important;
-
   header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    width: 100%;
     border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    h2 {
+      font-size: 14px;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      flex: 1;
+    }
 
     button {
-      min-width: 44px;
+      width: 44px;
+      height: 36px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
   }
 
   section {
-    max-height: inherit;
     box-sizing: border-box;
     outline: none;
-    padding: 18px;
-    overflow: auto;
+    padding: 16px 16px 8px 16px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    flex: 1;
+    min-height: 0;
 
     > div {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      flex: 1;
     }
+  }
+
+  /* Ensure calendar grid has consistent dimensions */
+  table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  /* Fix the calendar cell dimensions to prevent resizing */
+  th, td {
+    width: 28px;
+    height: 28px;
+    text-align: center;
+    vertical-align: middle;
   }
 
   td > div {
@@ -182,13 +215,33 @@
     }
   }
 
+  /* Ensure the dialog content uses flexbox properly */
+  > div {
+    display: flex;
+    flex-direction: column;
+    height: 350px;
+  }
+
+  /* Make sure the calendar section takes the remaining space */
+  section {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Keep default button styling simple */
   .default-date {
-    margin-top: 10px;
+    margin-top: 12px;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
     gap: 4px;
+    padding: 12px 8px 8px 8px;
+    border-top: 1px solid var(--border-color);
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    height: 44px;
 
     svg {
       width: 12px;
