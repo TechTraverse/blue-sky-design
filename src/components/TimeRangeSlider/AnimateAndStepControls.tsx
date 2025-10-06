@@ -2,7 +2,7 @@ import "./animateAndStepControls.css";
 import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
 import { Button, Tooltip } from "@mui/material";
 import { AnimationSpeed, PlayMode, TimeDuration } from "./timeSliderTypes";
-import { FiFastForward, FiRewind } from "react-icons/fi";
+import { MdFirstPage, MdLastPage } from "react-icons/md";
 import { ControlSettings } from "./ControlSettings";
 import { Duration } from "effect";
 
@@ -102,7 +102,7 @@ export const AnimateAndStepControls = ({
                 flex: '0 0 auto'
               }}
             >
-              {animationEnabled ? <FiRewind /> : <TbPlayerSkipBack />}
+              {animationEnabled ? <MdFirstPage /> : <TbPlayerSkipBack />}
             </Button>
 
             {/* Always reserve space for center button */}
@@ -142,7 +142,7 @@ export const AnimateAndStepControls = ({
                 flex: '0 0 auto'
               }}
             >
-              {animationEnabled ? <FiFastForward /> : <TbPlayerSkipForward />}
+              {animationEnabled ? <MdLastPage /> : <TbPlayerSkipForward />}
             </Button>
           </div>
 
