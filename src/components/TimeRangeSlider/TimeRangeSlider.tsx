@@ -624,6 +624,7 @@ export const TimeRangeSlider = ({
           onPauseAnimation={() => {
             d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
           }}
+          animationSpeed={s.animationSpeed}
         />
       </div>
       <NextDateButton onClick={() => {

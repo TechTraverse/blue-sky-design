@@ -3,7 +3,7 @@ import { DateTime } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useRef, useState } from "react";
-import { type PrimaryRange, type SubRange } from "./timeSliderTypes";
+import { type PrimaryRange, type SubRange, AnimationSpeed } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match } from "ts-pattern";
@@ -68,6 +68,7 @@ export const HorizontalCalendar = ({
   onSetAnimationStartDateTime,
   onPauseAnimation,
   animationPlayMode,
+  animationSpeed,
 }: {
   increment?: number,
   primaryRange: PrimaryRange<DateTime.DateTime>,
@@ -78,6 +79,7 @@ export const HorizontalCalendar = ({
   onSetAnimationStartDateTime?: (date: DateTime.DateTime) => void,
   onPauseAnimation?: () => void,
   animationPlayMode?: string,
+  animationSpeed?: AnimationSpeed,
 }) => {
 
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -300,7 +302,7 @@ export const HorizontalCalendar = ({
         .with(SliderActive.RightActive, () => "hide-left-slider-component")
         .with(SliderActive.LeftActive, () => "hide-right-slider-component")
         .otherwise(() => "")
-        }`}>
+        } ${isStepMode ? 'step-mode' : 'animation-mode'} ${!isStepMode && animationSpeed && animationSpeed < 0 ? 'negative-speed' : 'positive-speed'}`}>
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
@@ -377,6 +379,7 @@ export const HorizontalCalendar = ({
                 // Step mode - different colors for left/right thumbs
                 const isLeftThumb = dataIndex === 0;
                 return {
+                  'data-index': dataIndex,
                   style: {
                     width: '3px',
                     height: '24px',
@@ -388,18 +391,15 @@ export const HorizontalCalendar = ({
                   }
                 };
               } else {
-                // Animation mode - different colored triangular thumbs
-                const isLeftThumb = dataIndex === 0;
+                // Animation mode - green lines for both thumbs
                 return {
+                  'data-index': dataIndex,
                   style: {
-                    width: '0px',
-                    height: '0px',
-                    backgroundColor: 'transparent',
-                    border: '8px solid transparent',
-                    borderLeft: isLeftThumb
-                      ? '12px solid #4caf50'  // Green left thumb
-                      : '12px solid #ff9800', // Orange right thumb
+                    width: '3px',
+                    height: '24px',
                     borderRadius: '0px',
+                    backgroundColor: '#4caf50', // Green for both thumbs
+                    border: 'none',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                     cursor: 'ew-resize',
                   }
