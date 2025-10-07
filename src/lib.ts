@@ -7,4 +7,5 @@ export type { HeaderProps } from './components/Header';
 export { Page } from './components/Page';
 
 export { TimeRangeSlider } from './components/TimeRangeSlider/TimeRangeSlider';
-export { TimeDuration } from './components/TimeRangeSlider/timeSliderTypes';
+export type { TimeRangeSliderProps } from './components/TimeRangeSlider/TimeRangeSlider';
+export { TimeDuration, Theme } from './components/TimeRangeSlider/timeSliderTypes';

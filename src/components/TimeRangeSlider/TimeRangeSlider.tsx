@@ -6,7 +6,7 @@ import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
-import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration } from './timeSliderTypes';
+import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme } from './timeSliderTypes';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider } from '@mui/material';
 
@@ -20,6 +20,7 @@ export interface TimeRangeSliderProps {
   onDateRangeSelect: (rv: RangeValue<Date>) => void;
   animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
+  theme?: AppTheme;
 }
 
 enum UpdateSource {
@@ -367,6 +368,7 @@ export const TimeRangeSlider = ({
   onDateRangeSelect,
   animationRequestFrequency = AnimationRequestFrequency['1 fps'],
   className = "",
+  theme = AppTheme.Light,
 }: TimeRangeSliderProps) => {
 
   /**
@@ -625,6 +627,7 @@ export const TimeRangeSlider = ({
             d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
           }}
           animationSpeed={s.animationSpeed}
+          theme={theme}
         />
       </div>
       <NextDateButton onClick={() => {

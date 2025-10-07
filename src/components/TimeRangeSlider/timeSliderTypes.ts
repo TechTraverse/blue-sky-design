@@ -40,6 +40,11 @@ export enum PlayMode {
   Pause,
 }
 
+export enum Theme {
+  Light = "light",
+  Dark = "dark"
+}
+
 // export type AnimationState = D.TaggedEnum<{
 //   AnimationInactive: object;
 //   AnimationActive: {

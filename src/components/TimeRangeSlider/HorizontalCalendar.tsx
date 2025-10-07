@@ -3,7 +3,7 @@ import { DateTime } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useRef, useState } from "react";
-import { type PrimaryRange, type SubRange, AnimationSpeed } from "./timeSliderTypes";
+import { type PrimaryRange, type SubRange, AnimationSpeed, Theme as AppTheme } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match } from "ts-pattern";
@@ -69,6 +69,7 @@ export const HorizontalCalendar = ({
   onPauseAnimation,
   animationPlayMode,
   animationSpeed,
+  theme = AppTheme.Light,
 }: {
   increment?: number,
   primaryRange: PrimaryRange<DateTime.DateTime>,
@@ -80,10 +81,38 @@ export const HorizontalCalendar = ({
   onPauseAnimation?: () => void,
   animationPlayMode?: string,
   animationSpeed?: AnimationSpeed,
+  theme?: AppTheme,
 }) => {
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
+
+  // Theme-aware colors that align with wlfs-client palette
+  const getThemeColors = (currentTheme: AppTheme) => {
+    if (currentTheme === AppTheme.Dark) {
+      return {
+        primary: '#1e3a5f',        // darker blue for primary selections
+        select: '#4a9eff',         // brighter blue for active selections  
+        activity: '#22c55e',       // activity green
+        compBg: '#1f2937',         // component background
+        inactiveBg: '#374151',     // inactive background
+        inactiveText: '#9ca3af',   // muted text
+        text: '#f9fafb',           // main text
+      };
+    } else {
+      return {
+        primary: '#cce4f4',        // light blue
+        select: '#0076d6',         // primary blue
+        activity: '#21c834',       // activity green
+        compBg: '#f1f3f6',         // component background
+        inactiveBg: '#e6e6e6',     // inactive background
+        inactiveText: '#adadad',   // muted text
+        text: '#3d4551',           // main text
+      };
+    }
+  };
+
+  const colors = getThemeColors(theme);
 
   /**
    * View range and step settings
@@ -195,13 +224,27 @@ export const HorizontalCalendar = ({
 
     setSliderSx({
       '& .MuiSlider-track': {
-        background: gradient,
+        background: gradient.includes('red') ? gradient : colors.select,
       },
       '& .MuiSlider-rail': {
         cursor: 'pointer',
+        backgroundColor: `${colors.primary} !important`,
+        opacity: '1 !important',
+      },
+      '&.MuiSlider-root .MuiSlider-rail': {
+        backgroundColor: `${colors.primary} !important`,
+        opacity: '1 !important',
+      },
+      '& .MuiSlider-mark': {
+        backgroundColor: `${colors.text} !important`,
+        opacity: '1 !important',
+      },
+      '& .MuiSlider-markLabel': {
+        color: `${colors.text} !important`,
+        opacity: '1 !important',
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode]);
+  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme]);
 
   const handleSliderClick = (clickValue: number) => {
     const clickedDateTime = DateTime.unsafeFromDate(new Date(clickValue));
@@ -384,21 +427,21 @@ export const HorizontalCalendar = ({
                     width: '3px',
                     height: '24px',
                     borderRadius: '0px',
-                    backgroundColor: isLeftThumb ? '#1976d2' : '#f44336', // Blue left, Red right
+                    backgroundColor: isLeftThumb ? colors.select : '#f44336', // Primary blue left, red right
                     border: 'none',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                     cursor: 'ew-resize',
                   }
                 };
               } else {
-                // Animation mode - green lines for both thumbs
+                // Animation mode - activity color for both thumbs
                 return {
                   'data-index': dataIndex,
                   style: {
                     width: '3px',
                     height: '24px',
                     borderRadius: '0px',
-                    backgroundColor: '#4caf50', // Green for both thumbs
+                    backgroundColor: colors.activity, // Theme-aware activity color
                     border: 'none',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                     cursor: 'ew-resize',
