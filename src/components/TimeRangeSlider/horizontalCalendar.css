@@ -157,13 +157,13 @@
 }
 
 .hide-left-slider-component {
-  [data-index="0"].MuiSlider-thumb {
+  span.MuiSlider-thumb:nth-last-of-type(2) {
     display: none;
   }
 }
 
 .hide-right-slider-component {
-  [data-index="1"].MuiSlider-thumb {
+  span.MuiSlider-thumb:nth-last-of-type(1) {
     display: none;
   }
 }

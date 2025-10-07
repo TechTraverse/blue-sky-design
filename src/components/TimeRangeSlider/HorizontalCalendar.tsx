@@ -92,7 +92,7 @@ export const HorizontalCalendar = ({
     if (currentTheme === AppTheme.Dark) {
       return {
         primary: '#1e3a5f',        // darker blue for primary selections
-        select: '#4a9eff',         // brighter blue for active selections  
+        select: '#4a9eff',         // brighter blue for active selections
         activity: '#22c55e',       // activity green
         compBg: '#1f2937',         // component background
         inactiveBg: '#374151',     // inactive background
@@ -103,7 +103,7 @@ export const HorizontalCalendar = ({
       return {
         primary: '#cce4f4',        // light blue
         select: '#0076d6',         // primary blue
-        activity: '#21c834',       // activity green
+        activity: '#124118',       // activity green
         compBg: '#f1f3f6',         // component background
         inactiveBg: '#e6e6e6',     // inactive background
         inactiveText: '#adadad',   // muted text
@@ -248,12 +248,12 @@ export const HorizontalCalendar = ({
 
   const handleSliderClick = (clickValue: number) => {
     const clickedDateTime = DateTime.unsafeFromDate(new Date(clickValue));
-    
+
     match({ isStepMode, clickValue, primaryRange, subRanges })
       .with({ isStepMode: true }, () => {
         // Step mode: clicks within selected range do nothing, clicks outside select new start date
         const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-        
+
         if (!withinSelectedRange && onSetSelectedStartDateTime) {
           onSetSelectedStartDateTime(clickedDateTime);
         }
@@ -263,7 +263,7 @@ export const HorizontalCalendar = ({
         const animationStart = DateTime.toEpochMillis(primaryRange.start);
         const animationEnd = DateTime.toEpochMillis(primaryRange.end);
         const withinAnimationRange = clickValue >= animationStart && clickValue <= animationEnd;
-        
+
         if (withinAnimationRange && onSetSelectedStartDateTime) {
           // Click within animation range: pause animation and update selected start date
           onPauseAnimation?.();
@@ -286,7 +286,7 @@ export const HorizontalCalendar = ({
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const sliderRoot = sliderElement.querySelector('.MuiSlider-root');
-      
+
       // Check if click is anywhere on the slider (not just specific elements)
       if (sliderRoot && sliderRoot.contains(target)) {
         const rect = sliderRoot.getBoundingClientRect();
@@ -294,7 +294,7 @@ export const HorizontalCalendar = ({
         const sliderWidth = rect.width;
         const clickRatio = Math.max(0, Math.min(1, clickX / sliderWidth)); // Clamp between 0 and 1
         const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
-        
+
         // Check if we should ignore this click (step mode + within range)
         if (isStepMode) {
           const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
@@ -305,7 +305,7 @@ export const HorizontalCalendar = ({
             return false;
           }
         }
-        
+
         handleSliderClick(clickValue);
       }
     };
@@ -352,16 +352,16 @@ export const HorizontalCalendar = ({
           value={sliderSelectedDateRange}
           onMouseDown={(e) => {
             const target = e.target as HTMLElement;
-            if (target.classList.contains('MuiSlider-track') || 
-                target.classList.contains('MuiSlider-rail') ||
-                target.classList.contains('MuiSlider-root')) {
-              
+            if (target.classList.contains('MuiSlider-track') ||
+              target.classList.contains('MuiSlider-rail') ||
+              target.classList.contains('MuiSlider-root')) {
+
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
               const clickX = e.clientX - rect.left;
               const sliderWidth = rect.width;
               const clickRatio = Math.max(0, Math.min(1, clickX / sliderWidth));
               const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
-              
+
               if (isStepMode) {
                 // In step mode, prevent mousedown on track/rail if click is within selected range
                 const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
@@ -383,7 +383,7 @@ export const HorizontalCalendar = ({
             if (!isStepMode && e.type !== "mousemove") {
               return;
             }
-            
+
             if (e.type === "mousemove") {
               const [start, end] = newValue as number[];
               primaryRange.set?.({
