@@ -706,6 +706,15 @@ export const TimeRangeSlider = ({
         }}
         timeZone={timeZone}
         onTimeZoneChange={setTimeZone}
+        rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
+          ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
+        setRange={
+          (timeDuration: TimeDuration) =>
+            d(SetSelectedDuration({
+              selectedDuration: Duration.millis(timeDuration),
+              updateSource: UpdateSource.UserInteraction
+            }))
+        }
       />
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <AnimateAndStepControls
@@ -783,17 +792,6 @@ export const TimeRangeSlider = ({
             .otherwise(() => animationSpeed);
           d(SetAnimationSpeed({ animationSpeed: newSpeed }));
         }}
-
-        /* Step range/duration settings */
-        rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
-          ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
-        setRange={
-          (timeDuration: TimeDuration) =>
-            d(SetSelectedDuration({
-              selectedDuration: Duration.millis(timeDuration),
-              updateSource: UpdateSource.UserInteraction
-            }))
-        }
       />
     </div>
   );

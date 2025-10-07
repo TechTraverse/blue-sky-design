@@ -3,6 +3,7 @@ import { DateTime, pipe } from "effect";
 import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Label, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo, FaGlobe, FaClock } from "react-icons/fa";
+import { TimeDuration } from "./timeSliderTypes";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { Button, Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
@@ -13,6 +14,10 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
   returnToDefaultDateTime?: () => void;
+  timeZone: 'local' | 'utc';
+  onTimeZoneChange: (timeZone: 'local' | 'utc') => void;
+  rangeValue?: TimeDuration;
+  setRange?: (timeDuration: TimeDuration) => void;
 }
 
 function FieldsetBox({
@@ -31,7 +36,7 @@ function FieldsetBox({
 
 const SliderDatePicker = <T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek, returnToDefaultDateTime,
-    ...props }:
+    timeZone, onTimeZoneChange, rangeValue, setRange, ...props }:
     LocalDatePickerProps<T>
 ) => {
   return (
@@ -69,6 +74,56 @@ const SliderDatePicker = <T extends DateValue>(
               {(date) => <CalendarCell date={date} />}
             </CalendarGrid>
           </Calendar>
+          
+          {/* Settings section in calendar popup */}
+          <div className="calendar-settings-section">
+            {/* Timezone Setting */}
+            <div className="calendar-setting-item">
+              <span className="calendar-setting-label">Timezone:</span>
+              <ToggleButtonGroup
+                value={timeZone}
+                exclusive
+                onChange={(_, newTimeZone) => newTimeZone && onTimeZoneChange(newTimeZone)}
+                size="small"
+                className="calendar-timezone-toggle"
+              >
+                <ToggleButton value="local" aria-label="Show times in local timezone">
+                  Local
+                </ToggleButton>
+                <ToggleButton value="utc" aria-label="Show times in UTC timezone">
+                  UTC
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </div>
+
+            {/* Step Duration Setting */}
+            {setRange && (
+              <div className="calendar-setting-item">
+                <span className="calendar-setting-label">Step Duration:</span>
+                <ToggleButtonGroup
+                  value={rangeValue}
+                  exclusive
+                  onChange={(_, newRange) => newRange && setRange(newRange)}
+                  size="small"
+                  className="calendar-duration-toggle"
+                >
+                  <ToggleButton value={TimeDuration['30 min']} aria-label="30 minutes">
+                    30m
+                  </ToggleButton>
+                  <ToggleButton value={TimeDuration['1 hour']} aria-label="1 hour">
+                    1h
+                  </ToggleButton>
+                  <ToggleButton value={TimeDuration['2 hours']} aria-label="2 hours">
+                    2h
+                  </ToggleButton>
+                  <ToggleButton value={TimeDuration['4 hours']} aria-label="4 hours">
+                    4h
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+            )}
+          </div>
+
           <Button onClick={returnToDefaultDateTime}>
             <div className="default-date">
               <FaUndo />
@@ -86,12 +141,16 @@ export const DateAndRangeSelect = ({
   returnToDefaultDateTime,
   timeZone,
   onTimeZoneChange,
+  rangeValue,
+  setRange,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   returnToDefaultDateTime?: () => void,
   timeZone: 'local' | 'utc',
   onTimeZoneChange: (timeZone: 'local' | 'utc') => void,
+  rangeValue?: TimeDuration,
+  setRange?: (timeDuration: TimeDuration) => void,
 }) => {
 
   // Convert DateTime to display timezone for the picker
@@ -148,30 +207,16 @@ export const DateAndRangeSelect = ({
 
   return (
     <div className="date-and-query-range-container">
-      <div className="timezone-toggle">
-        <ToggleButtonGroup
-          value={timeZone}
-          exclusive
-          onChange={(_, newTimeZone) => newTimeZone && onTimeZoneChange(newTimeZone)}
-          size="small"
-          className="timezone-button-group"
-        >
-          <ToggleButton value="local" className="timezone-button" aria-label="Show times in local timezone">
-            <FaClock size={12} />
-            <span>Local</span>
-          </ToggleButton>
-          <ToggleButton value="utc" className="timezone-button" aria-label="Show times in UTC timezone">
-            <FaGlobe size={12} />
-            <span>UTC</span>
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </div>
       <SliderDatePicker
         label={`Start Date (${timeZone.toUpperCase()})`}
         value={calendarDateTime}
         onChange={handleDateChange}
         firstDayOfWeek={"sun"}
         returnToDefaultDateTime={returnToDefaultDateTime}
+        timeZone={timeZone}
+        onTimeZoneChange={onTimeZoneChange}
+        rangeValue={rangeValue}
+        setRange={setRange}
       />
     </div>);
 }

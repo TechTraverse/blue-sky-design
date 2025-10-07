@@ -29,8 +29,6 @@ export const ControlSettings = ({
   setAnimationSpeed,
   animationDuration,
   setAnimationDuration,
-  rangeValue,
-  setRange,
   disabled = false
 }: {
   animationEnabled: boolean;
@@ -38,8 +36,6 @@ export const ControlSettings = ({
   setAnimationSpeed?: (speed: AnimationSpeed) => void;
   animationDuration?: Duration.Duration;
   setAnimationDuration?: (duration: Duration.Duration) => void;
-  rangeValue?: TimeDuration;
-  setRange?: (timeDuration: TimeDuration) => void;
   disabled?: boolean;
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -54,8 +50,13 @@ export const ControlSettings = ({
 
   const open = Boolean(anchorEl);
   const id = open ? 'control-settings-popover' : undefined;
-  const title = animationEnabled ? 'Animation settings' : 'Step settings';
-  const settingsTitle = animationEnabled ? 'Animation Settings' : 'Step Settings';
+  const title = 'Animation settings';
+  const settingsTitle = 'Animation Settings';
+
+  // Only show settings button in animation mode
+  if (!animationEnabled) {
+    return null;
+  }
 
   return (
     <>
@@ -146,7 +147,7 @@ export const ControlSettings = ({
             {settingsTitle}
           </Typography>
           
-          {animationEnabled && animationSpeed && animationDuration ? (
+          {animationSpeed && animationDuration && (
             <>
               <Box sx={{ mb: 2 }}>
                 <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
@@ -205,33 +206,6 @@ export const ControlSettings = ({
                 </FormControl>
               </Box>
             </>
-          ) : (
-            <Box>
-              <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
-                Range/Step
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={rangeValue}
-                  onChange={(e) => setRange?.(e.target.value as TimeDuration)}
-                  variant="outlined"
-                  MenuProps={{
-                    sx: { zIndex: 10004 },
-                    PaperProps: {
-                      sx: { zIndex: 10004 }
-                    }
-                  }}
-                >
-                  {Object.entries(TimeDuration).map(([key, value]) => {
-                    return isNaN(key as unknown as number) ? (
-                      <MenuItem key={key} value={value}>
-                        {key}
-                      </MenuItem>
-                    ) : null;
-                  }).filter(Boolean)}
-                </Select>
-              </FormControl>
-            </Box>
           )}
         </Box>
       </Popover>

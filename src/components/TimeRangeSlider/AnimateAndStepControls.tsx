@@ -15,8 +15,6 @@ export const AnimateAndStepControls = ({
   setAnimationSpeed,
   animationDuration,
   setAnimationDuration,
-  rangeValue,
-  setRange,
   incrementStartDateTime,
   decrementStartDateTime,
   incrementAnimationSpeed,
@@ -30,8 +28,6 @@ export const AnimateAndStepControls = ({
   setAnimationSpeed?: (speed: AnimationSpeed) => void,
   animationDuration?: Duration.Duration,
   setAnimationDuration?: (duration: Duration.Duration) => void,
-  rangeValue?: TimeDuration,
-  setRange?: (timeDuration: TimeDuration) => void,
   incrementStartDateTime?: () => void,
   decrementStartDateTime?: () => void,
   incrementAnimationSpeed?: () => void,
@@ -155,8 +151,6 @@ export const AnimateAndStepControls = ({
                 setAnimationSpeed={setAnimationSpeed}
                 animationDuration={animationDuration}
                 setAnimationDuration={setAnimationDuration}
-                rangeValue={rangeValue}
-                setRange={setRange}
                 disabled={false}
               />
             </div>
