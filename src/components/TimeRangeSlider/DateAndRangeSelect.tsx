@@ -36,7 +36,6 @@ const SliderDatePicker = <T extends DateValue>(
 ) => {
   return (
     <DatePicker {...props} className={"slider-date-picker-container"}>
-      {label && <Label>{label}</Label>}
       <FieldsetBox label={label} className={"slider-date-picker-group"}>
         <DateInput className={"slider-date-picker-input"}>
           {(segment) => <DateSegment segment={segment} />}
