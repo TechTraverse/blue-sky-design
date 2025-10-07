@@ -1,5 +1,5 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration, Effect as E } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
@@ -371,6 +371,56 @@ export const TimeRangeSlider = ({
   theme = AppTheme.Light,
 }: TimeRangeSliderProps) => {
 
+  // Timezone state for displaying times in local or UTC
+  const [timeZone, setTimeZone] = useState<'local' | 'utc'>('local');
+
+  // Utility functions for timezone conversion
+  const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
+    const timestamp = DateTime.toEpochMillis(dt);
+    const jsDate = new Date(timestamp);
+    
+    if (tz === 'utc') {
+      // Show UTC time for the same moment
+      const utcParts = {
+        year: jsDate.getUTCFullYear(),
+        month: jsDate.getUTCMonth() + 1,
+        day: jsDate.getUTCDate(),
+        hours: jsDate.getUTCHours(),
+        minutes: jsDate.getUTCMinutes(),
+        seconds: jsDate.getUTCSeconds(),
+        millis: jsDate.getUTCMilliseconds()
+      };
+      return DateTime.unsafeMake(utcParts);
+    } else {
+      // Show local time for the same moment
+      const localParts = {
+        year: jsDate.getFullYear(),
+        month: jsDate.getMonth() + 1,
+        day: jsDate.getDate(),
+        hours: jsDate.getHours(),
+        minutes: jsDate.getMinutes(),
+        seconds: jsDate.getSeconds(),
+        millis: jsDate.getMilliseconds()
+      };
+      return DateTime.unsafeMake(localParts);
+    }
+  };
+
+  // Convert user input back from display timezone to stored timezone
+  const convertDateTimeFromDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
+    if (tz === 'utc') {
+      // User entered UTC time - create a Date in UTC and convert to DateTime
+      const parts = DateTime.toParts(dt);
+      const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, parts.seconds, parts.millis));
+      return DateTime.unsafeFromDate(utcDate);
+    } else {
+      // User entered local time - create a Date in local timezone and convert to DateTime
+      const parts = DateTime.toParts(dt);
+      const localDate = new Date(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, parts.seconds, parts.millis);
+      return DateTime.unsafeFromDate(localDate);
+    }
+  };
+
   /**
    * Vals for reducer on component init
    */
@@ -580,27 +630,30 @@ export const TimeRangeSlider = ({
           isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
           primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
             ? {
-              start: s.animationStartDateTime,
-              end: DateTime.addDuration(s.animationStartDateTime, s.animationDuration),
+              start: convertDateTimeForDisplay(s.animationStartDateTime, timeZone),
+              end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZone),
               set: (r: RangeValue<DateTime.DateTime>) => {
-                d(SetAnimationStartDateTime({ animationStartDateTime: r.start }));
+                const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
+                const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
+                d(SetAnimationStartDateTime({ animationStartDateTime: convertedStart }));
                 d(SetAnimationDuration({
-                  animationDuration: DateTime.distanceDuration(r.start, r.end)
+                  animationDuration: DateTime.distanceDuration(convertedStart, convertedEnd)
                 }));
               },
               duration: s.animationDuration
             }
             : {
-              start: s.selectedStartDateTime,
-              end: DateTime.addDuration(
-                s.selectedStartDateTime, s.selectedDuration),
+              start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
+              end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
               set: (r: RangeValue<DateTime.DateTime>) => {
+                const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
+                const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
                 d(SetSelectedStartDateTime({
-                  selectedStartDateTime: r.start,
+                  selectedStartDateTime: convertedStart,
                   updateSource: UpdateSource.UserInteraction
                 }));
                 d(SetSelectedDuration({
-                  selectedDuration: DateTime.distanceDuration(r.start, r.end),
+                  selectedDuration: DateTime.distanceDuration(convertedStart, convertedEnd),
                   updateSource: UpdateSource.UserInteraction
                 }));
               },
@@ -608,20 +661,25 @@ export const TimeRangeSlider = ({
             }}
           subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
             ? [{
-              start: s.selectedStartDateTime,
-              end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+              start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
+              end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
               active: true,
             }]
             : []}
-          viewRange={{ start: s.viewStartDateTime, end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration) }}
+          viewRange={{ 
+            start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone), 
+            end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone) 
+          }}
           onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
+            const convertedDate = convertDateTimeFromDisplay(date, timeZone);
             d(SetSelectedStartDateTime({
-              selectedStartDateTime: date,
+              selectedStartDateTime: convertedDate,
               updateSource: UpdateSource.UserInteraction
             }));
           }}
           onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
-            d(SetAnimationStartDateTime({ animationStartDateTime: date }));
+            const convertedDate = convertDateTimeFromDisplay(date, timeZone);
+            d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
           }}
           onPauseAnimation={() => {
             d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
@@ -646,6 +704,8 @@ export const TimeRangeSlider = ({
         returnToDefaultDateTime={() => {
           d(ResetAll());
         }}
+        timeZone={timeZone}
+        onTimeZoneChange={setTimeZone}
       />
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <AnimateAndStepControls
