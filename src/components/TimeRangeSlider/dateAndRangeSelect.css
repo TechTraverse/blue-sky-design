@@ -110,6 +110,8 @@
 }
 
  .slider-date-picker {
+  display: flex;
+  flex-grow: 1;
   z-index: 10000;
   --background-color: #fff;
   right: 310px;
@@ -120,7 +122,7 @@
   border-radius: 2px;
   outline: none;
   width: 280px;
-  min-height: 350px;
+  min-height: 480px;
   transition: transform .2s,opacity .2s;
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -162,13 +164,15 @@
     box-sizing: border-box;
     outline: none;
     padding: 16px 16px 8px 16px;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     flex: 1;
-    min-height: 0;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    min-height: 458px;
 
     > div {
       display: flex;
@@ -183,6 +187,7 @@
   table {
     width: 100%;
     table-layout: fixed;
+    height: 168px; /* 6 weeks * 28px = consistent height */
   }
 
   /* Fix the calendar cell dimensions to prevent resizing */
@@ -220,13 +225,8 @@
   > div {
     display: flex;
     flex-direction: column;
-    height: 350px;
-  }
-
-  /* Make sure the calendar section takes the remaining space */
-  section {
-    flex: 1;
-    min-height: 0;
+    min-height: 480px; /* Increased to accommodate all content */
+    height: auto;
   }
 
   /* Calendar settings section */
@@ -238,6 +238,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    align-items: flex-start;
   }
 
   .calendar-setting-item {
@@ -264,17 +265,17 @@
       min-width: 36px;
       height: 20px;
       font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      
+
       &:hover {
         background: #f5f5f5;
         border-color: var(--primary-color, #1976d2);
       }
-      
+
       &.Mui-selected {
         background: var(--primary-color, #1976d2);
         color: white;
         border-color: var(--primary-color, #1976d2);
-        
+
         &:hover {
           background: var(--primary-color-dark, #1565c0);
         }
@@ -291,22 +292,22 @@
       font-size: 10px;
       min-width: 32px;
       height: 26px;
-      
+
       &:hover {
         background: #f5f5f5;
         border-color: var(--primary-color, #1976d2);
       }
-      
+
       &.Mui-selected {
         background: var(--primary-color, #1976d2);
         color: white;
         border-color: var(--primary-color, #1976d2);
-        
+
         &:hover {
           background: var(--primary-color-dark, #1565c0);
         }
       }
-      
+
       span {
         margin-left: 2px;
         font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
