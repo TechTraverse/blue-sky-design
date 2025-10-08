@@ -582,14 +582,18 @@ export const TimeRangeSlider = ({
     const animationEnd = DateTime.addDuration(animationStart, s.animationDuration);
     const maxSelectedStart = DateTime.subtractDuration(animationEnd, s.selectedDuration);
 
+    // Calculate the time increment per animation frame
+    // animationSpeed is in milliseconds per second, animationRequestFrequency is frame rate in ms
+    const timeIncrementPerFrame = Duration.millis(Math.abs(s.animationSpeed) * (s.animationRequestFrequency / 1000));
+    
     const selectedStartDateTime: DateTime.DateTime = match(s.animationSpeed)
       // Forward animation
       .when((x) => x > 0, () =>
-        DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration).pipe((x) => DateTime.greaterThan(x, maxSelectedStart) ?
+        DateTime.addDuration(s.selectedStartDateTime, timeIncrementPerFrame).pipe((x) => DateTime.greaterThan(DateTime.addDuration(x, s.selectedDuration), DateTime.addDuration(animationStart, s.animationDuration)) ?
           animationStart : x))
       // Backward animation
       .otherwise(() =>
-        DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration).pipe((x) => DateTime.lessThan(x, animationStart) ?
+        DateTime.subtractDuration(s.selectedStartDateTime, timeIncrementPerFrame).pipe((x) => DateTime.lessThan(x, animationStart) ?
           maxSelectedStart : x));
 
     const action = () => {
