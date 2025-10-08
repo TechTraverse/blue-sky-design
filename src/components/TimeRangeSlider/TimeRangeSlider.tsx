@@ -674,6 +674,8 @@ export const TimeRangeSlider = ({
           }}
           animationSpeed={s.animationSpeed}
           theme={theme}
+          dateRangeForReset={dateRangeForReset}
+          timeZone={timeZone}
         />
       </div>
       <NextDateButton onClick={() => {
@@ -709,14 +711,37 @@ export const TimeRangeSlider = ({
       <AnimateAndStepControls
         /* Step controls */
         incrementStartDateTime={() => {
+          const newStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
+          const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
+          
+          // Check if the new end time would exceed dateRangeForReset
+          if (dateRangeForReset) {
+            const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+            if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
+              return; // Don't increment if it would exceed the limit
+            }
+          }
+          
           d(SetSelectedStartDateTime({
-            selectedStartDateTime: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+            selectedStartDateTime: newStartDateTime,
             updateSource: UpdateSource.UserInteraction
           }));
         }}
         decrementStartDateTime={() => {
+          const newStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
+          
+          // Decrementing should generally be allowed as it moves away from the limit
+          // But let's add a sanity check in case the duration is negative
+          if (dateRangeForReset) {
+            const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
+            const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+            if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
+              return; // Don't decrement if it would still exceed the limit
+            }
+          }
+          
           d(SetSelectedStartDateTime({
-            selectedStartDateTime: DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration),
+            selectedStartDateTime: newStartDateTime,
             updateSource: UpdateSource.UserInteraction
           }));
         }}
@@ -730,7 +755,20 @@ export const TimeRangeSlider = ({
               : AnimationOrStepMode.Step
           }));
           if (enabled) {
-            d(SetAnimationStartDateTime({ animationStartDateTime: s.selectedStartDateTime }));
+            let animationStart = s.selectedStartDateTime;
+            
+            // Check if animation range would exceed dateRangeForReset
+            if (dateRangeForReset) {
+              const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+              const proposedAnimationEnd = DateTime.addDuration(animationStart, s.animationDuration);
+              
+              if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
+                // Bump animation back to the latest 2 hours of acceptable dates
+                animationStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+              }
+            }
+            
+            d(SetAnimationStartDateTime({ animationStartDateTime: animationStart }));
             d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
           }
         }}
@@ -748,6 +786,18 @@ export const TimeRangeSlider = ({
         }}
         animationDuration={s.animationDuration}
         setAnimationDuration={(duration: Duration.Duration) => {
+          // Check if new duration would cause animation to exceed dateRangeForReset
+          if (dateRangeForReset && s.animationOrStepMode === AnimationOrStepMode.Animation) {
+            const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+            const proposedAnimationEnd = DateTime.addDuration(s.animationStartDateTime, duration);
+            
+            if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
+              // Adjust animation start to accommodate the new duration
+              const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, duration);
+              d(SetAnimationStartDateTime({ animationStartDateTime: adjustedStart }));
+            }
+          }
+          
           d(SetAnimationDuration({ animationDuration: duration }));
         }}
         incrementAnimationSpeed={() => {

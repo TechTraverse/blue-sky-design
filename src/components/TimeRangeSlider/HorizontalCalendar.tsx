@@ -70,6 +70,8 @@ export const HorizontalCalendar = ({
   animationPlayMode,
   animationSpeed,
   theme = AppTheme.Light,
+  dateRangeForReset,
+  timeZone,
 }: {
   increment?: number,
   primaryRange: PrimaryRange<DateTime.DateTime>,
@@ -82,10 +84,52 @@ export const HorizontalCalendar = ({
   animationPlayMode?: string,
   animationSpeed?: AnimationSpeed,
   theme?: AppTheme,
+  dateRangeForReset?: RangeValue<Date>,
+  timeZone?: 'local' | 'utc',
 }) => {
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
+
+  // Timezone conversion utility (same as in TimeRangeSlider)
+  const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
+    const timestamp = DateTime.toEpochMillis(dt);
+    const jsDate = new Date(timestamp);
+
+    if (tz === 'utc') {
+      // Show UTC time for the same moment
+      const utcParts = {
+        year: jsDate.getUTCFullYear(),
+        month: jsDate.getUTCMonth() + 1,
+        day: jsDate.getUTCDate(),
+        hours: jsDate.getUTCHours(),
+        minutes: jsDate.getUTCMinutes(),
+        seconds: jsDate.getUTCSeconds(),
+        millis: jsDate.getUTCMilliseconds()
+      };
+      return DateTime.unsafeMake(utcParts);
+    } else {
+      // Show local time for the same moment
+      const localParts = {
+        year: jsDate.getFullYear(),
+        month: jsDate.getMonth() + 1,
+        day: jsDate.getDate(),
+        hours: jsDate.getHours(),
+        minutes: jsDate.getMinutes(),
+        seconds: jsDate.getSeconds(),
+        millis: jsDate.getMilliseconds()
+      };
+      return DateTime.unsafeMake(localParts);
+    }
+  };
+
+  // Calculate max allowed slider value from dateRangeForReset with timezone conversion
+  const maxAllowedValue = dateRangeForReset && timeZone
+    ? DateTime.toEpochMillis(convertDateTimeForDisplay(
+        DateTime.unsafeFromDate(dateRangeForReset.start), 
+        timeZone
+      ))
+    : undefined;
 
   // Theme-aware colors that align with wlfs-client palette
   const getThemeColors = (currentTheme: AppTheme) => {
@@ -210,7 +254,10 @@ export const HorizontalCalendar = ({
   useEffect(() => {
     const selectionStart = sliderSelectedDateRange[0];
     const selectionEnd = sliderSelectedDateRange[1];
-    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
+    const viewStart = DateTime.toEpochMillis(viewRange.start);
+    const viewEnd = DateTime.toEpochMillis(viewRange.end);
+    
+    let gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
       const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
       const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
       if (active) {
@@ -222,17 +269,24 @@ export const HorizontalCalendar = ({
       return acc;
     }, "linear-gradient(to right");
 
+    // Add disabled section beyond dateRangeForReset
+    let railBackground = `${colors.primary}`;
+    if (maxAllowedValue && maxAllowedValue < viewEnd) {
+      const maxAllowedPercent = Math.max(0, Math.min(100, ((maxAllowedValue - viewStart) / (viewEnd - viewStart)) * 100));
+      railBackground = `linear-gradient(to right, ${colors.primary} 0% ${maxAllowedPercent}%, #ccc ${maxAllowedPercent}% 100%)`;
+    }
+
     setSliderSx({
       '& .MuiSlider-track': {
         background: gradient.includes('red') ? gradient : colors.select,
       },
       '& .MuiSlider-rail': {
         cursor: 'pointer',
-        backgroundColor: `${colors.primary} !important`,
+        background: `${railBackground} !important`,
         opacity: '1 !important',
       },
       '&.MuiSlider-root .MuiSlider-rail': {
-        backgroundColor: `${colors.primary} !important`,
+        background: `${railBackground} !important`,
         opacity: '1 !important',
       },
       '& .MuiSlider-mark': {
@@ -244,9 +298,14 @@ export const HorizontalCalendar = ({
         opacity: '1 !important',
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme]);
+  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme, maxAllowedValue, viewRange, timeZone]);
 
   const handleSliderClick = (clickValue: number) => {
+    // Prevent clicks beyond the max allowed value
+    if (maxAllowedValue && clickValue > maxAllowedValue) {
+      return;
+    }
+    
     const clickedDateTime = DateTime.unsafeFromDate(new Date(clickValue));
 
     match({ isStepMode, clickValue, primaryRange, subRanges })
@@ -386,6 +445,12 @@ export const HorizontalCalendar = ({
 
             if (e.type === "mousemove") {
               const [start, end] = newValue as number[];
+              
+              // Prevent setting values beyond maxAllowedValue
+              if (maxAllowedValue && (start > maxAllowedValue || end > maxAllowedValue)) {
+                return; // Don't update if either value exceeds the limit
+              }
+              
               primaryRange.set?.({
                 start: DateTime.unsafeFromDate(new Date(start)),
                 end: DateTime.unsafeFromDate(new Date(end))
@@ -395,9 +460,21 @@ export const HorizontalCalendar = ({
               const [oldX] = sliderSelectedDateRange;
               const [newX, newY] = newValue;
               const newDateTime = oldX === newX ? newY : newX;
+              
+              // Prevent setting values beyond maxAllowedValue
+              if (maxAllowedValue && newDateTime > maxAllowedValue) {
+                return; // Don't update if the new position exceeds the limit
+              }
+              
               const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
               const dateTimeEnd = DateTime.addDuration(
                 dateTimeStart, primaryRange.duration)
+                
+              // Also check if the end would exceed the limit
+              if (maxAllowedValue && DateTime.toEpochMillis(dateTimeEnd) > maxAllowedValue) {
+                return; // Don't update if the end would exceed the limit
+              }
+              
               primaryRange.set?.({
                 start: dateTimeStart,
                 end: dateTimeEnd
