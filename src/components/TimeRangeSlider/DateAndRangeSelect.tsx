@@ -1,5 +1,5 @@
 import "./dateAndRangeSelect.css";
-import { DateTime, pipe } from "effect";
+import { DateTime, Duration, pipe } from "effect";
 import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Label, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo, FaGlobe, FaClock } from "react-icons/fa";
@@ -107,17 +107,17 @@ const SliderDatePicker = <T extends DateValue>(
                   size="small"
                   className="calendar-duration-toggle"
                 >
-                  <ToggleButton value={TimeDuration['30 min']} aria-label="30 minutes">
+                  <ToggleButton value={TimeDuration['1m']} aria-label="1 minute">
+                    1m
+                  </ToggleButton>
+                  <ToggleButton value={TimeDuration['5m']} aria-label="5 minutes">
+                    5m
+                  </ToggleButton>
+                  <ToggleButton value={TimeDuration['10m']} aria-label="10 minutes">
+                    10m
+                  </ToggleButton>
+                  <ToggleButton value={TimeDuration['30m']} aria-label="30 minutes">
                     30m
-                  </ToggleButton>
-                  <ToggleButton value={TimeDuration['1 hour']} aria-label="1 hour">
-                    1h
-                  </ToggleButton>
-                  <ToggleButton value={TimeDuration['2 hours']} aria-label="2 hours">
-                    2h
-                  </ToggleButton>
-                  <ToggleButton value={TimeDuration['4 hours']} aria-label="4 hours">
-                    4h
                   </ToggleButton>
                 </ToggleButtonGroup>
               </div>
