@@ -703,6 +703,7 @@ export const TimeRangeSlider = ({
               updateSource: UpdateSource.UserInteraction
             }))
         }
+        dateRangeForReset={dateRangeForReset}
       />
       <Divider variant="middle" orientation={"vertical"} flexItem />
       <AnimateAndStepControls

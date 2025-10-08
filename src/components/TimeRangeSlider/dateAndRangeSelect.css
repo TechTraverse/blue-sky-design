@@ -225,12 +225,14 @@
     color: #1976d2;
   }
 
-  [data-outside-month="true"] {
+  [data-outside-month="true"],
+  [data-disabled="true"] {
     color: #ccc !important;
     cursor: not-allowed !important;
   }
 
-  [data-outside-month="true"]:hover {
+  [data-outside-month="true"]:hover,
+  [data-disabled="true"]:hover {
     background-color: transparent !important;
     color: #ccc !important;
   }

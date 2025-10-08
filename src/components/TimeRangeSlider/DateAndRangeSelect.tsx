@@ -4,7 +4,7 @@ import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInp
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo, FaGlobe, FaClock } from "react-icons/fa";
 import { TimeDuration } from "./timeSliderTypes";
-import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
+import type { DatePickerProps, DateValue, ValidationResult, RangeValue } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { Button, Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 
@@ -18,6 +18,7 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   onTimeZoneChange: (timeZone: 'local' | 'utc') => void;
   rangeValue?: TimeDuration;
   setRange?: (timeDuration: TimeDuration) => void;
+  dateRangeForReset?: RangeValue<Date>;
 }
 
 function FieldsetBox({
@@ -36,9 +37,23 @@ function FieldsetBox({
 
 const SliderDatePicker = <T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek, returnToDefaultDateTime,
-    timeZone, onTimeZoneChange, rangeValue, setRange, ...props }:
+    timeZone, onTimeZoneChange, rangeValue, setRange, dateRangeForReset, ...props }:
     LocalDatePickerProps<T>
 ) => {
+  
+  // Calculate max allowed date from dateRangeForReset
+  const getMaxValue = () => {
+    if (!dateRangeForReset) return undefined;
+    
+    const maxDate = dateRangeForReset.start;
+    const calendarDate = new CalendarDateTime(
+      maxDate.getFullYear(),
+      maxDate.getMonth() + 1,
+      maxDate.getDate(),
+      23, 59, 59, 999 // Set to end of day to allow the full day
+    );
+    return calendarDate;
+  };
   return (
     <DatePicker 
       {...props} 
@@ -48,6 +63,7 @@ const SliderDatePicker = <T extends DateValue>(
       hideTimeZone
       shouldForceLeadingZeros
       aria-label={label || "Select start date and time"}
+      maxValue={getMaxValue()}
     >
       <FieldsetBox label={label} className={"slider-date-picker-group"}>
         <DateInput className={"slider-date-picker-input"}>
@@ -144,6 +160,7 @@ export const DateAndRangeSelect = ({
   onTimeZoneChange,
   rangeValue,
   setRange,
+  dateRangeForReset,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
@@ -152,6 +169,7 @@ export const DateAndRangeSelect = ({
   onTimeZoneChange: (timeZone: 'local' | 'utc') => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
+  dateRangeForReset?: RangeValue<Date>,
 }) => {
 
   // Get timezone abbreviation
@@ -231,6 +249,7 @@ export const DateAndRangeSelect = ({
         onTimeZoneChange={onTimeZoneChange}
         rangeValue={rangeValue}
         setRange={setRange}
+        dateRangeForReset={dateRangeForReset}
       />
     </div>);
 }
