@@ -138,18 +138,6 @@ const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): Dat
     });
   });
 
-const roundDateTimeUpToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateTime.DateTime => dateTime.pipe(
-  DateTime.toParts,
-  (parts) => {
-    const roundedToFiveCeilMins = Math.ceil(parts.minutes / 5) * 5;
-    return DateTime.unsafeMake({
-      ...parts,
-      minutes: roundedToFiveCeilMins,
-      seconds: 0,
-      milliseconds: 0,
-    });
-  });
-
 const calculateOptimalViewStart = (
   pStart: DateTime.DateTime,
   nStart: DateTime.DateTime,
@@ -378,7 +366,7 @@ export const TimeRangeSlider = ({
   const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
     const timestamp = DateTime.toEpochMillis(dt);
     const jsDate = new Date(timestamp);
-    
+
     if (tz === 'utc') {
       // Show UTC time for the same moment
       const utcParts = {
@@ -666,9 +654,9 @@ export const TimeRangeSlider = ({
               active: true,
             }]
             : []}
-          viewRange={{ 
-            start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone), 
-            end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone) 
+          viewRange={{
+            start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone),
+            end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone)
           }}
           onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
             const convertedDate = convertDateTimeFromDisplay(date, timeZone);

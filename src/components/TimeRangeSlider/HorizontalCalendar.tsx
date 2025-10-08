@@ -103,7 +103,7 @@ export const HorizontalCalendar = ({
       return {
         primary: '#cce4f4',        // light blue
         select: '#0076d6',         // primary blue
-        activity: '#124118',       // activity green
+        activity: '#368040ff',       // activity green
         compBg: '#f1f3f6',         // component background
         inactiveBg: '#e6e6e6',     // inactive background
         inactiveText: '#adadad',   // muted text
