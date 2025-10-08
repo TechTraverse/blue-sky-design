@@ -649,7 +649,7 @@ export const TimeRangeSlider = ({
       <div className={`${className} time-range-slider`}>
         <PrevDateButton onClick={() => {
           const newStart = DateTime.subtractDuration(
-            s.viewStartDateTime, s.viewDuration);
+            s.viewStartDateTime, Duration.hours(1));
           d(SetViewStartDateTime({ viewStartDateTime: newStart }));
         }} />
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
@@ -720,7 +720,7 @@ export const TimeRangeSlider = ({
         </div>
         <NextDateButton onClick={() => {
           const newStart = DateTime.addDuration(
-            s.viewStartDateTime, s.viewDuration);
+            s.viewStartDateTime, Duration.hours(1));
           d(SetViewStartDateTime({ viewStartDateTime: newStart }));
         }} />
         <DateAndRangeSelect
