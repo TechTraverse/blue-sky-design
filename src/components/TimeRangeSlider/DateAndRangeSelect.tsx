@@ -154,6 +154,19 @@ export const DateAndRangeSelect = ({
   setRange?: (timeDuration: TimeDuration) => void,
 }) => {
 
+  // Get timezone abbreviation
+  const getTimezoneLabel = () => {
+    if (timeZone === 'utc') return 'UTC';
+    
+    // Get local timezone abbreviation
+    const now = new Date();
+    const timeZoneName = Intl.DateTimeFormat('en', { 
+      timeZoneName: 'short' 
+    }).formatToParts(now).find(part => part.type === 'timeZoneName')?.value;
+    
+    return timeZoneName || 'Local';
+  };
+
   // Convert DateTime to display timezone for the picker
   const getDisplayDateTime = (dt: DateTime.DateTime | undefined) => {
     if (!dt) return undefined;
@@ -209,7 +222,7 @@ export const DateAndRangeSelect = ({
   return (
     <div className="date-and-query-range-container">
       <SliderDatePicker
-        label={`Start Date (${timeZone.toUpperCase()})`}
+        label={`Start Date (${getTimezoneLabel()})`}
         value={calendarDateTime}
         onChange={handleDateChange}
         firstDayOfWeek={"sun"}
