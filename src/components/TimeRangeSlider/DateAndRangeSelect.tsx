@@ -47,6 +47,7 @@ const SliderDatePicker = <T extends DateValue>(
       hourCycle={24}
       hideTimeZone
       shouldForceLeadingZeros
+      aria-label={label || "Select start date and time"}
     >
       <FieldsetBox label={label} className={"slider-date-picker-group"}>
         <DateInput className={"slider-date-picker-input"}>
@@ -59,8 +60,8 @@ const SliderDatePicker = <T extends DateValue>(
       {description && <Text slot="description">{description}</Text>}
       <FieldError>{errorMessage}</FieldError>
       <Popover className="slider-date-picker">
-        <Dialog>
-          <Calendar firstDayOfWeek={firstDayOfWeek}>
+        <Dialog aria-label="Date picker">
+          <Calendar firstDayOfWeek={firstDayOfWeek} aria-label="Select date">
             <header>
               <CalendarButton slot="previous" aria-label="Previous month">
                 <MdOutlineKeyboardArrowLeft />
@@ -70,7 +71,7 @@ const SliderDatePicker = <T extends DateValue>(
                 <MdOutlineKeyboardArrowRight />
               </CalendarButton>
             </header>
-            <CalendarGrid>
+            <CalendarGrid aria-label="Calendar">
               {(date) => <CalendarCell date={date} />}
             </CalendarGrid>
           </Calendar>
