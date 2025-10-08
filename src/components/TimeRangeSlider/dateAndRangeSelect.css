@@ -209,6 +209,42 @@
     line-height: 20px;
   }
 
+  /* Calendar cell states - try multiple possible selectors */
+  [data-selectable="true"],
+  [data-pressed],
+  [data-hovered],
+  td:not([data-outside-month="true"]) > div,
+  td button {
+    cursor: pointer !important;
+  }
+
+  [data-selectable="true"]:hover,
+  [data-hovered="true"],
+  td:not([data-outside-month="true"]) > div:hover {
+    background-color: #e3f2fd;
+    color: #1976d2;
+  }
+
+  [data-outside-month="true"] {
+    color: #ccc !important;
+    cursor: not-allowed !important;
+  }
+
+  [data-outside-month="true"]:hover {
+    background-color: transparent !important;
+    color: #ccc !important;
+  }
+
+  [data-selected="true"] {
+    background-color: #1976d2 !important;
+    color: white !important;
+  }
+
+  [data-selected="true"]:hover {
+    background-color: #1565c0 !important;
+    color: white !important;
+  }
+
   button {
     border: none;
     background: transparent;
