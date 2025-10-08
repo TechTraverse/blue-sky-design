@@ -562,7 +562,16 @@ export const TimeRangeSlider = ({
    * Update selected date if animation active and playing
    */
 
+  // Add ref to track current animation timeout
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
+    // Clear any existing animation timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+
     if (s.animationOrStepMode !== AnimationOrStepMode.Animation
       || s.animationPlayMode !== PlayMode.Play)
       return;
@@ -572,7 +581,6 @@ export const TimeRangeSlider = ({
     const animationStart = s.animationStartDateTime;
     const animationEnd = DateTime.addDuration(animationStart, s.animationDuration);
     const maxSelectedStart = DateTime.subtractDuration(animationEnd, s.selectedDuration);
-
 
     const selectedStartDateTime: DateTime.DateTime = match(s.animationSpeed)
       // Forward animation
@@ -590,9 +598,19 @@ export const TimeRangeSlider = ({
       if (currentState.animationOrStepMode === AnimationOrStepMode.Animation && currentState.animationPlayMode === PlayMode.Play) {
         d(SetSelectedStartDateTime({ selectedStartDateTime, updateSource: UpdateSource.UserInteraction }));
       }
+      animationTimeoutRef.current = null; // Clear ref when animation completes
     };
-    const program = E.delay(E.sync(action), Duration.millis(s.animationRequestFrequency));
-    E.runPromise(program).then();
+    
+    // Use setTimeout instead of Effect.js for better control
+    animationTimeoutRef.current = setTimeout(action, s.animationRequestFrequency);
+    
+    // Cleanup function to cancel pending animation when dependencies change
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
+    };
   }, [
     s.animationOrStepMode,
     s.animationPlayMode,
