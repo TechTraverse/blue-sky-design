@@ -756,6 +756,7 @@ export const TimeRangeSlider = ({
           }));
           if (enabled) {
             let animationStart = s.selectedStartDateTime;
+            let needsStartUpdate = false;
             
             // Check if animation range would exceed dateRangeForReset
             if (dateRangeForReset) {
@@ -764,11 +765,19 @@ export const TimeRangeSlider = ({
               
               if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
                 // Bump animation back to the latest 2 hours of acceptable dates
-                animationStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+                const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+                // Only update if the adjustment is actually different
+                if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(animationStart)) {
+                  animationStart = adjustedStart;
+                  needsStartUpdate = true;
+                }
               }
             }
             
-            d(SetAnimationStartDateTime({ animationStartDateTime: animationStart }));
+            // Only dispatch if we need to update the start time
+            if (needsStartUpdate || DateTime.toEpochMillis(animationStart) !== DateTime.toEpochMillis(s.animationStartDateTime)) {
+              d(SetAnimationStartDateTime({ animationStartDateTime: animationStart }));
+            }
             d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
           }
         }}
