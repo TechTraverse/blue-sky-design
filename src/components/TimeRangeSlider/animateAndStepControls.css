@@ -402,3 +402,159 @@
     }
   }
 }
+
+/* Dark theme styles */
+.dark-theme .playback-toggle-switch {
+  background-color: #3a3a3a;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.dark-theme .playback-toggle-step,
+.dark-theme .playback-toggle-animate {
+  background-color: #2a2a2a;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.dark-theme .playback-toggle-step.active {
+  background-color: var(--primary-color, #1976d2);
+  color: white;
+  box-shadow: 0 0 0 2px var(--primary-color, #1976d2);
+}
+
+.dark-theme .playback-toggle-animate.active {
+  background-color: var(--accent-color, #4caf50);
+  color: white;
+  box-shadow: 0 0 0 2px var(--accent-color, #4caf50);
+}
+
+.dark-theme .unified-control-panel {
+  background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .control-settings-inline {
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark-theme .playback-button-container {
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark-theme .slider-date-picker-group {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  
+  > legend {
+    color: rgba(255, 255, 255, 0.6);
+  }
+  
+  &:hover {
+    border: 1px solid #64b5f6;
+  }
+  
+  button {
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+/* Dark theme styles for animation settings popover */
+body.time-range-slider-dark-theme .MuiPopover-paper {
+  background-color: #1e1e1e !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.time-range-slider-dark-theme .MuiTypography-subtitle2,
+body.time-range-slider-dark-theme .MuiTypography-caption {
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+body.time-range-slider-dark-theme .MuiSelect-select {
+  background-color: #2a2a2a !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+body.time-range-slider-dark-theme .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.time-range-slider-dark-theme .MuiSelect-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+body.time-range-slider-dark-theme .MuiMenu-paper {
+  background-color: #1e1e1e !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+body.time-range-slider-dark-theme .MuiMenuItem-root {
+  color: rgba(255, 255, 255, 0.87) !important;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+}
+
+body.time-range-slider-dark-theme .MuiTooltip-tooltip {
+  background-color: #2a2a2a !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Dark theme styles for animation settings button */
+.control-settings-button {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #dae9f8;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  color: #666;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s ease-in-out;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+  letter-spacing: 1px;
+  user-select: none;
+}
+
+.control-settings-button:hover:not(:disabled) {
+  background-color: #fff;
+  border-color: #1976d2;
+  color: #1976d2;
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.control-settings-button:disabled {
+  cursor: default;
+}
+
+body.time-range-slider-dark-theme .control-settings-button {
+  background-color: #3a3a3a;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.time-range-slider-dark-theme .control-settings-button:hover:not(:disabled) {
+  background-color: #4a4a4a;
+  border-color: #64b5f6;
+  color: #64b5f6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}

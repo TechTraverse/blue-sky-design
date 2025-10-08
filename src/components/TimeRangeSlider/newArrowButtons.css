@@ -21,3 +21,16 @@
   width: 22px;
   height: 22px;
 }
+
+.dark-theme .arrow-btn {
+  background: #3a3a3a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .arrow-btn:hover {
+  background: #4a4a4a;
+}
+
+.dark-theme .arrow-btn svg {
+  color: #64b5f6;
+}

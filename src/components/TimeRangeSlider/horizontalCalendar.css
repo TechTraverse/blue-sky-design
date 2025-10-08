@@ -20,6 +20,10 @@
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
   }
 
+.dark-theme .horizontal-calendar-grid-header-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .month-column {
   display: flex;
   flex-direction: column;
@@ -65,6 +69,10 @@
   }
 }
 
+.dark-theme .horizontal-day-column > div {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .horizontal-day-column-selected {
   box-sizing: border-box;
   background-color: #2d5a2d;
@@ -94,6 +102,10 @@
   text-indent: 5px;
 }
 
+.dark-theme .cell-content {
+  border-right: rgba(255, 255, 255, 0.3) 1px solid;
+}
+
 .horizontal-day-row-selected {
   display: flex;
   justify-content: space-between;
@@ -121,6 +133,11 @@
   min-height: 100%;
   min-width: 1px;
   background-color: #555;
+}
+
+.dark-theme .right-unselected-border, 
+.dark-theme .left-unselected-border {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .left-duration-active, .right-duration-active {

@@ -8,10 +8,26 @@
   }
 }
 
+.dark-theme .settings-trigger {
+  color: rgba(255, 255, 255, 0.7);
+  
+  &:hover {
+    color: var(--primary-color, #64b5f6);
+    background-color: rgba(100, 181, 246, 0.08);
+  }
+}
+
 .settings-dialog {
   .MuiDialog-paper {
     border-radius: 8px;
     min-height: 300px;
+  }
+}
+
+.settings-dialog.dark-theme {
+  .MuiDialog-paper {
+    background-color: #1e1e1e;
+    color: rgba(255, 255, 255, 0.87);
   }
 }
 
@@ -37,6 +53,17 @@
   }
 }
 
+.settings-dialog.dark-theme .settings-dialog-title {
+  button {
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      color: rgba(255, 255, 255, 0.9);
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+}
+
 .settings-dialog-content {
   padding: 8px 24px 24px;
 }
@@ -55,6 +82,10 @@
   color: #333;
 }
 
+.settings-dialog.dark-theme .settings-section-title {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .settings-item {
   display: flex;
   justify-content: space-between;
@@ -70,6 +101,10 @@
   font-size: 14px;
   color: #555;
   margin-right: 16px;
+}
+
+.settings-dialog.dark-theme .settings-item-label {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .settings-timezone-toggle,
@@ -102,6 +137,31 @@
     span {
       margin-left: 4px;
       font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+  }
+}
+
+.settings-dialog.dark-theme .settings-timezone-toggle,
+.settings-dialog.dark-theme .settings-theme-toggle,
+.settings-dialog.dark-theme .settings-duration-toggle {
+  .MuiToggleButton-root {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: #2a2a2a;
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      background: #3a3a3a;
+      border-color: #64b5f6;
+    }
+    
+    &.Mui-selected {
+      background: #1976d2;
+      color: white;
+      border-color: #1976d2;
+      
+      &:hover {
+        background: #1565c0;
+      }
     }
   }
 }

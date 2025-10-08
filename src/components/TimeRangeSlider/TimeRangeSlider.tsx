@@ -359,6 +359,21 @@ export const TimeRangeSlider = ({
   theme = AppTheme.Light,
 }: TimeRangeSliderProps) => {
 
+  // Apply theme class to body for popovers that render outside component
+  useEffect(() => {
+    const body = document.body;
+
+    if (theme === AppTheme.Dark) {
+      body.classList.add('time-range-slider-dark-theme');
+    } else {
+      body.classList.remove('time-range-slider-dark-theme');
+    }
+
+    return () => {
+      body.classList.remove('time-range-slider-dark-theme');
+    };
+  }, [theme]);
+
   // Timezone state for displaying times in local or UTC
   const [timeZone, setTimeZone] = useState<'local' | 'utc'>('local');
 
@@ -585,7 +600,7 @@ export const TimeRangeSlider = ({
     // Calculate the time increment per animation frame
     // animationSpeed is in milliseconds per second, animationRequestFrequency is frame rate in ms
     const timeIncrementPerFrame = Duration.millis(Math.abs(s.animationSpeed) * (s.animationRequestFrequency / 1000));
-    
+
     const selectedStartDateTime: DateTime.DateTime = match(s.animationSpeed)
       // Forward animation
       .when((x) => x > 0, () =>
@@ -604,10 +619,10 @@ export const TimeRangeSlider = ({
       }
       animationTimeoutRef.current = null; // Clear ref when animation completes
     };
-    
+
     // Use setTimeout instead of Effect.js for better control
     animationTimeoutRef.current = setTimeout(action, s.animationRequestFrequency);
-    
+
     // Cleanup function to cancel pending animation when dependencies change
     return () => {
       if (animationTimeoutRef.current) {
@@ -627,242 +642,246 @@ export const TimeRangeSlider = ({
   ]);
 
 
+  const themeClass = theme === AppTheme.Dark ? 'dark-theme' : 'light-theme';
+
   return (
-    <div className={`${className} time-range-slider`}>
-      <PrevDateButton onClick={() => {
-        const newStart = DateTime.subtractDuration(
-          s.viewStartDateTime, s.viewDuration);
-        d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-      }} />
-      <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
-        <HorizontalCalendar
-          increment={DEFAULT_VIEW_INCREMENT}
-          isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
-          primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
-            ? {
-              start: convertDateTimeForDisplay(s.animationStartDateTime, timeZone),
-              end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZone),
-              set: (r: RangeValue<DateTime.DateTime>) => {
-                const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
-                const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
-                d(SetAnimationStartDateTime({ animationStartDateTime: convertedStart }));
-                d(SetAnimationDuration({
-                  animationDuration: DateTime.distanceDuration(convertedStart, convertedEnd)
-                }));
-              },
-              duration: s.animationDuration
-            }
-            : {
-              start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
-              end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
-              set: (r: RangeValue<DateTime.DateTime>) => {
-                const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
-                const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
-                d(SetSelectedStartDateTime({
-                  selectedStartDateTime: convertedStart,
-                  updateSource: UpdateSource.UserInteraction
-                }));
-                d(SetSelectedDuration({
-                  selectedDuration: DateTime.distanceDuration(convertedStart, convertedEnd),
-                  updateSource: UpdateSource.UserInteraction
-                }));
-              },
-              duration: s.selectedDuration
+    <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
+      <div className={`${className} time-range-slider`}>
+        <PrevDateButton onClick={() => {
+          const newStart = DateTime.subtractDuration(
+            s.viewStartDateTime, s.viewDuration);
+          d(SetViewStartDateTime({ viewStartDateTime: newStart }));
+        }} />
+        <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
+          <HorizontalCalendar
+            increment={DEFAULT_VIEW_INCREMENT}
+            isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
+            primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
+              ? {
+                start: convertDateTimeForDisplay(s.animationStartDateTime, timeZone),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZone),
+                set: (r: RangeValue<DateTime.DateTime>) => {
+                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
+                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
+                  d(SetAnimationStartDateTime({ animationStartDateTime: convertedStart }));
+                  d(SetAnimationDuration({
+                    animationDuration: DateTime.distanceDuration(convertedStart, convertedEnd)
+                  }));
+                },
+                duration: s.animationDuration
+              }
+              : {
+                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
+                set: (r: RangeValue<DateTime.DateTime>) => {
+                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
+                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
+                  d(SetSelectedStartDateTime({
+                    selectedStartDateTime: convertedStart,
+                    updateSource: UpdateSource.UserInteraction
+                  }));
+                  d(SetSelectedDuration({
+                    selectedDuration: DateTime.distanceDuration(convertedStart, convertedEnd),
+                    updateSource: UpdateSource.UserInteraction
+                  }));
+                },
+                duration: s.selectedDuration
+              }}
+            subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
+              ? [{
+                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
+                active: true,
+              }]
+              : []}
+            viewRange={{
+              start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone),
+              end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone)
             }}
-          subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
-            ? [{
-              start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
-              end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
-              active: true,
-            }]
-            : []}
-          viewRange={{
-            start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone),
-            end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone)
-          }}
-          onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
-            const convertedDate = convertDateTimeFromDisplay(date, timeZone);
+            onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
+              const convertedDate = convertDateTimeFromDisplay(date, timeZone);
+              d(SetSelectedStartDateTime({
+                selectedStartDateTime: convertedDate,
+                updateSource: UpdateSource.UserInteraction
+              }));
+            }}
+            onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
+              const convertedDate = convertDateTimeFromDisplay(date, timeZone);
+              d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
+            }}
+            onPauseAnimation={() => {
+              d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
+            }}
+            animationSpeed={s.animationSpeed}
+            theme={theme}
+            dateRangeForReset={dateRangeForReset}
+            timeZone={timeZone}
+          />
+        </div>
+        <NextDateButton onClick={() => {
+          const newStart = DateTime.addDuration(
+            s.viewStartDateTime, s.viewDuration);
+          d(SetViewStartDateTime({ viewStartDateTime: newStart }));
+        }} />
+        <DateAndRangeSelect
+          startDateTime={s.selectedStartDateTime}
+          setStartDateTime={(date: DateTime.DateTime) => {
             d(SetSelectedStartDateTime({
-              selectedStartDateTime: convertedDate,
+              selectedStartDateTime: date,
               updateSource: UpdateSource.UserInteraction
             }));
           }}
-          onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
-            const convertedDate = convertDateTimeFromDisplay(date, timeZone);
-            d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
+          returnToDefaultDateTime={() => {
+            d(ResetAll());
           }}
-          onPauseAnimation={() => {
-            d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
-          }}
-          animationSpeed={s.animationSpeed}
-          theme={theme}
-          dateRangeForReset={dateRangeForReset}
           timeZone={timeZone}
+          onTimeZoneChange={setTimeZone}
+          rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
+            ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
+          setRange={
+            (timeDuration: TimeDuration) =>
+              d(SetSelectedDuration({
+                selectedDuration: Duration.millis(timeDuration),
+                updateSource: UpdateSource.UserInteraction
+              }))
+          }
+          dateRangeForReset={dateRangeForReset}
         />
-      </div>
-      <NextDateButton onClick={() => {
-        const newStart = DateTime.addDuration(
-          s.viewStartDateTime, s.viewDuration);
-        d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-      }} />
-      <DateAndRangeSelect
-        startDateTime={s.selectedStartDateTime}
-        setStartDateTime={(date: DateTime.DateTime) => {
-          d(SetSelectedStartDateTime({
-            selectedStartDateTime: date,
-            updateSource: UpdateSource.UserInteraction
-          }));
-        }}
-        returnToDefaultDateTime={() => {
-          d(ResetAll());
-        }}
-        timeZone={timeZone}
-        onTimeZoneChange={setTimeZone}
-        rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
-          ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
-        setRange={
-          (timeDuration: TimeDuration) =>
-            d(SetSelectedDuration({
-              selectedDuration: Duration.millis(timeDuration),
-              updateSource: UpdateSource.UserInteraction
-            }))
-        }
-        dateRangeForReset={dateRangeForReset}
-      />
-      <Divider variant="middle" orientation={"vertical"} flexItem />
-      <AnimateAndStepControls
-        /* Step controls */
-        incrementStartDateTime={() => {
-          const newStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
-          const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
-          
-          // Check if the new end time would exceed dateRangeForReset
-          if (dateRangeForReset) {
-            const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-            if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
-              return; // Don't increment if it would exceed the limit
-            }
-          }
-          
-          d(SetSelectedStartDateTime({
-            selectedStartDateTime: newStartDateTime,
-            updateSource: UpdateSource.UserInteraction
-          }));
-        }}
-        decrementStartDateTime={() => {
-          const newStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
-          
-          // Decrementing should generally be allowed as it moves away from the limit
-          // But let's add a sanity check in case the duration is negative
-          if (dateRangeForReset) {
+        <Divider variant="middle" orientation={"vertical"} flexItem />
+        <AnimateAndStepControls
+          /* Step controls */
+          incrementStartDateTime={() => {
+            const newStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
             const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
-            const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-            if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
-              return; // Don't decrement if it would still exceed the limit
-            }
-          }
-          
-          d(SetSelectedStartDateTime({
-            selectedStartDateTime: newStartDateTime,
-            updateSource: UpdateSource.UserInteraction
-          }));
-        }}
 
-        /* Animation toggle */
-        animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}
-        setAnimationEnabled={(enabled: boolean) => {
-          d(SetAnimationOrStepMode({
-            animationOrStepMode: enabled
-              ? AnimationOrStepMode.Animation
-              : AnimationOrStepMode.Step
-          }));
-          if (enabled) {
-            let animationStart = s.selectedStartDateTime;
-            let needsStartUpdate = false;
-            
-            // Check if animation range would exceed dateRangeForReset
+            // Check if the new end time would exceed dateRangeForReset
             if (dateRangeForReset) {
               const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-              const proposedAnimationEnd = DateTime.addDuration(animationStart, s.animationDuration);
-              
-              if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
-                // Bump animation back to the latest 2 hours of acceptable dates
-                const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
-                // Only update if the adjustment is actually different
-                if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(animationStart)) {
-                  animationStart = adjustedStart;
-                  needsStartUpdate = true;
-                }
+              if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
+                return; // Don't increment if it would exceed the limit
               }
             }
-            
-            // Only dispatch if we need to update the start time
-            if (needsStartUpdate || DateTime.toEpochMillis(animationStart) !== DateTime.toEpochMillis(s.animationStartDateTime)) {
-              d(SetAnimationStartDateTime({ animationStartDateTime: animationStart }));
-            }
-            d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
-          }
-        }}
 
-        /* Play toggle */
-        playMode={s.animationPlayMode}
-        setPlayMode={(mode: PlayMode) => {
-          d(SetAnimationPlayMode({ playMode: mode }));
-        }}
+            d(SetSelectedStartDateTime({
+              selectedStartDateTime: newStartDateTime,
+              updateSource: UpdateSource.UserInteraction
+            }));
+          }}
+          decrementStartDateTime={() => {
+            const newStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
 
-        /* Animation speed settings */
-        animationSpeed={s.animationSpeed}
-        setAnimationSpeed={(speed: AnimationSpeed) => {
-          d(SetAnimationSpeed({ animationSpeed: speed }));
-        }}
-        animationDuration={s.animationDuration}
-        setAnimationDuration={(duration: Duration.Duration) => {
-          // Check if new duration would cause animation to exceed dateRangeForReset
-          if (dateRangeForReset && s.animationOrStepMode === AnimationOrStepMode.Animation) {
-            const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-            const proposedAnimationEnd = DateTime.addDuration(s.animationStartDateTime, duration);
-            
-            if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
-              // Adjust animation start to accommodate the new duration
-              const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, duration);
-              d(SetAnimationStartDateTime({ animationStartDateTime: adjustedStart }));
+            // Decrementing should generally be allowed as it moves away from the limit
+            // But let's add a sanity check in case the duration is negative
+            if (dateRangeForReset) {
+              const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
+              const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+              if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
+                return; // Don't decrement if it would still exceed the limit
+              }
             }
-          }
-          
-          d(SetAnimationDuration({ animationDuration: duration }));
-        }}
-        incrementAnimationSpeed={() => {
-          const animationSpeed = s.animationSpeed;
-          const newSpeed = match(animationSpeed)
-            .with(AnimationSpeed['-1 hour/sec'], () => AnimationSpeed['-30 min/sec'])
-            .with(AnimationSpeed['-30 min/sec'], () => AnimationSpeed['-10 min/sec'])
-            .with(AnimationSpeed['-10 min/sec'], () => AnimationSpeed['-5 min/sec'])
-            .with(AnimationSpeed['-5 min/sec'], () => AnimationSpeed['-1 min/sec'])
-            .with(AnimationSpeed['1 min/sec'], () => AnimationSpeed['5 min/sec'])
-            .with(AnimationSpeed['5 min/sec'], () => AnimationSpeed['10 min/sec'])
-            .with(AnimationSpeed['10 min/sec'], () => AnimationSpeed['30 min/sec'])
-            .with(AnimationSpeed['30 min/sec'], () => AnimationSpeed['1 hour/sec'])
-            .with(AnimationSpeed['1 hour/sec'], () => AnimationSpeed['1 min/sec'])
-            .otherwise(() => animationSpeed);
-          d(SetAnimationSpeed({ animationSpeed: newSpeed }));
-        }}
-        decrementAnimationSpeed={() => {
-          const animationSpeed = s.animationSpeed;
-          const newSpeed = match(animationSpeed)
-            .with(AnimationSpeed['1 hour/sec'], () => AnimationSpeed['30 min/sec'])
-            .with(AnimationSpeed['30 min/sec'], () => AnimationSpeed['10 min/sec'])
-            .with(AnimationSpeed['10 min/sec'], () => AnimationSpeed['5 min/sec'])
-            .with(AnimationSpeed['5 min/sec'], () => AnimationSpeed['1 min/sec'])
-            .with(AnimationSpeed['1 min/sec'], () => AnimationSpeed['-1 min/sec'])
-            .with(AnimationSpeed['-1 min/sec'], () => AnimationSpeed['-5 min/sec'])
-            .with(AnimationSpeed['-5 min/sec'], () => AnimationSpeed['-10 min/sec'])
-            .with(AnimationSpeed['-10 min/sec'], () => AnimationSpeed['-30 min/sec'])
-            .with(AnimationSpeed['-30 min/sec'], () => AnimationSpeed['-1 hour/sec'])
-            .with(AnimationSpeed['-1 hour/sec'], () => AnimationSpeed['-1 min/sec'])
-            .otherwise(() => animationSpeed);
-          d(SetAnimationSpeed({ animationSpeed: newSpeed }));
-        }}
-      />
+
+            d(SetSelectedStartDateTime({
+              selectedStartDateTime: newStartDateTime,
+              updateSource: UpdateSource.UserInteraction
+            }));
+          }}
+
+          /* Animation toggle */
+          animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}
+          setAnimationEnabled={(enabled: boolean) => {
+            d(SetAnimationOrStepMode({
+              animationOrStepMode: enabled
+                ? AnimationOrStepMode.Animation
+                : AnimationOrStepMode.Step
+            }));
+            if (enabled) {
+              let animationStart = s.selectedStartDateTime;
+              let needsStartUpdate = false;
+
+              // Check if animation range would exceed dateRangeForReset
+              if (dateRangeForReset) {
+                const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+                const proposedAnimationEnd = DateTime.addDuration(animationStart, s.animationDuration);
+
+                if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
+                  // Bump animation back to the latest 2 hours of acceptable dates
+                  const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+                  // Only update if the adjustment is actually different
+                  if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(animationStart)) {
+                    animationStart = adjustedStart;
+                    needsStartUpdate = true;
+                  }
+                }
+              }
+
+              // Only dispatch if we need to update the start time
+              if (needsStartUpdate || DateTime.toEpochMillis(animationStart) !== DateTime.toEpochMillis(s.animationStartDateTime)) {
+                d(SetAnimationStartDateTime({ animationStartDateTime: animationStart }));
+              }
+              d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
+            }
+          }}
+
+          /* Play toggle */
+          playMode={s.animationPlayMode}
+          setPlayMode={(mode: PlayMode) => {
+            d(SetAnimationPlayMode({ playMode: mode }));
+          }}
+
+          /* Animation speed settings */
+          animationSpeed={s.animationSpeed}
+          setAnimationSpeed={(speed: AnimationSpeed) => {
+            d(SetAnimationSpeed({ animationSpeed: speed }));
+          }}
+          animationDuration={s.animationDuration}
+          setAnimationDuration={(duration: Duration.Duration) => {
+            // Check if new duration would cause animation to exceed dateRangeForReset
+            if (dateRangeForReset && s.animationOrStepMode === AnimationOrStepMode.Animation) {
+              const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+              const proposedAnimationEnd = DateTime.addDuration(s.animationStartDateTime, duration);
+
+              if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
+                // Adjust animation start to accommodate the new duration
+                const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, duration);
+                d(SetAnimationStartDateTime({ animationStartDateTime: adjustedStart }));
+              }
+            }
+
+            d(SetAnimationDuration({ animationDuration: duration }));
+          }}
+          incrementAnimationSpeed={() => {
+            const animationSpeed = s.animationSpeed;
+            const newSpeed = match(animationSpeed)
+              .with(AnimationSpeed['-1 hour/sec'], () => AnimationSpeed['-30 min/sec'])
+              .with(AnimationSpeed['-30 min/sec'], () => AnimationSpeed['-10 min/sec'])
+              .with(AnimationSpeed['-10 min/sec'], () => AnimationSpeed['-5 min/sec'])
+              .with(AnimationSpeed['-5 min/sec'], () => AnimationSpeed['-1 min/sec'])
+              .with(AnimationSpeed['1 min/sec'], () => AnimationSpeed['5 min/sec'])
+              .with(AnimationSpeed['5 min/sec'], () => AnimationSpeed['10 min/sec'])
+              .with(AnimationSpeed['10 min/sec'], () => AnimationSpeed['30 min/sec'])
+              .with(AnimationSpeed['30 min/sec'], () => AnimationSpeed['1 hour/sec'])
+              .with(AnimationSpeed['1 hour/sec'], () => AnimationSpeed['1 min/sec'])
+              .otherwise(() => animationSpeed);
+            d(SetAnimationSpeed({ animationSpeed: newSpeed }));
+          }}
+          decrementAnimationSpeed={() => {
+            const animationSpeed = s.animationSpeed;
+            const newSpeed = match(animationSpeed)
+              .with(AnimationSpeed['1 hour/sec'], () => AnimationSpeed['30 min/sec'])
+              .with(AnimationSpeed['30 min/sec'], () => AnimationSpeed['10 min/sec'])
+              .with(AnimationSpeed['10 min/sec'], () => AnimationSpeed['5 min/sec'])
+              .with(AnimationSpeed['5 min/sec'], () => AnimationSpeed['1 min/sec'])
+              .with(AnimationSpeed['1 min/sec'], () => AnimationSpeed['-1 min/sec'])
+              .with(AnimationSpeed['-1 min/sec'], () => AnimationSpeed['-5 min/sec'])
+              .with(AnimationSpeed['-5 min/sec'], () => AnimationSpeed['-10 min/sec'])
+              .with(AnimationSpeed['-10 min/sec'], () => AnimationSpeed['-30 min/sec'])
+              .with(AnimationSpeed['-30 min/sec'], () => AnimationSpeed['-1 hour/sec'])
+              .with(AnimationSpeed['-1 hour/sec'], () => AnimationSpeed['-1 min/sec'])
+              .otherwise(() => animationSpeed);
+            d(SetAnimationSpeed({ animationSpeed: newSpeed }));
+          }}
+        />
+      </div>
     </div>
   );
 }

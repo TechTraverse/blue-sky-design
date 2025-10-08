@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { TimeRangeSlider } from './TimeRangeSlider';
+import { Theme } from './timeSliderTypes';
 
 const meta = {
   component: TimeRangeSlider,
@@ -22,6 +23,7 @@ export const Default: Story = {
     },
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);
-    }
+    },
+    theme: Theme.Dark
   }
 };

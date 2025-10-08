@@ -66,7 +66,7 @@ export const SettingsPanel = ({
       <Dialog 
         open={open} 
         onClose={handleClose}
-        className="settings-dialog"
+        className={`settings-dialog ${theme === AppTheme.Dark ? 'dark-theme' : 'light-theme'}`}
         maxWidth="sm"
         fullWidth
       >

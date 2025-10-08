@@ -53,6 +53,14 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--background-color);
+}
+
+/* Global dark theme styles - only used if needed outside of component */
+html.dark-theme,
+body.dark-theme {
+  background-color: var(--background-color-dark);
+  color: rgba(255, 255, 255, 0.87);
 }
 
 h1 {
@@ -77,6 +85,19 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+#root {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  min-height: 100vh;
+  width: 100%;
+}
+
+html.dark-theme #root,
+#root.dark-theme {
+  background-color: var(--background-color-dark) !important;
+  color: rgba(255, 255, 255, 0.87) !important;
 }
 
 @media (prefers-color-scheme: light) {
