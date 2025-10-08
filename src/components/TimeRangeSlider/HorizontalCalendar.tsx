@@ -30,12 +30,33 @@ type Step = {
   label: React.ReactNode
   value: number;
 }
+// Round timestamp to nearest 5-minute boundary
+const roundToFiveMinutes = (timestamp: number): number => {
+  const date = new Date(timestamp);
+  const minutes = date.getMinutes();
+  const roundedMinutes = Math.floor(minutes / 5) * 5;
+  
+  const roundedDate = new Date(date);
+  roundedDate.setMinutes(roundedMinutes, 0, 0); // Also reset seconds and milliseconds
+  return roundedDate.getTime();
+};
+
 const createStepsOverRange = (start: number, end: number, step: number): Step[] => {
   const steps: Step[] = [];
-  for (let i = start; i <= end; i += step) {
-    const minutes = DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "minutes");
+  
+  // Round start to the nearest 5-minute boundary (floor)
+  const alignedStart = roundToFiveMinutes(start);
+  
+  // Create steps on 5-minute boundaries
+  const fiveMinutesMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+  
+  for (let i = alignedStart; i <= end; i += fiveMinutesMs) {
+    const dateTime = DateTime.unsafeFromDate(new Date(i));
+    const minutes = DateTime.getPart(dateTime, "minutes");
+    const hours = DateTime.getPart(dateTime, "hours");
+    
     const label = minutes === 0
-      ? <div className="hour-marks">{DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "hours").toString()}</div>
+      ? <div className="hour-marks">{hours.toString()}</div>
       : minutes % 10 === 0
         ? <div className="minute-marks">{minutes.toString()}</div>
         : <div className="blank-marks" />;
