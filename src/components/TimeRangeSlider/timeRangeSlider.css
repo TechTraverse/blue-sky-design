@@ -13,8 +13,9 @@
 }
 
 .time-range-slider-theme-wrapper.dark-theme {
-  background: var(--background-color-dark);
-  color: rgba(255, 255, 255, 0.87);
+  background: var(--background-color-dark) !important;
+  background-color: #242424 !important;
+  color: rgba(255, 255, 255, 0.87) !important;
 }
 
 .time-range-slider {

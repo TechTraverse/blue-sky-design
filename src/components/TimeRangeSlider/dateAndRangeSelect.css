@@ -505,7 +505,8 @@
 .time-range-slider-theme-wrapper.dark-theme ~ * .slider-date-picker,
 .time-range-slider-theme-wrapper.dark-theme + * .slider-date-picker,
 body:has(.time-range-slider-theme-wrapper.dark-theme) .slider-date-picker,
-body.time-range-slider-dark-theme .slider-date-picker {
+body.time-range-slider-dark-theme .slider-date-picker,
+.dark-theme .slider-date-picker {
   --background-color: #1e1e1e !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
   background: var(--background-color) !important;

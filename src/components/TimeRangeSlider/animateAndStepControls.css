@@ -463,7 +463,8 @@
 }
 
 /* Dark theme styles for animation settings popover */
-body.time-range-slider-dark-theme .MuiPopover-paper {
+body.time-range-slider-dark-theme .MuiPopover-paper,
+.dark-theme .MuiPopover-paper {
   background-color: #1e1e1e !important;
   color: rgba(255, 255, 255, 0.87) !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -471,31 +472,38 @@ body.time-range-slider-dark-theme .MuiPopover-paper {
 }
 
 body.time-range-slider-dark-theme .MuiTypography-subtitle2,
-body.time-range-slider-dark-theme .MuiTypography-caption {
+body.time-range-slider-dark-theme .MuiTypography-caption,
+.dark-theme .MuiTypography-subtitle2,
+.dark-theme .MuiTypography-caption {
   color: rgba(255, 255, 255, 0.87) !important;
 }
 
-body.time-range-slider-dark-theme .MuiSelect-select {
+body.time-range-slider-dark-theme .MuiSelect-select,
+.dark-theme .MuiSelect-select {
   background-color: #2a2a2a !important;
   color: rgba(255, 255, 255, 0.87) !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
-body.time-range-slider-dark-theme .MuiOutlinedInput-notchedOutline {
+body.time-range-slider-dark-theme .MuiOutlinedInput-notchedOutline,
+.dark-theme .MuiOutlinedInput-notchedOutline {
   border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
-body.time-range-slider-dark-theme .MuiSelect-icon {
+body.time-range-slider-dark-theme .MuiSelect-icon,
+.dark-theme .MuiSelect-icon {
   color: rgba(255, 255, 255, 0.7) !important;
 }
 
-body.time-range-slider-dark-theme .MuiMenu-paper {
+body.time-range-slider-dark-theme .MuiMenu-paper,
+.dark-theme .MuiMenu-paper {
   background-color: #1e1e1e !important;
   color: rgba(255, 255, 255, 0.87) !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
-body.time-range-slider-dark-theme .MuiMenuItem-root {
+body.time-range-slider-dark-theme .MuiMenuItem-root,
+.dark-theme .MuiMenuItem-root {
   color: rgba(255, 255, 255, 0.87) !important;
   
   &:hover {
@@ -503,7 +511,8 @@ body.time-range-slider-dark-theme .MuiMenuItem-root {
   }
 }
 
-body.time-range-slider-dark-theme .MuiTooltip-tooltip {
+body.time-range-slider-dark-theme .MuiTooltip-tooltip,
+.dark-theme .MuiTooltip-tooltip {
   background-color: #2a2a2a !important;
   color: rgba(255, 255, 255, 0.87) !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -545,14 +554,16 @@ body.time-range-slider-dark-theme .MuiTooltip-tooltip {
   cursor: default;
 }
 
-body.time-range-slider-dark-theme .control-settings-button {
+body.time-range-slider-dark-theme .control-settings-button,
+.dark-theme .control-settings-button {
   background-color: #3a3a3a;
   border-color: rgba(255, 255, 255, 0.3);
   color: rgba(255, 255, 255, 0.7);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-body.time-range-slider-dark-theme .control-settings-button:hover:not(:disabled) {
+body.time-range-slider-dark-theme .control-settings-button:hover:not(:disabled),
+.dark-theme .control-settings-button:hover:not(:disabled) {
   background-color: #4a4a4a;
   border-color: #64b5f6;
   color: #64b5f6;
