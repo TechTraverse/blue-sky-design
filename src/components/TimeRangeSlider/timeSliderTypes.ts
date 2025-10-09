@@ -46,6 +46,11 @@ export enum Theme {
   Dark = "dark"
 }
 
+export enum TimeZone {
+  Local = "local",
+  UTC = "utc"
+}
+
 // export type AnimationState = D.TaggedEnum<{
 //   AnimationInactive: object;
 //   AnimationActive: {

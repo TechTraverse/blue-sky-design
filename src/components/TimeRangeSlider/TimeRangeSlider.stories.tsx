@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { TimeRangeSlider } from './TimeRangeSlider';
-import { Theme } from './timeSliderTypes';
+import { Theme, TimeZone } from './timeSliderTypes';
 
 const meta = {
   component: TimeRangeSlider,
@@ -24,6 +24,31 @@ export const Default: Story = {
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);
     },
-    theme: Theme.Dark
+    onTimeZoneChange: (timeZone) => {
+      console.log('Timezone changed to:', timeZone);
+    },
+    theme: Theme.Dark,
+    timeZone: TimeZone.Local
+  }
+};
+
+export const UTCTimeZone: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    dateRangeForReset: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    onTimeZoneChange: (timeZone) => {
+      console.log('Timezone changed to:', timeZone);
+    },
+    theme: Theme.Light,
+    timeZone: TimeZone.UTC
   }
 };

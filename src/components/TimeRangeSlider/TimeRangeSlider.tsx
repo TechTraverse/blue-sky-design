@@ -6,7 +6,7 @@ import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
-import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme } from './timeSliderTypes';
+import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider } from '@mui/material';
 
@@ -21,6 +21,8 @@ export interface TimeRangeSliderProps {
   animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
   theme?: AppTheme;
+  timeZone?: TimeZone;
+  onTimeZoneChange?: (timeZone: TimeZone) => void;
 }
 
 enum UpdateSource {
@@ -356,13 +358,21 @@ export const TimeRangeSlider = ({
   animationRequestFrequency = AnimationRequestFrequency['1 fps'],
   className = "",
   theme = AppTheme.Light,
+  timeZone = TimeZone.Local,
+  onTimeZoneChange,
 }: TimeRangeSliderProps) => {
 
   // Note: Dark theme is now handled via component-scoped CSS classes
   // No need for body class manipulation in embedded components
 
-  // Timezone state for displaying times in local or UTC
-  const [timeZone, setTimeZone] = useState<'local' | 'utc'>('local');
+  // Convert external TimeZone enum to string format for internal use
+  const timeZoneString: 'local' | 'utc' = timeZone === TimeZone.Local ? 'local' : 'utc';
+  
+  // Handle timezone changes and notify parent
+  const handleTimeZoneChange = (newTimeZone: 'local' | 'utc') => {
+    const newTimeZoneEnum = newTimeZone === 'local' ? TimeZone.Local : TimeZone.UTC;
+    onTimeZoneChange?.(newTimeZoneEnum);
+  };
 
   // Utility functions for timezone conversion
   const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
@@ -423,18 +433,22 @@ export const TimeRangeSlider = ({
       DateTime.unsafeFromDate(dateRange.end))
     : Duration.hours(2);
 
+  // Calculate initial view duration - use a reasonable default that ensures selection is visible
+  const initViewDuration = Duration.hours(4); // Fixed duration for consistent behavior
+  
   const initViewStartDateTime = calculateOptimalViewStart(
     initSelectedStartDateTime,
     initSelectedStartDateTime,
     initSelectedDuration,
     DateTime.subtractDuration(initSelectedStartDateTime, Duration.hours(2)),
-    Duration.hours(4));
-  const initViewDuration = dateRange
-    ? DateTime.distanceDuration(
-      initViewStartDateTime,
-      DateTime.unsafeFromDate(dateRange.end)
-        .pipe(roundDateTimeDownToNearestFiveMinutes))
-    : Duration.hours(4);
+    initViewDuration);
+
+  console.log('DEBUG: Initialization values', {
+    initSelectedStart: DateTime.toDate(initSelectedStartDateTime),
+    initSelectedDuration: Duration.toMillis(initSelectedDuration),
+    initViewStart: DateTime.toDate(initViewStartDateTime), 
+    initViewDuration: Duration.toMillis(initViewDuration)
+  });
 
   const initResetStartDateTime = dateRangeForReset
     ? DateTime.unsafeFromDate(dateRangeForReset.start)
@@ -680,11 +694,11 @@ export const TimeRangeSlider = ({
             isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
             primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? {
-                start: convertDateTimeForDisplay(s.animationStartDateTime, timeZone),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZone),
+                start: convertDateTimeForDisplay(s.animationStartDateTime, timeZoneString),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZoneString),
                 set: (r: RangeValue<DateTime.DateTime>) => {
-                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
-                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
+                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZoneString);
+                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZoneString);
                   d(SetAnimationStartDateTime({ animationStartDateTime: convertedStart }));
                   d(SetAnimationDuration({
                     animationDuration: DateTime.distanceDuration(convertedStart, convertedEnd)
@@ -693,11 +707,11 @@ export const TimeRangeSlider = ({
                 duration: s.animationDuration
               }
               : {
-                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
+                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZoneString),
                 set: (r: RangeValue<DateTime.DateTime>) => {
-                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
-                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
+                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZoneString);
+                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZoneString);
                   d(SetSelectedStartDateTime({
                     selectedStartDateTime: convertedStart,
                     updateSource: UpdateSource.UserInteraction
@@ -711,24 +725,24 @@ export const TimeRangeSlider = ({
               }}
             subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? [{
-                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZone),
+                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZoneString),
                 active: true,
               }]
               : []}
             viewRange={{
-              start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone),
-              end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone)
+              start: convertDateTimeForDisplay(s.viewStartDateTime, timeZoneString),
+              end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZoneString)
             }}
             onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
-              const convertedDate = convertDateTimeFromDisplay(date, timeZone);
+              const convertedDate = convertDateTimeFromDisplay(date, timeZoneString);
               d(SetSelectedStartDateTime({
                 selectedStartDateTime: convertedDate,
                 updateSource: UpdateSource.UserInteraction
               }));
             }}
             onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
-              const convertedDate = convertDateTimeFromDisplay(date, timeZone);
+              const convertedDate = convertDateTimeFromDisplay(date, timeZoneString);
               d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
             }}
             onPauseAnimation={() => {
@@ -737,7 +751,7 @@ export const TimeRangeSlider = ({
             animationSpeed={s.animationSpeed}
             theme={theme}
             dateRangeForReset={dateRangeForReset}
-            timeZone={timeZone}
+            timeZone={timeZoneString}
           />
         </div>
         <NextDateButton onClick={() => {
@@ -756,8 +770,8 @@ export const TimeRangeSlider = ({
           returnToDefaultDateTime={() => {
             d(ResetAll());
           }}
-          timeZone={timeZone}
-          onTimeZoneChange={setTimeZone}
+          timeZone={timeZoneString}
+          onTimeZoneChange={handleTimeZoneChange}
           rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
             ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
           setRange={
