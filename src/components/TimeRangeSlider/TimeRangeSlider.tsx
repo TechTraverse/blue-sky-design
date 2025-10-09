@@ -1,5 +1,5 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState, useMemo } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration, Effect as E } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
@@ -359,20 +359,8 @@ export const TimeRangeSlider = ({
   theme = AppTheme.Light,
 }: TimeRangeSliderProps) => {
 
-  // Apply theme class to body for popovers that render outside component
-  useEffect(() => {
-    const body = document.body;
-
-    if (theme === AppTheme.Dark) {
-      body.classList.add('time-range-slider-dark-theme');
-    } else {
-      body.classList.remove('time-range-slider-dark-theme');
-    }
-
-    return () => {
-      body.classList.remove('time-range-slider-dark-theme');
-    };
-  }, [theme]);
+  // Note: Dark theme is now handled via component-scoped CSS classes
+  // No need for body class manipulation in embedded components
 
   // Timezone state for displaying times in local or UTC
   const [timeZone, setTimeZone] = useState<'local' | 'utc'>('local');
@@ -642,7 +630,7 @@ export const TimeRangeSlider = ({
   ]);
 
 
-  const themeClass = theme === AppTheme.Dark ? 'dark-theme' : 'light-theme';
+  const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
   return (
     <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
