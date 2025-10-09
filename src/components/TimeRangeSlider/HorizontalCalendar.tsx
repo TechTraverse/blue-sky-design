@@ -111,6 +111,7 @@ export const HorizontalCalendar = ({
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
+  const [isPhantomSelection, setIsPhantomSelection] = useState<boolean>(false);
 
   // Timezone conversion utility (same as in TimeRangeSlider)
   const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
@@ -229,6 +230,7 @@ export const HorizontalCalendar = ({
           DateTime.toEpochMillis(primaryRange.end)
         ]);
         setSliderActive(SliderActive.Active)
+        setIsPhantomSelection(false)
       })
       .with([true, false], () => {
         setSliderSelectedDateRange([
@@ -236,6 +238,7 @@ export const HorizontalCalendar = ({
           DateTime.toEpochMillis(viewRange.end)
         ]);
         setSliderActive(SliderActive.LeftActive)
+        setIsPhantomSelection(false)
       })
       .with([false, true], () => {
         setSliderSelectedDateRange([
@@ -243,11 +246,14 @@ export const HorizontalCalendar = ({
           DateTime.toEpochMillis(primaryRange.end)
         ]);
         setSliderActive(SliderActive.RightActive)
+        setIsPhantomSelection(false)
       })
       .with([false, false], () => {
+        // Selection is completely outside view - create phantom selection spanning full view
         setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
         DateTime.toEpochMillis(viewRange.end)])
-        setSliderActive(SliderActive.Inactive)
+        setSliderActive(SliderActive.Active)
+        setIsPhantomSelection(true)
       })
       .exhaustive();
   }, [primaryRange, viewRange]);
@@ -299,7 +305,8 @@ export const HorizontalCalendar = ({
 
     setSliderSx({
       '& .MuiSlider-track': {
-        background: gradient.includes('red') ? gradient : colors.select,
+        background: isPhantomSelection ? 'transparent' : (gradient.includes('red') ? gradient : colors.select),
+        opacity: isPhantomSelection ? '0' : '1',
       },
       '& .MuiSlider-rail': {
         cursor: 'pointer',
@@ -319,7 +326,7 @@ export const HorizontalCalendar = ({
         opacity: '1 !important',
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme, maxAllowedValue, viewRange, timeZone]);
+  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme, maxAllowedValue, viewRange, timeZone, isPhantomSelection]);
 
   const handleSliderClick = (clickValue: number) => {
     // Prevent clicks beyond the max allowed value
@@ -331,10 +338,10 @@ export const HorizontalCalendar = ({
 
     match({ isStepMode, clickValue, primaryRange, subRanges })
       .with({ isStepMode: true }, () => {
-        // Step mode: clicks within selected range do nothing, clicks outside select new start date
+        // Step mode: clicks within selected range do nothing (unless it's a phantom selection), clicks outside select new start date
         const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
 
-        if (!withinSelectedRange && onSetSelectedStartDateTime) {
+        if ((!withinSelectedRange || isPhantomSelection) && onSetSelectedStartDateTime) {
           onSetSelectedStartDateTime(clickedDateTime);
         }
       })
@@ -375,10 +382,10 @@ export const HorizontalCalendar = ({
         const clickRatio = Math.max(0, Math.min(1, clickX / sliderWidth)); // Clamp between 0 and 1
         const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
 
-        // Check if we should ignore this click (step mode + within range)
+        // Check if we should ignore this click (step mode + within range, but not phantom selection)
         if (isStepMode) {
           const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-          if (withinSelectedRange) {
+          if (withinSelectedRange && !isPhantomSelection) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -393,7 +400,7 @@ export const HorizontalCalendar = ({
     // Use capture phase to intercept before MUI handles it
     sliderElement.addEventListener('click', handleClick, true);
     return () => sliderElement.removeEventListener('click', handleClick, true);
-  }, [viewRangeAndStep, sliderSelectedDateRange, isStepMode, primaryRange, onSetSelectedStartDateTime, onSetAnimationStartDateTime]);
+  }, [viewRangeAndStep, sliderSelectedDateRange, isStepMode, primaryRange, onSetSelectedStartDateTime, onSetAnimationStartDateTime, isPhantomSelection]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -425,7 +432,7 @@ export const HorizontalCalendar = ({
         .with(SliderActive.RightActive, () => "hide-left-slider-component")
         .with(SliderActive.LeftActive, () => "hide-right-slider-component")
         .otherwise(() => "")
-        } ${isStepMode ? 'step-mode' : 'animation-mode'} ${!isStepMode && animationSpeed && animationSpeed < 0 ? 'negative-speed' : 'positive-speed'}`}>
+        } ${isPhantomSelection ? 'hide-slider-components' : ''} ${isStepMode ? 'step-mode' : 'animation-mode'} ${!isStepMode && animationSpeed && animationSpeed < 0 ? 'negative-speed' : 'positive-speed'}`}>
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
@@ -443,9 +450,9 @@ export const HorizontalCalendar = ({
               const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
 
               if (isStepMode) {
-                // In step mode, prevent mousedown on track/rail if click is within selected range
+                // In step mode, prevent mousedown on track/rail if click is within selected range (but not phantom selection)
                 const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-                if (withinSelectedRange) {
+                if (withinSelectedRange && !isPhantomSelection) {
                   e.preventDefault();
                   e.stopPropagation();
                   return;

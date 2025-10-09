@@ -231,18 +231,17 @@ const reducer = (state: State, action: Action): State =>
       );
 
       // Only update view range if selected date + duration goes outside current view range
-      const viewStartDateTime = match([start, state.selectedDuration])
-        .when(([s/*, d */]) =>
-          DateTime.lessThanOrEqualTo(
-            state.viewStartDateTime,
-            DateTime.subtractDuration(s, Duration.minutes(5))
-          ), () => optimalViewStart)
-        .when(([s, d]) =>
-          DateTime.greaterThanOrEqualTo(
-            DateTime.addDuration(state.viewStartDateTime, state.viewDuration),
-            DateTime.addDuration(DateTime.addDuration(s, d), Duration.minutes(5))
-          ), () => optimalViewStart)
-        .otherwise(() => (state.viewStartDateTime));
+      // Check if the selection is outside the current view
+      const selectedEnd = DateTime.addDuration(start, state.selectedDuration);
+      const currentViewEnd = DateTime.addDuration(state.viewStartDateTime, state.viewDuration);
+      
+      const selectionStartOutsideView = DateTime.lessThan(start, state.viewStartDateTime);
+      const selectionEndOutsideView = DateTime.greaterThan(selectedEnd, currentViewEnd);
+      
+      // Only adjust view if selection is actually outside the current view
+      const viewStartDateTime = (selectionStartOutsideView || selectionEndOutsideView) 
+        ? optimalViewStart 
+        : state.viewStartDateTime;
 
       return {
         ...state,
