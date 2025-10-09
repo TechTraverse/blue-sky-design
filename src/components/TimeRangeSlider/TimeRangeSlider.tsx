@@ -197,8 +197,9 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
  * State management: reducer
  */
 
-const reducer = (state: State, action: Action): State =>
-  $actionMatch({
+const reducer = (state: State, action: Action): State => {
+  console.log('DEBUG: Reducer action:', action._tag);
+  return $actionMatch({
     SetViewStartDateTime: (x) => ({
       ...state,
       viewStartDateTime:
@@ -313,6 +314,7 @@ const reducer = (state: State, action: Action): State =>
       animationSpeed: state.resetAnimationSpeed,
     }),
   })(action);
+};
 
 
 /**
@@ -358,6 +360,12 @@ export const TimeRangeSlider = ({
   className = "",
   theme = AppTheme.Light,
 }: TimeRangeSliderProps) => {
+  console.log('DEBUG: TimeRangeSlider render', {
+    dateRangeRef: dateRange,
+    dateRangeStart: dateRange?.start?.getTime(),
+    dateRangeEnd: dateRange?.end?.getTime(),
+    renderTime: Date.now()
+  });
 
   // Note: Dark theme is now handled via component-scoped CSS classes
   // No need for body class manipulation in embedded components
@@ -504,81 +512,100 @@ export const TimeRangeSlider = ({
 
 
   /**
+   * Sanitation layer for external prop values
+   * Prevents unnecessary state updates from external prop changes
+   */
+  
+  const sanitizeExternalDateRange = useMemo(() => {
+    if (!dateRange?.start || !dateRange?.end) return null;
+    
+    const startTime = dateRange.start.getTime();
+    const endTime = dateRange.end.getTime();
+    
+    // Compare with current state to see if we actually need to update
+    const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
+    const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
+    
+    // Only return new values if they're actually different
+    if (startTime === currentStartTime && endTime === currentEndTime) {
+      return null; // No change needed
+    }
+    
+    return { startTime, endTime };
+  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
+
+  const sanitizeExternalDateRangeForReset = useMemo(() => {
+    if (!dateRangeForReset?.start || !dateRangeForReset?.end) return null;
+    
+    const startTime = dateRangeForReset.start.getTime();
+    const endTime = dateRangeForReset.end.getTime();
+    
+    // Compare with current state to see if we actually need to update
+    const currentResetStartTime = DateTime.toEpochMillis(stateRef.current.resetStartDateTime);
+    const currentResetEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.resetStartDateTime, stateRef.current.resetDuration));
+    
+    // Only return new values if they're actually different
+    if (startTime === currentResetStartTime && endTime === currentResetEndTime) {
+      return null; // No change needed
+    }
+    
+    return { startTime, endTime };
+  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime()]);
+
+  /**
    * External updates to the date range prop
    */
-
-  // Memoize the dateRange values to prevent unnecessary effect runs
-  const dateRangeStart = useMemo(() => dateRange?.start?.getTime(), [dateRange?.start]);
-  const dateRangeEnd = useMemo(() => dateRange?.end?.getTime(), [dateRange?.end]);
   
   useEffect(() => {
-    if (!dateRange || !dateRangeStart || !dateRangeEnd) return;
+    console.log('DEBUG: dateRange effect triggered', { sanitizeExternalDateRange });
+    if (!sanitizeExternalDateRange) return;
 
     // If animation active and playing, ignore external updates
     if (stateRef.current.animationOrStepMode === AnimationOrStepMode.Animation
       && stateRef.current.animationPlayMode === PlayMode.Play)
       return;
 
-    const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
+    const newStartDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRange.startTime));
+    const newEndDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRange.endTime));
+    const newDuration = DateTime.distanceDuration(newStartDateTime, newEndDateTime);
+
+    // Additional timing-based protection against rapid updates
     const isWithinLastSecond = DateTime.distance(
       DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp) < 1000;
-    const isEqualToCurrentTime = DateTime.distance(newStartDateTime,
-      stateRef.current.selectedStartDateTime) === 0;
-    const isEqualToPreviousTime = DateTime.distance(newStartDateTime,
-      stateRef.current.prevSelectedStartDateTime) === 0;
-
-    if (isWithinLastSecond && (isEqualToCurrentTime || isEqualToPreviousTime)) {
+    
+    if (isWithinLastSecond) {
+      console.log('DEBUG: Skipping update - within last second');
       return;
     }
 
-    const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
-
-    // Check if the values are actually different to prevent unnecessary updates
-    const currentStart = stateRef.current.selectedStartDateTime;
-    const currentDuration = stateRef.current.selectedDuration;
-    const startChanged = Duration.toMillis(DateTime.distance(currentStart, newStartDateTime)) !== 0;
-    const durationChanged = Duration.toMillis(currentDuration) !== Duration.toMillis(newDuration);
-
-    if (startChanged || durationChanged) {
-      d(SetSelectedStartDateTime({
-        selectedStartDateTime: newStartDateTime,
-        updateSource: UpdateSource.ExternalProp
-      }));
-      d(SetSelectedDuration({
-        selectedDuration: newDuration,
-        updateSource: UpdateSource.ExternalProp
-      }));
-    }
-  }, [dateRangeStart, dateRangeEnd]); // Use memoized timestamps instead of objects
+    console.log('DEBUG: Applying external dateRange update');
+    d(SetSelectedStartDateTime({
+      selectedStartDateTime: newStartDateTime,
+      updateSource: UpdateSource.ExternalProp
+    }));
+    d(SetSelectedDuration({
+      selectedDuration: newDuration,
+      updateSource: UpdateSource.ExternalProp
+    }));
+  }, [sanitizeExternalDateRange]);
 
 
   /**
    * External updates to date range for reset prop
    */
 
-  // Memoize dateRangeForReset values to prevent unnecessary effect runs
-  const dateRangeForResetStart = useMemo(() => dateRangeForReset?.start?.getTime(), [dateRangeForReset?.start]);
-  const dateRangeForResetEnd = useMemo(() => dateRangeForReset?.end?.getTime(), [dateRangeForReset?.end]);
-
   useEffect(() => {
-    if (!dateRangeForReset || !dateRangeForResetStart || !dateRangeForResetEnd) {
-      return;
-    }
+    console.log('DEBUG: dateRangeForReset effect triggered', { sanitizeExternalDateRangeForReset });
+    if (!sanitizeExternalDateRangeForReset) return;
 
-    const newResetStartDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-    const newResetDuration = DateTime.distanceDuration(newResetStartDateTime, DateTime.unsafeFromDate(dateRangeForReset.end));
-    
-    // Check if values actually changed to prevent unnecessary dispatches
-    const currentResetStart = stateRef.current.resetStartDateTime;
-    const currentResetDuration = stateRef.current.resetDuration;
-    const startChanged = Duration.toMillis(DateTime.distance(currentResetStart, newResetStartDateTime)) !== 0;
-    const durationChanged = Duration.toMillis(currentResetDuration) !== Duration.toMillis(newResetDuration);
+    const newResetStartDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRangeForReset.startTime));
+    const newResetEndDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRangeForReset.endTime));
+    const newResetDuration = DateTime.distanceDuration(newResetStartDateTime, newResetEndDateTime);
 
-    if (startChanged || durationChanged) {
-      d(SetResetStartDateTime({ resetStartDateTime: newResetStartDateTime }));
-      d(SetResetDuration({ resetDuration: newResetDuration }));
-    }
-  }, [dateRangeForResetStart, dateRangeForResetEnd]);
+    console.log('DEBUG: Applying external dateRangeForReset update');
+    d(SetResetStartDateTime({ resetStartDateTime: newResetStartDateTime }));
+    d(SetResetDuration({ resetDuration: newResetDuration }));
+  }, [sanitizeExternalDateRangeForReset]);
 
 
 
