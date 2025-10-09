@@ -197,9 +197,8 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
  * State management: reducer
  */
 
-const reducer = (state: State, action: Action): State => {
-  console.log('DEBUG: Reducer action:', action._tag);
-  return $actionMatch({
+const reducer = (state: State, action: Action): State =>
+  $actionMatch({
     SetViewStartDateTime: (x) => ({
       ...state,
       viewStartDateTime:
@@ -314,7 +313,6 @@ const reducer = (state: State, action: Action): State => {
       animationSpeed: state.resetAnimationSpeed,
     }),
   })(action);
-};
 
 
 /**
@@ -360,12 +358,6 @@ export const TimeRangeSlider = ({
   className = "",
   theme = AppTheme.Light,
 }: TimeRangeSliderProps) => {
-  console.log('DEBUG: TimeRangeSlider render', {
-    dateRangeRef: dateRange,
-    dateRangeStart: dateRange?.start?.getTime(),
-    dateRangeEnd: dateRange?.end?.getTime(),
-    renderTime: Date.now()
-  });
 
   // Note: Dark theme is now handled via component-scoped CSS classes
   // No need for body class manipulation in embedded components
@@ -557,7 +549,6 @@ export const TimeRangeSlider = ({
    */
   
   useEffect(() => {
-    console.log('DEBUG: dateRange effect triggered', { sanitizeExternalDateRange });
     if (!sanitizeExternalDateRange) return;
 
     // If animation active and playing, ignore external updates
@@ -574,11 +565,9 @@ export const TimeRangeSlider = ({
       DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp) < 1000;
     
     if (isWithinLastSecond) {
-      console.log('DEBUG: Skipping update - within last second');
       return;
     }
 
-    console.log('DEBUG: Applying external dateRange update');
     d(SetSelectedStartDateTime({
       selectedStartDateTime: newStartDateTime,
       updateSource: UpdateSource.ExternalProp
@@ -595,14 +584,12 @@ export const TimeRangeSlider = ({
    */
 
   useEffect(() => {
-    console.log('DEBUG: dateRangeForReset effect triggered', { sanitizeExternalDateRangeForReset });
     if (!sanitizeExternalDateRangeForReset) return;
 
     const newResetStartDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRangeForReset.startTime));
     const newResetEndDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRangeForReset.endTime));
     const newResetDuration = DateTime.distanceDuration(newResetStartDateTime, newResetEndDateTime);
 
-    console.log('DEBUG: Applying external dateRangeForReset update');
     d(SetResetStartDateTime({ resetStartDateTime: newResetStartDateTime }));
     d(SetResetDuration({ resetDuration: newResetDuration }));
   }, [sanitizeExternalDateRangeForReset]);
