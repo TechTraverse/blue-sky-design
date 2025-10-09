@@ -484,7 +484,10 @@ export const TimeRangeSlider = ({
         const width = entry.contentRect.width;
         const viewDuration = widthToDuration(width);
 
-        d(SetViewDuration({ viewDuration }));
+        // Only dispatch if duration actually changed
+        if (Duration.toMillis(viewDuration) !== Duration.toMillis(stateRef.current.viewDuration)) {
+          d(SetViewDuration({ viewDuration }));
+        }
       }
     });
 
@@ -504,21 +507,25 @@ export const TimeRangeSlider = ({
    * External updates to the date range prop
    */
 
+  // Memoize the dateRange values to prevent unnecessary effect runs
+  const dateRangeStart = useMemo(() => dateRange?.start?.getTime(), [dateRange?.start]);
+  const dateRangeEnd = useMemo(() => dateRange?.end?.getTime(), [dateRange?.end]);
+  
   useEffect(() => {
-    if (!dateRange) return;
+    if (!dateRange || !dateRangeStart || !dateRangeEnd) return;
 
     // If animation active and playing, ignore external updates
-    if (s.animationOrStepMode === AnimationOrStepMode.Animation
-      && s.animationPlayMode === PlayMode.Play)
+    if (stateRef.current.animationOrStepMode === AnimationOrStepMode.Animation
+      && stateRef.current.animationPlayMode === PlayMode.Play)
       return;
 
     const newStartDateTime = DateTime.unsafeFromDate(dateRange.start);
     const isWithinLastSecond = DateTime.distance(
-      DateTime.unsafeNow(), s.extSelectedStartDateTimeTimeStamp) < 1000;
+      DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp) < 1000;
     const isEqualToCurrentTime = DateTime.distance(newStartDateTime,
-      s.selectedStartDateTime) === 0;
+      stateRef.current.selectedStartDateTime) === 0;
     const isEqualToPreviousTime = DateTime.distance(newStartDateTime,
-      s.prevSelectedStartDateTime) === 0;
+      stateRef.current.prevSelectedStartDateTime) === 0;
 
     if (isWithinLastSecond && (isEqualToCurrentTime || isEqualToPreviousTime)) {
       return;
@@ -527,8 +534,8 @@ export const TimeRangeSlider = ({
     const newDuration = DateTime.distanceDuration(newStartDateTime, DateTime.unsafeFromDate(dateRange.end));
 
     // Check if the values are actually different to prevent unnecessary updates
-    const currentStart = s.selectedStartDateTime;
-    const currentDuration = s.selectedDuration;
+    const currentStart = stateRef.current.selectedStartDateTime;
+    const currentDuration = stateRef.current.selectedDuration;
     const startChanged = Duration.toMillis(DateTime.distance(currentStart, newStartDateTime)) !== 0;
     const durationChanged = Duration.toMillis(currentDuration) !== Duration.toMillis(newDuration);
 
@@ -542,22 +549,36 @@ export const TimeRangeSlider = ({
         updateSource: UpdateSource.ExternalProp
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
+  }, [dateRangeStart, dateRangeEnd]); // Use memoized timestamps instead of objects
 
 
   /**
    * External updates to date range for reset prop
    */
 
+  // Memoize dateRangeForReset values to prevent unnecessary effect runs
+  const dateRangeForResetStart = useMemo(() => dateRangeForReset?.start?.getTime(), [dateRangeForReset?.start]);
+  const dateRangeForResetEnd = useMemo(() => dateRangeForReset?.end?.getTime(), [dateRangeForReset?.end]);
+
   useEffect(() => {
-    if (dateRangeForReset) {
-      const newResetStartDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-      const newResetDuration = DateTime.distanceDuration(newResetStartDateTime, DateTime.unsafeFromDate(dateRangeForReset.end));
+    if (!dateRangeForReset || !dateRangeForResetStart || !dateRangeForResetEnd) {
+      return;
+    }
+
+    const newResetStartDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+    const newResetDuration = DateTime.distanceDuration(newResetStartDateTime, DateTime.unsafeFromDate(dateRangeForReset.end));
+    
+    // Check if values actually changed to prevent unnecessary dispatches
+    const currentResetStart = stateRef.current.resetStartDateTime;
+    const currentResetDuration = stateRef.current.resetDuration;
+    const startChanged = Duration.toMillis(DateTime.distance(currentResetStart, newResetStartDateTime)) !== 0;
+    const durationChanged = Duration.toMillis(currentResetDuration) !== Duration.toMillis(newResetDuration);
+
+    if (startChanged || durationChanged) {
       d(SetResetStartDateTime({ resetStartDateTime: newResetStartDateTime }));
       d(SetResetDuration({ resetDuration: newResetDuration }));
     }
-  }, [dateRangeForReset]);
+  }, [dateRangeForResetStart, dateRangeForResetEnd]);
 
 
 
