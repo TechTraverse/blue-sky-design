@@ -423,11 +423,12 @@ export const TimeRangeSlider = ({
 
   /**
    * Vals for reducer on component init
+   * Ensure we have a valid dateRange before initializing
    */
-  const initSelectedStartDateTime = dateRange
+  const initSelectedStartDateTime = dateRange && dateRange.start && dateRange.end
     ? DateTime.unsafeFromDate(dateRange.start)
     : DateTime.unsafeFromDate(new Date());
-  const initSelectedDuration = dateRange
+  const initSelectedDuration = dateRange && dateRange.start && dateRange.end
     ? DateTime.distanceDuration(
       initSelectedStartDateTime,
       DateTime.unsafeFromDate(dateRange.end))
@@ -581,6 +582,26 @@ export const TimeRangeSlider = ({
       return;
     }
 
+    // Check if the new selection would be outside the current view and update view if needed
+    const currentViewStart = stateRef.current.viewStartDateTime;
+    const currentViewEnd = DateTime.addDuration(currentViewStart, stateRef.current.viewDuration);
+    
+    const selectionOutsideView = DateTime.lessThan(newStartDateTime, currentViewStart) || 
+                                DateTime.greaterThan(newEndDateTime, currentViewEnd);
+    
+    if (selectionOutsideView) {
+      console.log('DEBUG: Selection outside view, updating view range');
+      // Calculate new view range that encompasses the selection
+      const optimalViewStart = calculateOptimalViewStart(
+        stateRef.current.selectedStartDateTime,
+        newStartDateTime,
+        newDuration,
+        currentViewStart,
+        stateRef.current.viewDuration
+      );
+      d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+    }
+    
     d(SetSelectedStartDateTime({
       selectedStartDateTime: newStartDateTime,
       updateSource: UpdateSource.ExternalProp
