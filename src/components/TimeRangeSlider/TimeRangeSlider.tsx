@@ -410,116 +410,84 @@ export const TimeRangeSlider = ({
   };
 
   /**
-   * Vals for reducer on component init
-   * Ensure we have a valid dateRange before initializing
+   * Sanitize and calculate all initial values to work together
    */
-  const initSelectedStartDateTime = dateRange && dateRange.start && dateRange.end
-    ? DateTime.unsafeFromDate(dateRange.start)
-    : DateTime.unsafeFromDate(new Date());
-  const initSelectedDuration = dateRange && dateRange.start && dateRange.end
-    ? (() => {
-        const calculatedDuration = DateTime.distanceDuration(
-          initSelectedStartDateTime,
-          DateTime.unsafeFromDate(dateRange.end));
-        // Ensure minimum duration of 1 minute to prevent issues with very small durations
-        return Duration.toMillis(calculatedDuration) < 60000 
-          ? Duration.minutes(1) 
-          : calculatedDuration;
-      })()
-    : Duration.hours(2);
+  const sanitizeInitialValues = () => {
+    // Start with current time if no dateRange provided
+    const selectedStart = dateRange?.start 
+      ? DateTime.unsafeFromDate(dateRange.start)
+      : DateTime.unsafeFromDate(new Date());
+    
+    // Calculate duration, ensuring minimum of 1 minute
+    const selectedDuration = dateRange?.start && dateRange?.end
+      ? (() => {
+          const calculated = DateTime.distanceDuration(selectedStart, DateTime.unsafeFromDate(dateRange.end));
+          return Duration.toMillis(calculated) < 60000 ? Duration.minutes(1) : calculated;
+        })()
+      : Duration.hours(2);
+    
+    // Fixed view duration for consistency
+    const viewDuration = Duration.hours(4);
+    
+    // Center the selection in the view
+    const selectionMidpoint = DateTime.addDuration(selectedStart, Duration.millis(Duration.toMillis(selectedDuration) / 2));
+    const viewStart = roundDateTimeDownToNearestFiveMinutes(
+      DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2))
+    );
+    
+    // Reset values
+    const resetStart = dateRangeForReset?.start 
+      ? DateTime.unsafeFromDate(dateRangeForReset.start)
+      : selectedStart;
+    const resetDuration = dateRangeForReset?.start && dateRangeForReset?.end
+      ? DateTime.distanceDuration(resetStart, DateTime.unsafeFromDate(dateRangeForReset.end))
+      : selectedDuration;
+    
+    return {
+      selectedStart,
+      selectedDuration,
+      viewStart,
+      viewDuration,
+      resetStart,
+      resetDuration
+    };
+  };
 
-  // Calculate initial view duration - use a reasonable default that ensures selection is visible
-  const initViewDuration = Duration.hours(4); // Fixed duration for consistent behavior
+  const initialValues = sanitizeInitialValues();
   
-  // Always center the selection in the initial view
-  const selectionMidpoint = DateTime.addDuration(initSelectedStartDateTime, Duration.millis(Duration.toMillis(initSelectedDuration) / 2));
-  const initViewStartDateTime = roundDateTimeDownToNearestFiveMinutes(
-    DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(initViewDuration) / 2))
-  );
-
-  console.log('DEBUG: Initialization values', {
-    initSelectedStart: DateTime.toDate(initSelectedStartDateTime),
-    initSelectedDuration: Duration.toMillis(initSelectedDuration),
-    initViewStart: DateTime.toDate(initViewStartDateTime), 
-    initViewDuration: Duration.toMillis(initViewDuration)
+  console.log('DEBUG: Sanitized initialization values', {
+    selectedStart: DateTime.toDate(initialValues.selectedStart),
+    selectedDuration: Duration.toMillis(initialValues.selectedDuration),
+    viewStart: DateTime.toDate(initialValues.viewStart),
+    viewDuration: Duration.toMillis(initialValues.viewDuration)
   });
-
-  const initResetStartDateTime = dateRangeForReset
-    ? DateTime.unsafeFromDate(dateRangeForReset.start)
-    : initViewStartDateTime;
-  const initResetDuration = dateRangeForReset
-    ? DateTime.distanceDuration(
-      initResetStartDateTime, DateTime.unsafeFromDate(dateRangeForReset.end))
-    : Duration.hours(4);
 
 
   const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), null, () => {
-    // Lazy initialization - only initialize with valid data
-    // Accept same start/end times (will get minimum duration applied)
-    const hasValidDateRange = dateRange && dateRange.start && dateRange.end;
-    
-    console.log('DEBUG: Lazy initialization check', {
-      dateRange: !!dateRange,
-      start: dateRange?.start,
-      end: dateRange?.end,
-      startTime: dateRange?.start?.getTime(),
-      endTime: dateRange?.end?.getTime(),
-      hasValidDateRange
-    });
-    
-    if (hasValidDateRange) {
-      console.log('DEBUG: Lazy initialization with valid dateRange');
-      return {
-        viewStartDateTime: initViewStartDateTime,
-        viewDuration: initViewDuration,
+    // Use sanitized initial values - no branching, always consistent
+    console.log('DEBUG: Lazy initialization with sanitized values');
+    return {
+      viewStartDateTime: initialValues.viewStart,
+      viewDuration: initialValues.viewDuration,
 
-        resetStartDateTime: initResetStartDateTime,
-        resetDuration: initResetDuration,
+      resetStartDateTime: initialValues.resetStart,
+      resetDuration: initialValues.resetDuration,
 
-        selectedStartDateTime: initSelectedStartDateTime,
-        prevSelectedStartDateTime: initSelectedStartDateTime,
-        extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
-        selectedDuration: initSelectedDuration,
+      selectedStartDateTime: initialValues.selectedStart,
+      prevSelectedStartDateTime: initialValues.selectedStart,
+      extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
+      selectedDuration: initialValues.selectedDuration,
 
-        animationOrStepMode: AnimationOrStepMode.Step,
+      animationOrStepMode: AnimationOrStepMode.Step,
 
-        resetAnimationSpeed: AnimationSpeed['5 min/sec'],
-        resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
-        animationStartDateTime: initSelectedStartDateTime,
-        animationDuration: DEFAULT_ANIMATION_DURATION,
-        animationRequestFrequency,
-        animationPlayMode: PlayMode.Pause,
-        animationSpeed: AnimationSpeed['5 min/sec'],
-      };
-    } else {
-      console.log('DEBUG: Lazy initialization with default values (no valid dateRange)');
-      // Initialize with current time as fallback
-      const defaultStartTime = DateTime.unsafeFromDate(new Date());
-      const defaultViewStart = DateTime.subtractDuration(defaultStartTime, Duration.hours(2));
-      
-      return {
-        viewStartDateTime: defaultViewStart,
-        viewDuration: Duration.hours(4),
-
-        resetStartDateTime: defaultStartTime,
-        resetDuration: Duration.hours(2),
-
-        selectedStartDateTime: defaultStartTime,
-        prevSelectedStartDateTime: defaultStartTime,
-        extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
-        selectedDuration: Duration.hours(2),
-
-        animationOrStepMode: AnimationOrStepMode.Step,
-
-        resetAnimationSpeed: AnimationSpeed['5 min/sec'],
-        resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
-        animationStartDateTime: defaultStartTime,
-        animationDuration: DEFAULT_ANIMATION_DURATION,
-        animationRequestFrequency,
-        animationPlayMode: PlayMode.Pause,
-        animationSpeed: AnimationSpeed['5 min/sec'],
-      };
-    }
+      resetAnimationSpeed: AnimationSpeed['5 min/sec'],
+      resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
+      animationStartDateTime: initialValues.selectedStart,
+      animationDuration: DEFAULT_ANIMATION_DURATION,
+      animationRequestFrequency,
+      animationPlayMode: PlayMode.Pause,
+      animationSpeed: AnimationSpeed['5 min/sec'],
+    };
   });
 
 
