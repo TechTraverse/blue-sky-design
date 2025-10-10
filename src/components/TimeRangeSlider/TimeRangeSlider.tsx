@@ -560,7 +560,7 @@ export const TimeRangeSlider = ({
    */
   
   const sanitizeExternalDateRange = useMemo(() => {
-    if (!dateRange?.start || !dateRange?.end) return null;
+    if (!dateRange?.start || !dateRange?.end || !stateRef.current) return null;
     
     const startTime = dateRange.start.getTime();
     const endTime = dateRange.end.getTime();
@@ -578,7 +578,7 @@ export const TimeRangeSlider = ({
   }, [dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
 
   const sanitizeExternalDateRangeForReset = useMemo(() => {
-    if (!dateRangeForReset?.start || !dateRangeForReset?.end) return null;
+    if (!dateRangeForReset?.start || !dateRangeForReset?.end || !stateRef.current) return null;
     
     const startTime = dateRangeForReset.start.getTime();
     const endTime = dateRangeForReset.end.getTime();
