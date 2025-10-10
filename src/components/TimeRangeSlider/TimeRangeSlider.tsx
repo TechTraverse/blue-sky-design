@@ -146,38 +146,22 @@ const calculateOptimalViewStart = (
   nDuration: Duration.Duration,
   cViewStart: DateTime.DateTime,
   cViewDuration: Duration.Duration
-): DateTime.DateTime =>
-  match({ pStart, nStart, nDuration, cViewStart, cViewDuration })
-    // Selected range longer than current view, start time in middle of view
-    .when(({ nDuration, cViewDuration }) => Duration.toMillis(nDuration) > Duration.toMillis(cViewDuration), () => {
-      // Adjust view start so selected start is in middle of view
-      const midPoint = nStart;
-      const unroundedViewStart = DateTime.subtractDuration(midPoint, Duration.millis(Math.floor(Duration.toMillis(cViewDuration) / 2)));
-      const optimalViewStart = roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
-      return optimalViewStart;
-    })
-    // Previous selected range was within view, but new one is not
-    // Update so start time is in middle of new view range
-    .when(({ pStart, nStart, nDuration, cViewStart, cViewDuration }) => {
-      const pEnd = DateTime.addDuration(pStart, nDuration);
-      const nEnd = DateTime.addDuration(nStart, nDuration);
-      const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
-      const wasWithinView = DateTime.greaterThanOrEqualTo(pStart, cViewStart)
-        && DateTime.lessThanOrEqualTo(pEnd, cViewEnd);
-      const isNowOutsideView = DateTime.lessThan(nStart, cViewStart)
-        || DateTime.greaterThan(nEnd, cViewEnd);
-      return wasWithinView && isNowOutsideView;
-    }, () => {
-      // Adjust view start so selected start is in middle of view
-      const midPoint = nStart;
-      const unroundedViewStart = DateTime.subtractDuration(midPoint, Duration.millis(Math.floor(Duration.toMillis(cViewDuration) / 2)));
-
-      const optimalViewStart = roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
-      return optimalViewStart;
-    })
-    // Previous selected range was within view, and so is new one
-    // No change to view start
-    .otherwise(() => cViewStart);
+): DateTime.DateTime => {
+  // Check if new selection is outside current view
+  const nEnd = DateTime.addDuration(nStart, nDuration);
+  const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
+  const isOutsideView = DateTime.lessThan(nStart, cViewStart) || DateTime.greaterThan(nEnd, cViewEnd);
+  
+  if (isOutsideView) {
+    // Center the selection in the view
+    const selectionMidpoint = DateTime.addDuration(nStart, Duration.millis(Duration.toMillis(nDuration) / 2));
+    const unroundedViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(cViewDuration) / 2));
+    return roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
+  }
+  
+  // Selection is within view, keep current view
+  return cViewStart;
+};
 
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
   .with(P.number.lt(100), () => Duration.minutes(30))
@@ -447,12 +431,11 @@ export const TimeRangeSlider = ({
   // Calculate initial view duration - use a reasonable default that ensures selection is visible
   const initViewDuration = Duration.hours(4); // Fixed duration for consistent behavior
   
-  const initViewStartDateTime = calculateOptimalViewStart(
-    initSelectedStartDateTime,
-    initSelectedStartDateTime,
-    initSelectedDuration,
-    DateTime.subtractDuration(initSelectedStartDateTime, Duration.hours(2)),
-    initViewDuration);
+  // Always center the selection in the initial view
+  const selectionMidpoint = DateTime.addDuration(initSelectedStartDateTime, Duration.millis(Duration.toMillis(initSelectedDuration) / 2));
+  const initViewStartDateTime = roundDateTimeDownToNearestFiveMinutes(
+    DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(initViewDuration) / 2))
+  );
 
   console.log('DEBUG: Initialization values', {
     initSelectedStart: DateTime.toDate(initSelectedStartDateTime),
@@ -616,6 +599,11 @@ export const TimeRangeSlider = ({
    */
   
   useEffect(() => {
+    console.log('DEBUG: External prop effect triggered', { 
+      sanitizeExternalDateRange,
+      dateRangeStart: dateRange?.start,
+      dateRangeEnd: dateRange?.end
+    });
     if (!sanitizeExternalDateRange) return;
 
     // If animation active and playing, ignore external updates
@@ -632,6 +620,7 @@ export const TimeRangeSlider = ({
       DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp) < 1000;
     
     if (isWithinLastSecond) {
+      console.log('DEBUG: Skipping external update - within last second');
       return;
     }
 
