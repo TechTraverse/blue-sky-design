@@ -754,9 +754,23 @@ export const TimeRangeSlider = ({
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
+  // Debug: Check what state looks like
+  console.log('DEBUG: State check', {
+    selectedStartDateTime: s.selectedStartDateTime,
+    selectedDuration: s.selectedDuration,
+    viewStartDateTime: s.viewStartDateTime,
+    viewDuration: s.viewDuration,
+    selectedDurationMillis: s.selectedDuration ? Duration.toMillis(s.selectedDuration) : 'undefined'
+  });
+
   // Early return if state is not properly initialized
   if (!s.selectedStartDateTime || !s.selectedDuration || !s.viewStartDateTime || !s.viewDuration) {
-    console.warn('TimeRangeSlider: State not fully initialized, returning null');
+    console.warn('TimeRangeSlider: State not fully initialized, returning null', {
+      selectedStartDateTime: !!s.selectedStartDateTime,
+      selectedDuration: !!s.selectedDuration,
+      viewStartDateTime: !!s.viewStartDateTime,
+      viewDuration: !!s.viewDuration
+    });
     return null;
   }
 
