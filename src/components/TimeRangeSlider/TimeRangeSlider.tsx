@@ -460,27 +460,64 @@ export const TimeRangeSlider = ({
     : Duration.hours(4);
 
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), {
-    viewStartDateTime: initViewStartDateTime,
-    viewDuration: initViewDuration,
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), () => {
+    // Lazy initialization - only initialize with valid data
+    const hasValidDateRange = dateRange && dateRange.start && dateRange.end && 
+                             dateRange.start.getTime() !== dateRange.end.getTime();
+    
+    if (hasValidDateRange) {
+      console.log('DEBUG: Lazy initialization with valid dateRange');
+      return {
+        viewStartDateTime: initViewStartDateTime,
+        viewDuration: initViewDuration,
 
-    resetStartDateTime: initResetStartDateTime,
-    resetDuration: initResetDuration,
+        resetStartDateTime: initResetStartDateTime,
+        resetDuration: initResetDuration,
 
-    selectedStartDateTime: initSelectedStartDateTime,
-    prevSelectedStartDateTime: initSelectedStartDateTime,
-    extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
-    selectedDuration: initSelectedDuration,
+        selectedStartDateTime: initSelectedStartDateTime,
+        prevSelectedStartDateTime: initSelectedStartDateTime,
+        extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
+        selectedDuration: initSelectedDuration,
 
-    animationOrStepMode: AnimationOrStepMode.Step,
+        animationOrStepMode: AnimationOrStepMode.Step,
 
-    resetAnimationSpeed: AnimationSpeed['5 min/sec'],
-    resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
-    animationStartDateTime: initSelectedStartDateTime,
-    animationDuration: DEFAULT_ANIMATION_DURATION,
-    animationRequestFrequency,
-    animationPlayMode: PlayMode.Pause,
-    animationSpeed: AnimationSpeed['5 min/sec'],
+        resetAnimationSpeed: AnimationSpeed['5 min/sec'],
+        resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
+        animationStartDateTime: initSelectedStartDateTime,
+        animationDuration: DEFAULT_ANIMATION_DURATION,
+        animationRequestFrequency,
+        animationPlayMode: PlayMode.Pause,
+        animationSpeed: AnimationSpeed['5 min/sec'],
+      };
+    } else {
+      console.log('DEBUG: Lazy initialization with default values (no valid dateRange)');
+      // Initialize with current time as fallback
+      const defaultStartTime = DateTime.unsafeFromDate(new Date());
+      const defaultViewStart = DateTime.subtractDuration(defaultStartTime, Duration.hours(2));
+      
+      return {
+        viewStartDateTime: defaultViewStart,
+        viewDuration: Duration.hours(4),
+
+        resetStartDateTime: defaultStartTime,
+        resetDuration: Duration.hours(2),
+
+        selectedStartDateTime: defaultStartTime,
+        prevSelectedStartDateTime: defaultStartTime,
+        extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
+        selectedDuration: Duration.hours(2),
+
+        animationOrStepMode: AnimationOrStepMode.Step,
+
+        resetAnimationSpeed: AnimationSpeed['5 min/sec'],
+        resetAnimationDuration: DEFAULT_ANIMATION_DURATION,
+        animationStartDateTime: defaultStartTime,
+        animationDuration: DEFAULT_ANIMATION_DURATION,
+        animationRequestFrequency,
+        animationPlayMode: PlayMode.Pause,
+        animationSpeed: AnimationSpeed['5 min/sec'],
+      };
+    }
   });
 
 
