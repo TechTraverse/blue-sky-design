@@ -560,7 +560,10 @@ export const TimeRangeSlider = ({
    */
   
   const sanitizeExternalDateRange = useMemo(() => {
-    if (!dateRange?.start || !dateRange?.end || !stateRef.current) return null;
+    if (!dateRange?.start || !dateRange?.end) return null;
+    
+    // Don't process if state isn't initialized yet
+    if (!stateRef.current?.selectedStartDateTime) return null;
     
     const startTime = dateRange.start.getTime();
     const endTime = dateRange.end.getTime();
@@ -575,10 +578,13 @@ export const TimeRangeSlider = ({
     }
     
     return { startTime, endTime };
-  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
+  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime(), stateRef.current?.selectedStartDateTime]);
 
   const sanitizeExternalDateRangeForReset = useMemo(() => {
-    if (!dateRangeForReset?.start || !dateRangeForReset?.end || !stateRef.current) return null;
+    if (!dateRangeForReset?.start || !dateRangeForReset?.end) return null;
+    
+    // Don't process if state isn't initialized yet
+    if (!stateRef.current?.resetStartDateTime) return null;
     
     const startTime = dateRangeForReset.start.getTime();
     const endTime = dateRangeForReset.end.getTime();
@@ -593,7 +599,7 @@ export const TimeRangeSlider = ({
     }
     
     return { startTime, endTime };
-  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime()]);
+  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime(), stateRef.current?.resetStartDateTime]);
 
   /**
    * External updates to the date range prop
