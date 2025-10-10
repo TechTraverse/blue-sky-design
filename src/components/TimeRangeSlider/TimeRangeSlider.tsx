@@ -376,6 +376,10 @@ export const TimeRangeSlider = ({
 
   // Utility functions for timezone conversion
   const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
+    if (!dt) {
+      console.warn('convertDateTimeForDisplay received undefined DateTime, using current time');
+      dt = DateTime.unsafeNow();
+    }
     const timestamp = DateTime.toEpochMillis(dt);
     const jsDate = new Date(timestamp);
 
@@ -429,9 +433,15 @@ export const TimeRangeSlider = ({
     ? DateTime.unsafeFromDate(dateRange.start)
     : DateTime.unsafeFromDate(new Date());
   const initSelectedDuration = dateRange && dateRange.start && dateRange.end
-    ? DateTime.distanceDuration(
-      initSelectedStartDateTime,
-      DateTime.unsafeFromDate(dateRange.end))
+    ? (() => {
+        const calculatedDuration = DateTime.distanceDuration(
+          initSelectedStartDateTime,
+          DateTime.unsafeFromDate(dateRange.end));
+        // Ensure minimum duration of 1 minute to prevent issues with very small durations
+        return Duration.toMillis(calculatedDuration) < 60000 
+          ? Duration.minutes(1) 
+          : calculatedDuration;
+      })()
     : Duration.hours(2);
 
   // Calculate initial view duration - use a reasonable default that ensures selection is visible
@@ -744,6 +754,12 @@ export const TimeRangeSlider = ({
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
+  // Early return if state is not properly initialized
+  if (!s.selectedStartDateTime || !s.selectedDuration || !s.viewStartDateTime || !s.viewDuration) {
+    console.warn('TimeRangeSlider: State not fully initialized, returning null');
+    return null;
+  }
+
   return (
     <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
       <div className={`${className} time-range-slider`}>
@@ -772,7 +788,7 @@ export const TimeRangeSlider = ({
               }
               : {
                 start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZoneString),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZoneString),
                 set: (r: RangeValue<DateTime.DateTime>) => {
                   const convertedStart = convertDateTimeFromDisplay(r.start, timeZoneString);
                   const convertedEnd = convertDateTimeFromDisplay(r.end, timeZoneString);
@@ -785,12 +801,12 @@ export const TimeRangeSlider = ({
                     updateSource: UpdateSource.UserInteraction
                   }));
                 },
-                duration: s.selectedDuration
+                duration: s.selectedDuration || Duration.hours(2)
               }}
             subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? [{
                 start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration), timeZoneString),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZoneString),
                 active: true,
               }]
               : []}
