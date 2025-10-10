@@ -470,7 +470,7 @@ export const TimeRangeSlider = ({
     : Duration.hours(4);
 
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), () => {
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), null, () => {
     // Lazy initialization - only initialize with valid data
     const hasValidDateRange = dateRange && dateRange.start && dateRange.end && 
                              dateRange.start.getTime() !== dateRange.end.getTime();
