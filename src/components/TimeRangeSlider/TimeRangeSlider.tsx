@@ -455,8 +455,17 @@ export const TimeRangeSlider = ({
 
   const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), null, () => {
     // Lazy initialization - only initialize with valid data
-    const hasValidDateRange = dateRange && dateRange.start && dateRange.end && 
-                             dateRange.start.getTime() !== dateRange.end.getTime();
+    // Accept same start/end times (will get minimum duration applied)
+    const hasValidDateRange = dateRange && dateRange.start && dateRange.end;
+    
+    console.log('DEBUG: Lazy initialization check', {
+      dateRange: !!dateRange,
+      start: dateRange?.start,
+      end: dateRange?.end,
+      startTime: dateRange?.start?.getTime(),
+      endTime: dateRange?.end?.getTime(),
+      hasValidDateRange
+    });
     
     if (hasValidDateRange) {
       console.log('DEBUG: Lazy initialization with valid dateRange');
