@@ -279,7 +279,10 @@ export const HorizontalCalendar = ({
   }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme]);
 
   const handleSliderClick = (clickValue: number) => {
-    const clickedDateTime = DateTime.unsafeFromDate(new Date(clickValue));
+    const adjustedClickValue = timeZone === TimeZone.Local
+      ? clickValue - zonedOffsetMillis
+      : clickValue;
+    const clickedDateTime = DateTime.unsafeFromDate(new Date(adjustedClickValue));
 
     match({ isStepMode, clickValue, primaryRange, subRanges })
       .with({ isStepMode: true }, () => {
