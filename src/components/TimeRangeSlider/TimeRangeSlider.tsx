@@ -85,6 +85,10 @@ type Action = D.TaggedEnum<{
     selectedDuration: Duration.Duration;
     updateSource: UpdateSource;
   };
+  ExtSetSelectedDuration: {
+    selectedDuration: Duration.Duration;
+    updateSource: UpdateSource;
+  };
 
   SetAnimationOrStepMode:
   { animationOrStepMode: AnimationOrStepMode; };
@@ -107,6 +111,7 @@ const {
   $match: $actionMatch,
 
   SetTimeZone,
+  ExtSetTimeZone,
   SetViewStartDateTime,
   SetViewDuration,
 
@@ -114,7 +119,9 @@ const {
   SetResetDuration,
 
   SetSelectedStartDateTime,
+  ExtSetSelectedStartDateTime,
   SetSelectedDuration,
+  ExtSetSelectedDuration,
 
   SetAnimationOrStepMode,
 
@@ -228,6 +235,25 @@ const getSetSelectedStartDateTimeAction = (state: State) => (x: {
   }
 }
 
+const getSetSelectedDurationAction = (state: State) => (x: {
+  selectedDuration: Duration.Duration;
+}) => {
+  // Calculate optimal view range with new duration
+  const viewStartDateTime = calculateOptimalViewStart(
+    state.selectedStartDateTime,
+    state.selectedStartDateTime,
+    x.selectedDuration,
+    state.viewStartDateTime,
+    state.viewDuration
+  );
+
+  return {
+    ...state,
+    viewStartDateTime,
+    selectedDuration: x.selectedDuration,
+  };
+}
+
 const reducer = (state: State, action: Action): State =>
   $actionMatch({
     SetTimeZone: (x) => ({
@@ -260,22 +286,9 @@ const reducer = (state: State, action: Action): State =>
 
     SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
     ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
-    SetSelectedDuration: (x) => {
-      // Calculate optimal view range with new duration
-      const viewStartDateTime = calculateOptimalViewStart(
-        state.selectedStartDateTime,
-        state.selectedStartDateTime,
-        x.selectedDuration,
-        state.viewStartDateTime,
-        state.viewDuration
-      );
 
-      return {
-        ...state,
-        viewStartDateTime,
-        selectedDuration: x.selectedDuration,
-      };
-    },
+    SetSelectedDuration: getSetSelectedDurationAction(state),
+    ExtSetSelectedDuration: getSetSelectedDurationAction(state),
 
     SetAnimationOrStepMode: (x) => ({
       ...state,
@@ -498,243 +511,87 @@ export const TimeRangeSlider = ({
     };
   }, []);
 
-
   /**
-   * Sanitation layer for external prop values
-   * Prevents unnecessary state updates from external prop changes
+   * External prop change handlers
    */
 
-  const sanitizeExternalDateRange = useMemo(() => {
-    if (!dateRange?.start || !dateRange?.end) return null;
+  // Update selectedStartDateTime
+  useEffect(() => {
+    match(dateRange?.start)
+      .with(P.instanceOf(Date),
+        (x) => {
+          const dtStart = DateTime.unsafeFromDate(x);
+          return DateTime.distance(dtStart, s.selectedStartDateTime) !== 0
+        }, (x) => {
+          d(ExtSetSelectedStartDateTime({
+            selectedStartDateTime: DateTime.unsafeFromDate(x),
+            updateSource: UpdateSource.ExternalProp
+          }));
+        })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange?.start]);
 
-    const startTime = dateRange.start.getTime();
-    const endTime = dateRange.end.getTime();
+  // Update selectedDuration
+  useEffect(() => {
+    match(dateRange)
+      .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
+        ({ start, end }) => {
+          const dtStart = DateTime.unsafeFromDate(start);
+          const dtEnd = DateTime.unsafeFromDate(end);
+          const newDuration = DateTime.distanceDuration(dtStart, dtEnd);
+          return newDuration !== s.selectedDuration
+        }, (x) => {
+          d(ExtSetSelectedDuration({
+            selectedDuration: DateTime.distanceDuration(
+              DateTime.unsafeFromDate(x.start),
+              DateTime.unsafeFromDate(x.end)),
+            updateSource: UpdateSource.ExternalProp
+          }));
+        })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange?.start, dateRange?.end]);
 
-    // Don't process if state isn't initialized yet
-    if (!stateRef.current?.selectedStartDateTime) {
-      console.log('DEBUG: State not initialized, but will process external date range on first render');
-      return { startTime, endTime }; // Allow initial sync
-    }
-
-    // Compare with current state to see if we actually need to update
-    const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
-    const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
-
-    console.log('DEBUG: Comparing external vs current dates', {
-      external: { startTime, endTime },
-      current: { startTime: currentStartTime, endTime: currentEndTime }
-    });
-
-    // Only return new values if they're actually different
-    if (startTime === currentStartTime && endTime === currentEndTime) {
-      console.log('DEBUG: External dates match current state, no update needed');
-      return null; // No change needed
-    }
-
-    console.log('DEBUG: External dates differ from current state, will update');
-    return { startTime, endTime };
-  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime(), stateRef.current?.selectedStartDateTime]);
-
-  const sanitizeExternalDateRangeForReset = useMemo(() => {
-    if (!dateRangeForReset?.start || !dateRangeForReset?.end) return null;
-
-    // Don't process if state isn't initialized yet
-    if (!stateRef.current?.resetStartDateTime) return null;
-
-    const startTime = dateRangeForReset.start.getTime();
-    const endTime = dateRangeForReset.end.getTime();
-
-    // Compare with current state to see if we actually need to update
-    const currentResetStartTime = DateTime.toEpochMillis(stateRef.current.resetStartDateTime);
-    const currentResetEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.resetStartDateTime, stateRef.current.resetDuration));
-
-    // Only return new values if they're actually different
-    if (startTime === currentResetStartTime && endTime === currentResetEndTime) {
-      return null; // No change needed
-    }
-
-    return { startTime, endTime };
-  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime(), stateRef.current?.resetStartDateTime]);
-
-  /**
-   * External updates to the date range prop
-   */
+  // The same thing but for the reset time and duration
+  useEffect(() => {
+    match(dateRangeForReset?.start)
+      .with(P.instanceOf(Date),
+        (x) => {
+          const dtStart = DateTime.unsafeFromDate(x);
+          return DateTime.distance(dtStart, s.resetStartDateTime) !== 0
+        }, (x) => {
+          d(SetResetStartDateTime({ resetStartDateTime: DateTime.unsafeFromDate(x) }));
+        })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRangeForReset?.start]);
 
   useEffect(() => {
-    console.log('DEBUG: External prop effect triggered', {
-      sanitizeExternalDateRange,
-      dateRangeStart: dateRange?.start,
-      dateRangeEnd: dateRange?.end
-    });
-    if (!sanitizeExternalDateRange) return;
+    match(dateRangeForReset)
+      .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
+        ({ start, end }) => {
+          const dtStart = DateTime.unsafeFromDate(start);
+          const dtEnd = DateTime.unsafeFromDate(end);
+          const newDuration = DateTime.distanceDuration(dtStart, dtEnd);
+          return newDuration !== s.resetDuration
+        }, (x) => {
+          d(SetResetDuration({
+            resetDuration: DateTime.distanceDuration(
+              DateTime.unsafeFromDate(x.start),
+              DateTime.unsafeFromDate(x.end))
+          }));
+        })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRangeForReset?.start, dateRangeForReset?.end]);
 
-    // If animation active and playing, ignore external updates
-    if (stateRef.current.animationOrStepMode === AnimationOrStepMode.Animation
-      && stateRef.current.animationPlayMode === PlayMode.Play)
-      return;
-
-    const newStartDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRange.startTime));
-    const newEndDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRange.endTime));
-    const newDuration = DateTime.distanceDuration(newStartDateTime, newEndDateTime);
-
-    // Additional timing-based protection against rapid updates
-    // Allow initial sync by checking if this would be the first meaningful update
-    const timeSinceLastUpdate = DateTime.distance(
-      DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp);
-    const isWithinLastSecond = timeSinceLastUpdate < 1000;
-
-    // Check if this is the initial sync (external dates different from current state)
-    const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
-    const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
-    const isInitialSync = sanitizeExternalDateRange.startTime !== currentStartTime || sanitizeExternalDateRange.endTime !== currentEndTime;
-
-    if (isWithinLastSecond && !isInitialSync) {
-      console.log('DEBUG: Skipping external update - within last second and not initial sync', { timeSinceLastUpdate, isInitialSync });
-      return;
-    }
-
-    // Check if the new selection would be outside the current view and update view if needed
-    const currentViewStart = stateRef.current.viewStartDateTime;
-    const currentViewEnd = DateTime.addDuration(currentViewStart, stateRef.current.viewDuration);
-
-    const selectionOutsideView = DateTime.lessThan(newStartDateTime, currentViewStart) ||
-      DateTime.greaterThan(newEndDateTime, currentViewEnd);
-
-    if (selectionOutsideView) {
-      console.log('DEBUG: Selection outside view, updating view range');
-      // Calculate new view range that encompasses the selection
-      const optimalViewStart = calculateOptimalViewStart(
-        stateRef.current.selectedStartDateTime,
-        newStartDateTime,
-        newDuration,
-        currentViewStart,
-        stateRef.current.viewDuration
-      );
-      // Only update if the new view start is significantly different (more than 1 minute)
-      const timeDiff = Math.abs(DateTime.toEpochMillis(optimalViewStart) - DateTime.toEpochMillis(currentViewStart));
-      if (timeDiff > 60000) { // 1 minute threshold
-        d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
-      }
-    }
-
-    d(SetSelectedStartDateTime({
-      selectedStartDateTime: newStartDateTime,
-      updateSource: UpdateSource.ExternalProp
-    }));
-    d(SetSelectedDuration({
-      selectedDuration: newDuration,
-      updateSource: UpdateSource.ExternalProp
-    }));
-  }, [sanitizeExternalDateRange]);
-
-
-  /**
-   * External updates to date range for reset prop
-   */
-
+  // timeZone prop change
   useEffect(() => {
-    if (!sanitizeExternalDateRangeForReset) return;
-
-    const newResetStartDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRangeForReset.startTime));
-    const newResetEndDateTime = DateTime.unsafeFromDate(new Date(sanitizeExternalDateRangeForReset.endTime));
-    const newResetDuration = DateTime.distanceDuration(newResetStartDateTime, newResetEndDateTime);
-
-    d(SetResetStartDateTime({ resetStartDateTime: newResetStartDateTime }));
-    d(SetResetDuration({ resetDuration: newResetDuration }));
-  }, [sanitizeExternalDateRangeForReset]);
-
-
-
-  /**
-   * Update selected date if animation active and playing
-   */
-
-  // Add ref to track current animation timeout
-  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    // Clear any existing animation timeout
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current);
-      animationTimeoutRef.current = null;
+    if (timeZone !== s.timeZone) {
+      d(ExtSetTimeZone({ timeZone }));
     }
-
-    if (s.animationOrStepMode !== AnimationOrStepMode.Animation
-      || s.animationPlayMode !== PlayMode.Play)
-      return;
-
-    // Animation operates within the overall animation duration
-    // The selected range moves by its own duration for each step
-    const animationStart = s.animationStartDateTime;
-    const animationEnd = DateTime.addDuration(animationStart, s.animationDuration);
-    const maxSelectedStart = DateTime.subtractDuration(animationEnd, s.selectedDuration);
-
-    // Calculate the time increment per animation frame
-    // animationSpeed is in milliseconds per second, animationRequestFrequency is frame rate in ms
-    const timeIncrementPerFrame = Duration.millis(Math.abs(s.animationSpeed) * (s.animationRequestFrequency / 1000));
-
-    const selectedStartDateTime: DateTime.DateTime = match(s.animationSpeed)
-      // Forward animation
-      .when((x) => x > 0, () =>
-        DateTime.addDuration(s.selectedStartDateTime, timeIncrementPerFrame).pipe((x) => DateTime.greaterThan(DateTime.addDuration(x, s.selectedDuration), DateTime.addDuration(animationStart, s.animationDuration)) ?
-          animationStart : x))
-      // Backward animation
-      .otherwise(() =>
-        DateTime.subtractDuration(s.selectedStartDateTime, timeIncrementPerFrame).pipe((x) => DateTime.lessThan(x, animationStart) ?
-          maxSelectedStart : x));
-
-    const action = () => {
-      // Check if animation is still playing when the delayed action executes
-      const currentState = stateRef.current;
-      if (currentState.animationOrStepMode === AnimationOrStepMode.Animation && currentState.animationPlayMode === PlayMode.Play) {
-        d(SetSelectedStartDateTime({ selectedStartDateTime, updateSource: UpdateSource.UserInteraction }));
-      }
-      animationTimeoutRef.current = null; // Clear ref when animation completes
-    };
-
-    // Use setTimeout instead of Effect.js for better control
-    animationTimeoutRef.current = setTimeout(action, s.animationRequestFrequency);
-
-    // Cleanup function to cancel pending animation when dependencies change
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-        animationTimeoutRef.current = null;
-      }
-    };
-  }, [
-    s.animationOrStepMode,
-    s.animationPlayMode,
-    s.animationSpeed,
-    s.animationRequestFrequency,
-    s.selectedStartDateTime,
-    s.animationStartDateTime,
-    s.animationDuration,
-    s.selectedDuration
-  ]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeZone]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
-  // Debug: Check what state looks like
-  console.log('DEBUG: State check', {
-    selectedStartDateTime: s.selectedStartDateTime,
-    selectedDuration: s.selectedDuration,
-    viewStartDateTime: s.viewStartDateTime,
-    viewDuration: s.viewDuration,
-    selectedDurationMillis: s.selectedDuration ? Duration.toMillis(s.selectedDuration) : 'undefined'
-  });
-
-  // Early return if state is not properly initialized
-  if (!s.selectedStartDateTime || !s.selectedDuration || !s.viewStartDateTime || !s.viewDuration) {
-    console.warn('TimeRangeSlider: State not fully initialized, returning null', {
-      selectedStartDateTime: !!s.selectedStartDateTime,
-      selectedDuration: !!s.selectedDuration,
-      viewStartDateTime: !!s.viewStartDateTime,
-      viewDuration: !!s.viewDuration
-    });
-    return null;
-  }
 
   return (
     <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
