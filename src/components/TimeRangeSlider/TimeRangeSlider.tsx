@@ -1,7 +1,7 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef, useState, useMemo } from 'react';
+import { useEffect, useReducer, useRef, useMemo } from 'react';
 import type { RangeValue } from "@react-types/shared";
-import { DateTime, Data as D, Duration, Effect as E } from 'effect';
+import { DateTime, Data as D, Duration } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
@@ -31,6 +31,7 @@ enum UpdateSource {
 }
 
 type State = {
+  timeZone: TimeZone;
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
   viewDuration: Duration.Duration;
@@ -63,6 +64,9 @@ type State = {
  */
 
 type Action = D.TaggedEnum<{
+  SetTimeZone: { timeZone: TimeZone; };
+  ExtSetTimeZone: { timeZone: TimeZone; };
+
   SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
   SetViewDuration: { viewDuration: Duration.Duration; };
 
@@ -70,6 +74,10 @@ type Action = D.TaggedEnum<{
   { resetStartDateTime: DateTime.DateTime; };
   SetResetDuration: { resetDuration: Duration.Duration; };
 
+  ExtSetSelectedStartDateTime: {
+    selectedStartDateTime: DateTime.DateTime;
+    updateSource: UpdateSource;
+  };
   SetSelectedStartDateTime: {
     selectedStartDateTime: DateTime.DateTime;
     updateSource: UpdateSource;
@@ -151,14 +159,14 @@ const calculateOptimalViewStart = (
   const nEnd = DateTime.addDuration(nStart, nDuration);
   const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
   const isOutsideView = DateTime.lessThan(nStart, cViewStart) || DateTime.greaterThan(nEnd, cViewEnd);
-  
+
   if (isOutsideView) {
     // Center the selection in the view
     const selectionMidpoint = DateTime.addDuration(nStart, Duration.millis(Duration.toMillis(nDuration) / 2));
     const unroundedViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(cViewDuration) / 2));
     return roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
   }
-  
+
   // Selection is within view, keep current view
   return cViewStart;
 };
@@ -183,8 +191,54 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
  * State management: reducer
  */
 
+const getSetSelectedStartDateTimeAction = (state: State) => (x: {
+  selectedStartDateTime: DateTime.DateTime;
+  updateSource: UpdateSource;
+}) => {
+  const start = x.selectedStartDateTime;
+
+  // Calculate optimal view range with 5-minute alignment and padding
+  const optimalViewStart = calculateOptimalViewStart(
+    state.selectedStartDateTime, // Old start
+    start,
+    state.selectedDuration,
+    state.viewStartDateTime,
+    state.viewDuration
+  );
+
+  // Only update view range if selected date + duration goes outside current view range
+  // Check if the selection is outside the current view
+  const selectedEnd = DateTime.addDuration(start, state.selectedDuration);
+  const currentViewEnd = DateTime.addDuration(state.viewStartDateTime, state.viewDuration);
+
+  const selectionStartOutsideView = DateTime.lessThan(start, state.viewStartDateTime);
+  const selectionEndOutsideView = DateTime.greaterThan(selectedEnd, currentViewEnd);
+
+  // Only adjust view if selection is actually outside the current view
+  const viewStartDateTime = (selectionStartOutsideView || selectionEndOutsideView)
+    ? optimalViewStart
+    : state.viewStartDateTime;
+
+  return {
+    ...state,
+    viewStartDateTime,
+    prevSelectedStartDateTime: state.selectedStartDateTime,
+    selectedStartDateTime: start,
+    extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
+  }
+}
+
 const reducer = (state: State, action: Action): State =>
   $actionMatch({
+    SetTimeZone: (x) => ({
+      ...state,
+      timeZone: x.timeZone,
+    }),
+    ExtSetTimeZone: (x) => ({
+      ...state,
+      timeZone: x.timeZone,
+    }),
+
     SetViewStartDateTime: (x) => ({
       ...state,
       viewStartDateTime:
@@ -204,39 +258,8 @@ const reducer = (state: State, action: Action): State =>
       resetDuration: x.resetDuration,
     }),
 
-    SetSelectedStartDateTime: (x) => {
-      const start = x.selectedStartDateTime;
-
-      // Calculate optimal view range with 5-minute alignment and padding
-      const optimalViewStart = calculateOptimalViewStart(
-        state.selectedStartDateTime, // Old start
-        start,
-        state.selectedDuration,
-        state.viewStartDateTime,
-        state.viewDuration
-      );
-
-      // Only update view range if selected date + duration goes outside current view range
-      // Check if the selection is outside the current view
-      const selectedEnd = DateTime.addDuration(start, state.selectedDuration);
-      const currentViewEnd = DateTime.addDuration(state.viewStartDateTime, state.viewDuration);
-      
-      const selectionStartOutsideView = DateTime.lessThan(start, state.viewStartDateTime);
-      const selectionEndOutsideView = DateTime.greaterThan(selectedEnd, currentViewEnd);
-      
-      // Only adjust view if selection is actually outside the current view
-      const viewStartDateTime = (selectionStartOutsideView || selectionEndOutsideView) 
-        ? optimalViewStart 
-        : state.viewStartDateTime;
-
-      return {
-        ...state,
-        viewStartDateTime,
-        prevSelectedStartDateTime: state.selectedStartDateTime,
-        selectedStartDateTime: start,
-        extSelectedStartDateTimeTimeStamp: DateTime.unsafeNow(),
-      }
-    },
+    SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
+    ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
     SetSelectedDuration: (x) => {
       // Calculate optimal view range with new duration
       const viewStartDateTime = calculateOptimalViewStart(
@@ -301,31 +324,35 @@ const reducer = (state: State, action: Action): State =>
 
 
 /**
- * Middleware for streaming dispatch state updates
+ * Middleware for executing external side-effects
  */
 
 function withMiddleware(
   reducer: (state: State, action: Action) => State,
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
+  onTimeZoneChange?: (timeZone: TimeZone) => void
 ): (state: State, action: Action) => State {
-  return (state, action) => {
-    const newState = reducer(state, action);
-
-    // Side-effect: Call callback for user interactions that change selected date range
-    match(action)
-      .with({
-        _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration"),
-        updateSource: UpdateSource.UserInteraction
-      }, () => {
+  return (oldState, action) => {
+    // Determine latest state
+    const newState = reducer(oldState, action);
+    match(action._tag)
+      .with("SetSelectedStartDateTime", () => {
         const start = newState.selectedStartDateTime;
         const end = DateTime.addDuration(start, newState.selectedDuration);
-        onDateRangeSelect({
-          start: DateTime.toDate(start),
-          end: DateTime.toDate(end)
-        });
-      })
-      .otherwise(() => { /* No action needed */ });
 
+        const startChanged = DateTime.distance(oldState.selectedStartDateTime, newState.selectedStartDateTime) !== 0;
+        const durationChanged = Duration.toMillis(oldState.selectedDuration) !== Duration.toMillis(newState.selectedDuration);
+
+        if (startChanged || durationChanged) {
+          onDateRangeSelect({
+            start: DateTime.toDate(start),
+            end: DateTime.toDate(end)
+          });
+        }
+      })
+      .with("SetTimeZone", () => (newState.timeZone !== oldState.timeZone),
+        () => onTimeZoneChange?.(newState.timeZone)
+      )
     return newState;
   };
 }
@@ -349,36 +376,27 @@ export const TimeRangeSlider = ({
   // Note: Dark theme is now handled via component-scoped CSS classes
   // No need for body class manipulation in embedded components
 
-  // Convert external TimeZone enum to string format for internal use
-  const timeZoneString: 'local' | 'utc' = timeZone === TimeZone.Local ? 'local' : 'utc';
-  
-  // Handle timezone changes and notify parent
-  const handleTimeZoneChange = (newTimeZone: 'local' | 'utc') => {
-    const newTimeZoneEnum = newTimeZone === 'local' ? TimeZone.Local : TimeZone.UTC;
-    onTimeZoneChange?.(newTimeZoneEnum);
-  };
-
   // Utility functions for timezone conversion
-  const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
+  const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: TimeZone): DateTime.DateTime => {
     if (!dt) {
       console.warn('convertDateTimeForDisplay received undefined DateTime, using current time');
       dt = DateTime.unsafeNow();
     }
-    
+
     // Since the DateTime values are already in the correct timezone for internal storage,
-    // we should just return them as-is for display purposes. The HorizontalCalendar 
+    // we should just return them as-is for display purposes. The HorizontalCalendar
     // will handle the actual display formatting.
     console.log('DEBUG: convertDateTimeForDisplay - returning as-is', {
       input: DateTime.toDate(dt),
       tz
     });
-    
+
     return dt;
   };
 
   // Convert user input back from display timezone to stored timezone
   const convertDateTimeFromDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
-    if (tz === 'utc') {
+    if (tz === TimeZone.UTC) {
       // User entered UTC time - create a Date in UTC and convert to DateTime
       const parts = DateTime.toParts(dt);
       const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, parts.seconds, parts.millis));
@@ -396,44 +414,44 @@ export const TimeRangeSlider = ({
    */
   const sanitizeInitialValues = () => {
     // Start with current time if no dateRange provided
-    const selectedStart = dateRange?.start 
+    const selectedStart = dateRange?.start
       ? DateTime.unsafeFromDate(dateRange.start)
       : DateTime.unsafeFromDate(new Date());
-    
+
     // Calculate duration, ensuring minimum of 1 minute
     const selectedDuration = dateRange?.start && dateRange?.end
       ? (() => {
-          const calculated = DateTime.distanceDuration(selectedStart, DateTime.unsafeFromDate(dateRange.end));
-          return Duration.toMillis(calculated) < 60000 ? Duration.minutes(1) : calculated;
-        })()
+        const calculated = DateTime.distanceDuration(selectedStart, DateTime.unsafeFromDate(dateRange.end));
+        return Duration.toMillis(calculated) < 60000 ? Duration.minutes(1) : calculated;
+      })()
       : Duration.hours(2);
-    
+
     // Fixed view duration for consistency
     const viewDuration = Duration.hours(4);
-    
+
     // Reset values (determine valid date boundaries first)
-    const resetStart = dateRangeForReset?.start 
+    const resetStart = dateRangeForReset?.start
       ? DateTime.unsafeFromDate(dateRangeForReset.start)
       : selectedStart;
     const resetDuration = dateRangeForReset?.start && dateRangeForReset?.end
       ? DateTime.distanceDuration(resetStart, DateTime.unsafeFromDate(dateRangeForReset.end))
       : selectedDuration;
-    
+
     // Calculate view start, ensuring it encompasses the selection and respects reset boundaries
     let viewStart: DateTime.DateTime;
-    
+
     if (dateRangeForReset?.start && dateRangeForReset?.end) {
       // If we have reset boundaries, constrain the view
       const resetEnd = DateTime.unsafeFromDate(dateRangeForReset.end);
-      const selectedEnd = DateTime.addDuration(selectedStart, selectedDuration);
-      
+      // const selectedEnd = DateTime.addDuration(selectedStart, selectedDuration);
+
       // Center the selection in the view, but don't go beyond reset boundaries
       const selectionMidpoint = DateTime.addDuration(selectedStart, Duration.millis(Duration.toMillis(selectedDuration) / 2));
       const idealViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2));
-      
+
       // Ensure view doesn't extend beyond reset boundaries
       const viewEnd = DateTime.addDuration(idealViewStart, viewDuration);
-      
+
       if (DateTime.greaterThan(viewEnd, resetEnd)) {
         // If ideal view would extend past reset end, align view end with reset end
         viewStart = roundDateTimeDownToNearestFiveMinutes(
@@ -453,7 +471,7 @@ export const TimeRangeSlider = ({
         DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2))
       );
     }
-    
+
     return {
       selectedStart,
       selectedDuration,
@@ -465,12 +483,12 @@ export const TimeRangeSlider = ({
   };
 
   const initialValues = sanitizeInitialValues();
-  
+
   console.log('DEBUG: Props received', {
     dateRange,
     dateRangeForReset
   });
-  
+
   console.log('DEBUG: Sanitized initialization values', {
     selectedStart: DateTime.toDate(initialValues.selectedStart),
     selectedDuration: Duration.toMillis(initialValues.selectedDuration),
@@ -479,7 +497,7 @@ export const TimeRangeSlider = ({
   });
 
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect), null, () => {
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, onTimeZoneChange), null, () => {
     // Use sanitized initial values - no branching, always consistent
     console.log('DEBUG: Lazy initialization with sanitized values');
     return {
@@ -544,65 +562,65 @@ export const TimeRangeSlider = ({
    * Sanitation layer for external prop values
    * Prevents unnecessary state updates from external prop changes
    */
-  
+
   const sanitizeExternalDateRange = useMemo(() => {
     if (!dateRange?.start || !dateRange?.end) return null;
-    
+
     const startTime = dateRange.start.getTime();
     const endTime = dateRange.end.getTime();
-    
+
     // Don't process if state isn't initialized yet
     if (!stateRef.current?.selectedStartDateTime) {
       console.log('DEBUG: State not initialized, but will process external date range on first render');
       return { startTime, endTime }; // Allow initial sync
     }
-    
+
     // Compare with current state to see if we actually need to update
     const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
     const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
-    
+
     console.log('DEBUG: Comparing external vs current dates', {
       external: { startTime, endTime },
       current: { startTime: currentStartTime, endTime: currentEndTime }
     });
-    
+
     // Only return new values if they're actually different
     if (startTime === currentStartTime && endTime === currentEndTime) {
       console.log('DEBUG: External dates match current state, no update needed');
       return null; // No change needed
     }
-    
+
     console.log('DEBUG: External dates differ from current state, will update');
     return { startTime, endTime };
   }, [dateRange?.start?.getTime(), dateRange?.end?.getTime(), stateRef.current?.selectedStartDateTime]);
 
   const sanitizeExternalDateRangeForReset = useMemo(() => {
     if (!dateRangeForReset?.start || !dateRangeForReset?.end) return null;
-    
+
     // Don't process if state isn't initialized yet
     if (!stateRef.current?.resetStartDateTime) return null;
-    
+
     const startTime = dateRangeForReset.start.getTime();
     const endTime = dateRangeForReset.end.getTime();
-    
+
     // Compare with current state to see if we actually need to update
     const currentResetStartTime = DateTime.toEpochMillis(stateRef.current.resetStartDateTime);
     const currentResetEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.resetStartDateTime, stateRef.current.resetDuration));
-    
+
     // Only return new values if they're actually different
     if (startTime === currentResetStartTime && endTime === currentResetEndTime) {
       return null; // No change needed
     }
-    
+
     return { startTime, endTime };
   }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime(), stateRef.current?.resetStartDateTime]);
 
   /**
    * External updates to the date range prop
    */
-  
+
   useEffect(() => {
-    console.log('DEBUG: External prop effect triggered', { 
+    console.log('DEBUG: External prop effect triggered', {
       sanitizeExternalDateRange,
       dateRangeStart: dateRange?.start,
       dateRangeEnd: dateRange?.end
@@ -623,12 +641,12 @@ export const TimeRangeSlider = ({
     const timeSinceLastUpdate = DateTime.distance(
       DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp);
     const isWithinLastSecond = timeSinceLastUpdate < 1000;
-    
+
     // Check if this is the initial sync (external dates different from current state)
     const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
     const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
     const isInitialSync = sanitizeExternalDateRange.startTime !== currentStartTime || sanitizeExternalDateRange.endTime !== currentEndTime;
-    
+
     if (isWithinLastSecond && !isInitialSync) {
       console.log('DEBUG: Skipping external update - within last second and not initial sync', { timeSinceLastUpdate, isInitialSync });
       return;
@@ -637,10 +655,10 @@ export const TimeRangeSlider = ({
     // Check if the new selection would be outside the current view and update view if needed
     const currentViewStart = stateRef.current.viewStartDateTime;
     const currentViewEnd = DateTime.addDuration(currentViewStart, stateRef.current.viewDuration);
-    
-    const selectionOutsideView = DateTime.lessThan(newStartDateTime, currentViewStart) || 
-                                DateTime.greaterThan(newEndDateTime, currentViewEnd);
-    
+
+    const selectionOutsideView = DateTime.lessThan(newStartDateTime, currentViewStart) ||
+      DateTime.greaterThan(newEndDateTime, currentViewEnd);
+
     if (selectionOutsideView) {
       console.log('DEBUG: Selection outside view, updating view range');
       // Calculate new view range that encompasses the selection
@@ -657,7 +675,7 @@ export const TimeRangeSlider = ({
         d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
       }
     }
-    
+
     d(SetSelectedStartDateTime({
       selectedStartDateTime: newStartDateTime,
       updateSource: UpdateSource.ExternalProp
@@ -791,11 +809,11 @@ export const TimeRangeSlider = ({
             isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
             primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? {
-                start: convertDateTimeForDisplay(s.animationStartDateTime, timeZoneString),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZoneString),
+                start: convertDateTimeForDisplay(s.animationStartDateTime, timeZone),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.animationStartDateTime, s.animationDuration), timeZone),
                 set: (r: RangeValue<DateTime.DateTime>) => {
-                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZoneString);
-                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZoneString);
+                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
+                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
                   d(SetAnimationStartDateTime({ animationStartDateTime: convertedStart }));
                   d(SetAnimationDuration({
                     animationDuration: DateTime.distanceDuration(convertedStart, convertedEnd)
@@ -804,53 +822,53 @@ export const TimeRangeSlider = ({
                 duration: s.animationDuration
               }
               : (() => {
-                const startForDisplay = convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString);
-                const endForDisplay = convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZoneString);
+                const startForDisplay = convertDateTimeForDisplay(s.selectedStartDateTime, timeZone);
+                const endForDisplay = convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZone);
                 console.log('DEBUG: Primary range being passed to HorizontalCalendar', {
                   start: DateTime.toDate(startForDisplay),
                   end: DateTime.toDate(endForDisplay),
                   originalStart: DateTime.toDate(s.selectedStartDateTime),
                   originalEnd: DateTime.toDate(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2))),
-                  timeZoneString
+                  timeZone
                 });
                 return {
                   start: startForDisplay,
                   end: endForDisplay,
                   set: (r: RangeValue<DateTime.DateTime>) => {
-                  const convertedStart = convertDateTimeFromDisplay(r.start, timeZoneString);
-                  const convertedEnd = convertDateTimeFromDisplay(r.end, timeZoneString);
-                  d(SetSelectedStartDateTime({
-                    selectedStartDateTime: convertedStart,
-                    updateSource: UpdateSource.UserInteraction
-                  }));
-                  d(SetSelectedDuration({
-                    selectedDuration: DateTime.distanceDuration(convertedStart, convertedEnd),
-                    updateSource: UpdateSource.UserInteraction
-                  }));
-                },
-                duration: s.selectedDuration || Duration.hours(2)
+                    const convertedStart = convertDateTimeFromDisplay(r.start, timeZone);
+                    const convertedEnd = convertDateTimeFromDisplay(r.end, timeZone);
+                    d(SetSelectedStartDateTime({
+                      selectedStartDateTime: convertedStart,
+                      updateSource: UpdateSource.UserInteraction
+                    }));
+                    d(SetSelectedDuration({
+                      selectedDuration: DateTime.distanceDuration(convertedStart, convertedEnd),
+                      updateSource: UpdateSource.UserInteraction
+                    }));
+                  },
+                  duration: s.selectedDuration || Duration.hours(2)
                 };
               })()}
             subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? [{
-                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZoneString),
+                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZone),
+                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZone),
                 active: true,
               }]
               : []}
             viewRange={{
-              start: convertDateTimeForDisplay(s.viewStartDateTime, timeZoneString),
-              end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZoneString)
+              start: convertDateTimeForDisplay(s.viewStartDateTime, timeZone),
+              end: convertDateTimeForDisplay(DateTime.addDuration(s.viewStartDateTime, s.viewDuration), timeZone)
             }}
             onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
-              const convertedDate = convertDateTimeFromDisplay(date, timeZoneString);
+              const convertedDate = convertDateTimeFromDisplay(date, timeZone);
               d(SetSelectedStartDateTime({
                 selectedStartDateTime: convertedDate,
                 updateSource: UpdateSource.UserInteraction
               }));
             }}
             onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
-              const convertedDate = convertDateTimeFromDisplay(date, timeZoneString);
+              const convertedDate = convertDateTimeFromDisplay(date, timeZone);
               d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
             }}
             onPauseAnimation={() => {
@@ -859,7 +877,7 @@ export const TimeRangeSlider = ({
             animationSpeed={s.animationSpeed}
             theme={theme}
             dateRangeForReset={dateRangeForReset}
-            timeZone={timeZoneString}
+            timeZone={timeZone}
           />
         </div>
         <NextDateButton onClick={() => {
@@ -878,8 +896,8 @@ export const TimeRangeSlider = ({
           returnToDefaultDateTime={() => {
             d(ResetAll());
           }}
-          timeZone={timeZoneString}
-          onTimeZoneChange={handleTimeZoneChange}
+          timeZone={timeZone}
+          onTimeZoneChange={(tz: TimeZone) => d(SetTimeZone({ timeZone: tz }))}
           rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
             ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
           setRange={

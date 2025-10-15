@@ -282,20 +282,23 @@ export const TimeRangeSlider = ({
   /**
    * Core state update functions
    */
-  const updateSelectedRange = useCallback((start: DateTime.DateTime, duration: Duration.Duration) => {
+  const updateSelectedRange = useCallback((start: DateTime.DateTime, duration: Duration.Duration, skipViewUpdate?: boolean) => {
     setState(prev => {
-      // Calculate new view range if selection is outside current view
-      const currentViewEnd = DateTime.addDuration(prev.viewStart, prev.viewDuration);
-      const newEnd = DateTime.addDuration(start, duration);
-      
       let newViewStart = prev.viewStart;
       let newViewDuration = prev.viewDuration;
       
-      // Check if selection is outside view
-      if (DateTime.lessThan(start, prev.viewStart) || DateTime.greaterThan(newEnd, currentViewEnd)) {
-        const viewCalc = calculateViewRange(start, duration, prev.resetStart, prev.resetDuration);
-        newViewStart = viewCalc.viewStart;
-        newViewDuration = viewCalc.viewDuration;
+      // Only update view if not skipping and not in animation mode
+      if (!skipViewUpdate && prev.animationMode !== AnimationOrStepMode.Animation) {
+        // Calculate new view range if selection is outside current view
+        const currentViewEnd = DateTime.addDuration(prev.viewStart, prev.viewDuration);
+        const newEnd = DateTime.addDuration(start, duration);
+        
+        // Check if selection is outside view
+        if (DateTime.lessThan(start, prev.viewStart) || DateTime.greaterThan(newEnd, currentViewEnd)) {
+          const viewCalc = calculateViewRange(start, duration, prev.resetStart, prev.resetDuration);
+          newViewStart = viewCalc.viewStart;
+          newViewDuration = viewCalc.viewDuration;
+        }
       }
       
       return {
@@ -336,9 +339,21 @@ export const TimeRangeSlider = ({
       setState(prev => {
         if (!prev.animationPlaying) return prev;
         
+        // Animation speed is in milliseconds per second
+        // animationRequestFrequency is the interval between frames in milliseconds
+        // So the increment per frame should be: (speed in ms/sec) * (frame_interval in ms / 1000ms/sec)
         const timeIncrement = Duration.millis(Math.abs(prev.animationSpeed) * (animationRequestFrequency / 1000));
         const animationEnd = DateTime.addDuration(prev.animationStart, prev.animationDuration);
         const maxSelectedStart = DateTime.subtractDuration(animationEnd, prev.selectedDuration);
+        
+        console.log('Animation step:', {
+          currentSelected: DateTime.toDate(prev.selectedStart),
+          animationStart: DateTime.toDate(prev.animationStart),
+          animationEnd: DateTime.toDate(animationEnd),
+          maxSelectedStart: DateTime.toDate(maxSelectedStart),
+          timeIncrement: Duration.toMillis(timeIncrement),
+          animationSpeed: prev.animationSpeed
+        });
         
         let newSelectedStart: DateTime.DateTime;
         
@@ -347,8 +362,10 @@ export const TimeRangeSlider = ({
           newSelectedStart = DateTime.addDuration(prev.selectedStart, timeIncrement);
           
           // Check bounds - if we'd go past the animation end, loop back to start
-          if (DateTime.greaterThan(DateTime.addDuration(newSelectedStart, prev.selectedDuration), animationEnd)) {
+          const newSelectedEnd = DateTime.addDuration(newSelectedStart, prev.selectedDuration);
+          if (DateTime.greaterThan(newSelectedEnd, animationEnd)) {
             newSelectedStart = prev.animationStart;
+            console.log('Animation looped back to start');
           }
         } else {
           // Backward animation
@@ -357,8 +374,14 @@ export const TimeRangeSlider = ({
           // Check bounds - if we'd go before the animation start, loop back to end
           if (DateTime.lessThan(newSelectedStart, prev.animationStart)) {
             newSelectedStart = maxSelectedStart;
+            console.log('Animation looped back to end');
           }
         }
+        
+        console.log('Animation new position:', {
+          newSelected: DateTime.toDate(newSelectedStart),
+          moved: DateTime.toEpochMillis(newSelectedStart) !== DateTime.toEpochMillis(prev.selectedStart)
+        });
         
         // Update both internal state and notify parent
         const newState = { ...prev, selectedStart: newSelectedStart };
@@ -415,34 +438,79 @@ export const TimeRangeSlider = ({
           const resetEnd = DateTime.addDuration(prev.resetStart, prev.resetDuration);
           const proposedAnimationEnd = DateTime.addDuration(animationStart, animationDuration);
           
-          // If animation would exceed boundaries, adjust it
-          if (DateTime.greaterThan(proposedAnimationEnd, resetEnd)) {
-            // Bump animation back to fit within valid dates
-            const maxValidStart = DateTime.subtractDuration(resetEnd, animationDuration);
-            if (DateTime.greaterThan(maxValidStart, prev.resetStart)) {
-              animationStart = maxValidStart;
-              console.log('Animation range adjusted to fit within valid dates:', {
-                originalStart: DateTime.toDate(prev.selectedStart),
-                adjustedStart: DateTime.toDate(animationStart),
-                animationEnd: DateTime.toDate(DateTime.addDuration(animationStart, animationDuration)),
-                resetEnd: DateTime.toDate(resetEnd)
-              });
-            } else {
-              // If we can't fit the full animation duration, reduce it
-              animationDuration = DateTime.distanceDuration(prev.resetStart, resetEnd);
+          // Check if animation would exceed boundaries
+          if (DateTime.greaterThan(proposedAnimationEnd, resetEnd) || DateTime.lessThan(animationStart, prev.resetStart)) {
+            // Try to shift the animation window to fit within boundaries
+            if (DateTime.greaterThan(proposedAnimationEnd, resetEnd)) {
+              // Animation extends past end - shift it back
+              const maxValidStart = DateTime.subtractDuration(resetEnd, animationDuration);
+              if (DateTime.greaterThanOrEqualTo(maxValidStart, prev.resetStart)) {
+                animationStart = maxValidStart;
+                console.log('Animation range shifted back to fit within valid dates:', {
+                  originalStart: DateTime.toDate(prev.selectedStart),
+                  shiftedStart: DateTime.toDate(animationStart),
+                  animationEnd: DateTime.toDate(DateTime.addDuration(animationStart, animationDuration)),
+                  resetEnd: DateTime.toDate(resetEnd)
+                });
+              } else {
+                // Can't fit full duration - reduce it
+                animationDuration = DateTime.distanceDuration(prev.resetStart, resetEnd);
+                animationStart = prev.resetStart;
+                console.log('Animation duration reduced to fit within valid dates');
+              }
+            } else if (DateTime.lessThan(animationStart, prev.resetStart)) {
+              // Animation starts before valid range - shift it forward
               animationStart = prev.resetStart;
-              console.log('Animation duration reduced to fit within valid dates');
+              const newAnimationEnd = DateTime.addDuration(animationStart, animationDuration);
+              if (DateTime.greaterThan(newAnimationEnd, resetEnd)) {
+                // Still extends past end after shifting - reduce duration
+                animationDuration = DateTime.distanceDuration(prev.resetStart, resetEnd);
+                console.log('Animation shifted forward and duration reduced to fit within valid dates');
+              } else {
+                console.log('Animation range shifted forward to fit within valid dates:', {
+                  originalStart: DateTime.toDate(prev.selectedStart),
+                  shiftedStart: DateTime.toDate(animationStart),
+                  animationEnd: DateTime.toDate(DateTime.addDuration(animationStart, animationDuration))
+                });
+              }
             }
           }
         } else {
           console.log('No meaningful reset boundaries - allowing full 2-hour animation range');
         }
         
+        // Calculate view that encompasses the animation range if needed
+        let newViewStart = prev.viewStart;
+        let newViewDuration = prev.viewDuration;
+        
+        const animationEnd = DateTime.addDuration(animationStart, animationDuration);
+        const currentViewEnd = DateTime.addDuration(prev.viewStart, prev.viewDuration);
+        
+        // Only update view if animation range extends outside current view
+        if (DateTime.lessThan(animationStart, prev.viewStart) || DateTime.greaterThan(animationEnd, currentViewEnd)) {
+          const combinedStart = DateTime.lessThan(prev.selectedStart, animationStart) ? prev.selectedStart : animationStart;
+          const selectedEnd = DateTime.addDuration(prev.selectedStart, prev.selectedDuration);
+          const combinedEnd = DateTime.greaterThan(selectedEnd, animationEnd) ? selectedEnd : animationEnd;
+          const combinedDuration = DateTime.distanceDuration(combinedStart, combinedEnd);
+          
+          const viewCalc = calculateViewRange(combinedStart, combinedDuration, prev.resetStart, prev.resetDuration);
+          newViewStart = viewCalc.viewStart;
+          newViewDuration = viewCalc.viewDuration;
+          
+          console.log('One-time view update for animation range:', {
+            oldView: { start: DateTime.toDate(prev.viewStart), end: DateTime.toDate(currentViewEnd) },
+            newView: { start: DateTime.toDate(newViewStart), end: DateTime.toDate(DateTime.addDuration(newViewStart, newViewDuration)) },
+            animationRange: { start: DateTime.toDate(animationStart), end: DateTime.toDate(animationEnd) }
+          });
+        }
+
         const newState = {
           ...prev,
           animationMode: AnimationOrStepMode.Animation,
           animationStart,
-          animationDuration
+          animationDuration,
+          viewStart: newViewStart,
+          viewDuration: newViewDuration
         };
         
         console.log('Setting animation state:', {
