@@ -133,27 +133,10 @@ const calculateViewRange = (
   const selectionMidpoint = DateTime.addDuration(selectedStart, Duration.millis(Duration.toMillis(selectedDuration) / 2));
   let viewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2));
   
-  console.log('calculateViewRange debug:', {
-    selectedStart: dateTimeToDate(selectedStart),
-    selectedDuration: Duration.toMillis(selectedDuration),
-    selectionMidpoint: dateTimeToDate(selectionMidpoint),
-    calculatedViewStart: dateTimeToDate(viewStart),
-    resetStart: resetStart ? dateTimeToDate(resetStart) : null
-  });
-  
   // Only apply constraints if they make sense (selected date should be within reset range)
   if (resetStart && resetDuration) {
     const resetEnd = DateTime.addDuration(resetStart, resetDuration);
     const idealViewEnd = DateTime.addDuration(viewStart, viewDuration);
-    
-    console.log('Checking reset constraints:', {
-      resetStart: dateTimeToDate(resetStart),
-      resetEnd: dateTimeToDate(resetEnd),
-      selectedStart: dateTimeToDate(selectedStart),
-      idealViewStart: dateTimeToDate(viewStart),
-      idealViewEnd: dateTimeToDate(idealViewEnd),
-      selectedIsWithinResetRange: DateTime.greaterThanOrEqualTo(selectedStart, resetStart) && DateTime.lessThanOrEqualTo(selectedStart, resetEnd)
-    });
     
     // Only apply constraints if the selected date is actually within the reset range
     // If not, ignore the constraints (they're probably wrong)
@@ -162,18 +145,13 @@ const calculateViewRange = (
     if (selectedIsWithinResetRange) {
       if (DateTime.greaterThan(idealViewEnd, resetEnd)) {
         viewStart = DateTime.subtractDuration(resetEnd, viewDuration);
-        console.log('Adjusted viewStart to fit reset boundary:', dateTimeToDate(viewStart));
       } else if (DateTime.lessThan(viewStart, resetStart)) {
         viewStart = resetStart;
-        console.log('Adjusted viewStart to reset start:', dateTimeToDate(viewStart));
       }
-    } else {
-      console.log('Selected date is outside reset range, ignoring constraints');
     }
   }
   
   const finalViewStart = roundToFiveMinutes(viewStart);
-  console.log('Final viewStart after rounding:', dateTimeToDate(finalViewStart));
   
   return {
     viewStart: finalViewStart,
@@ -214,8 +192,9 @@ const createInitialState = (
     selectedDuration,
     viewStart,
     viewDuration,
-    resetStart: resetStart || selectedStart,
-    resetDuration: resetDuration || selectedDuration,
+    // Use sensible fallbacks for reset boundaries - don't constrain animation to selected range
+    resetStart: resetStart || DateTime.subtractDuration(selectedStart, Duration.hours(12)),
+    resetDuration: resetDuration || Duration.hours(24),
     animationMode: AnimationOrStepMode.Step,
     animationPlaying: false,
     animationStart: selectedStart,
@@ -364,26 +343,38 @@ export const TimeRangeSlider = ({
         let newSelectedStart: DateTime.DateTime;
         
         if (prev.animationSpeed > 0) {
-          // Forward
+          // Forward animation
           newSelectedStart = DateTime.addDuration(prev.selectedStart, timeIncrement);
+          
+          // Check bounds - if we'd go past the animation end, loop back to start
           if (DateTime.greaterThan(DateTime.addDuration(newSelectedStart, prev.selectedDuration), animationEnd)) {
-            newSelectedStart = prev.animationStart; // Loop back
+            newSelectedStart = prev.animationStart;
           }
         } else {
-          // Backward
+          // Backward animation
           newSelectedStart = DateTime.subtractDuration(prev.selectedStart, timeIncrement);
+          
+          // Check bounds - if we'd go before the animation start, loop back to end
           if (DateTime.lessThan(newSelectedStart, prev.animationStart)) {
-            newSelectedStart = maxSelectedStart; // Loop back
+            newSelectedStart = maxSelectedStart;
           }
         }
         
-        // Update selection (this will also notify parent)
-        setTimeout(() => updateSelectedRange(newSelectedStart, prev.selectedDuration), 0);
+        // Update both internal state and notify parent
+        const newState = { ...prev, selectedStart: newSelectedStart };
         
-        return { ...prev, selectedStart: newSelectedStart };
+        // Async update to parent to avoid state conflicts
+        setTimeout(() => {
+          onDateRangeSelect({
+            start: dateTimeToDate(newSelectedStart),
+            end: dateTimeToDate(DateTime.addDuration(newSelectedStart, prev.selectedDuration))
+          });
+        }, 0);
+        
+        return newState;
       });
     }, animationRequestFrequency);
-  }, [animationRequestFrequency, updateSelectedRange]);
+  }, [animationRequestFrequency, onDateRangeSelect]);
   
   const stopAnimation = useCallback(() => {
     if (animationRef.current) {
@@ -406,11 +397,68 @@ export const TimeRangeSlider = ({
    * Animation mode and control handlers
    */
   const handleAnimationModeChange = useCallback((enabled: boolean) => {
-    setState(prev => ({ ...prev, animationMode: enabled ? AnimationOrStepMode.Animation : AnimationOrStepMode.Step }));
-    if (!enabled) {
+    if (enabled) {
+      // When enabling animation, set up proper animation range with boundary guards
+      setState(prev => {
+        let animationStart = prev.selectedStart;
+        let animationDuration = DEFAULT_ANIMATION_DURATION;
+        
+        // Only apply strict boundary constraints if explicit reset boundaries were provided
+        // and they're actually different from the selected range (meaningful constraints)
+        const hasExplicitResetBoundaries = dateRangeForReset?.start && dateRangeForReset?.end;
+        const resetRangeIsMeaningful = hasExplicitResetBoundaries && (
+          DateTime.toEpochMillis(prev.resetStart) !== DateTime.toEpochMillis(prev.selectedStart) ||
+          Duration.toMillis(prev.resetDuration) !== Duration.toMillis(prev.selectedDuration)
+        );
+        
+        if (resetRangeIsMeaningful && prev.resetStart && prev.resetDuration) {
+          const resetEnd = DateTime.addDuration(prev.resetStart, prev.resetDuration);
+          const proposedAnimationEnd = DateTime.addDuration(animationStart, animationDuration);
+          
+          // If animation would exceed boundaries, adjust it
+          if (DateTime.greaterThan(proposedAnimationEnd, resetEnd)) {
+            // Bump animation back to fit within valid dates
+            const maxValidStart = DateTime.subtractDuration(resetEnd, animationDuration);
+            if (DateTime.greaterThan(maxValidStart, prev.resetStart)) {
+              animationStart = maxValidStart;
+              console.log('Animation range adjusted to fit within valid dates:', {
+                originalStart: DateTime.toDate(prev.selectedStart),
+                adjustedStart: DateTime.toDate(animationStart),
+                animationEnd: DateTime.toDate(DateTime.addDuration(animationStart, animationDuration)),
+                resetEnd: DateTime.toDate(resetEnd)
+              });
+            } else {
+              // If we can't fit the full animation duration, reduce it
+              animationDuration = DateTime.distanceDuration(prev.resetStart, resetEnd);
+              animationStart = prev.resetStart;
+              console.log('Animation duration reduced to fit within valid dates');
+            }
+          }
+        } else {
+          console.log('No meaningful reset boundaries - allowing full 2-hour animation range');
+        }
+        
+        const newState = {
+          ...prev,
+          animationMode: AnimationOrStepMode.Animation,
+          animationStart,
+          animationDuration
+        };
+        
+        console.log('Setting animation state:', {
+          animationMode: newState.animationMode,
+          animationStart: DateTime.toDate(newState.animationStart),
+          animationEnd: DateTime.toDate(DateTime.addDuration(newState.animationStart, newState.animationDuration)),
+          animationDuration: Duration.toMillis(newState.animationDuration)
+        });
+        
+        return newState;
+      });
+    } else {
+      setState(prev => ({ ...prev, animationMode: AnimationOrStepMode.Step }));
       stopAnimation();
     }
-  }, [stopAnimation]);
+  }, [stopAnimation, dateRangeForReset]);
   
   const handlePlayModeChange = useCallback((mode: PlayMode) => {
     if (mode === PlayMode.Play) {
@@ -459,7 +507,7 @@ export const TimeRangeSlider = ({
   // Render ranges for HorizontalCalendar
   const primaryRange = useMemo(() => {
     if (state.animationMode === AnimationOrStepMode.Animation) {
-      return {
+      const animationRange = {
         start: convertDateTimeForDisplay(state.animationStart, timeZoneString),
         end: convertDateTimeForDisplay(DateTime.addDuration(state.animationStart, state.animationDuration), timeZoneString),
         set: (r: RangeValue<DateTime.DateTime>) => {
@@ -473,8 +521,16 @@ export const TimeRangeSlider = ({
         },
         duration: state.animationDuration
       };
+      
+      console.log('Animation mode primary range:', {
+        start: DateTime.toDate(animationRange.start),
+        end: DateTime.toDate(animationRange.end),
+        duration: Duration.toMillis(animationRange.duration)
+      });
+      
+      return animationRange;
     } else {
-      return {
+      const selectedRange = {
         start: convertDateTimeForDisplay(state.selectedStart, timeZoneString),
         end: convertDateTimeForDisplay(DateTime.addDuration(state.selectedStart, state.selectedDuration), timeZoneString),
         set: (r: RangeValue<DateTime.DateTime>) => {
@@ -485,6 +541,14 @@ export const TimeRangeSlider = ({
         },
         duration: state.selectedDuration
       };
+      
+      console.log('Step mode primary range:', {
+        start: DateTime.toDate(selectedRange.start),
+        end: DateTime.toDate(selectedRange.end),
+        duration: Duration.toMillis(selectedRange.duration)
+      });
+      
+      return selectedRange;
     }
   }, [state, updateSelectedRange, timeZoneString]);
   
@@ -508,7 +572,10 @@ export const TimeRangeSlider = ({
     selectedStart: dateTimeToDate(state.selectedStart),
     selectedDuration: Duration.toMillis(state.selectedDuration),
     viewStart: dateTimeToDate(state.viewStart),
-    animationPlaying: state.animationPlaying
+    animationMode: state.animationMode,
+    animationPlaying: state.animationPlaying,
+    animationStart: state.animationMode === AnimationOrStepMode.Animation ? dateTimeToDate(state.animationStart) : null,
+    animationEnd: state.animationMode === AnimationOrStepMode.Animation ? dateTimeToDate(DateTime.addDuration(state.animationStart, state.animationDuration)) : null
   });
   
   return (
