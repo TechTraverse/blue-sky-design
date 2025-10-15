@@ -61,9 +61,9 @@ enum SliderActive {
 export const HorizontalCalendar = ({
   timeZone,
   increment,
-  primaryRange,
+  primaryRange: _primaryRange,
   viewRange: _viewRange,
-  subRanges,
+  subRanges: _subRanges,
   isStepMode = false,
   onSetSelectedStartDateTime,
   onSetAnimationStartDateTime,
@@ -87,11 +87,11 @@ export const HorizontalCalendar = ({
 }) => {
 
   const zonedOffsetMillis = useMemo(() => timeZone === TimeZone.Local
-    ? primaryRange.start.pipe(
+    ? _primaryRange.start.pipe(
       x => DateTime.setZone(x, DateTime.zoneMakeLocal()),
       DateTime.zonedOffset
     )
-    : 0, [primaryRange.start, timeZone]);
+    : 0, [_primaryRange.start, timeZone]);
 
   const viewRange = useMemo(() => timeZone === TimeZone.Local
     ? ({
@@ -100,7 +100,20 @@ export const HorizontalCalendar = ({
     })
     : _viewRange, [_viewRange, timeZone, zonedOffsetMillis]);
 
+  const primaryRange = useMemo(() => timeZone === TimeZone.Local
+    ? ({
+      start: DateTime.add(_primaryRange.start, { millis: zonedOffsetMillis }),
+      end: DateTime.add(_primaryRange.end, { millis: zonedOffsetMillis })
+    })
+    : _primaryRange, [_primaryRange, timeZone, zonedOffsetMillis]);
 
+  const subRanges = useMemo(() => timeZone === TimeZone.Local && _subRanges
+    ? _subRanges.map(r => ({
+      ...r,
+      start: DateTime.add(r.start, { millis: zonedOffsetMillis }),
+      end: DateTime.add(r.end, { millis: zonedOffsetMillis })
+    }))
+    : _subRanges, [_subRanges, timeZone, zonedOffsetMillis]);
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
