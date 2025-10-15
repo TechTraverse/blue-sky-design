@@ -14,7 +14,7 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
   returnToDefaultDateTime?: () => void;
-  timeZone: 'local' | 'utc';
+  timeZone: TimeZone;
   onTimeZoneChange: (timeZone: TimeZone) => void;
   rangeValue?: TimeDuration;
   setRange?: (timeDuration: TimeDuration) => void;
@@ -104,10 +104,10 @@ const SliderDatePicker = <T extends DateValue>(
                 size="small"
                 className="calendar-timezone-toggle"
               >
-                <ToggleButton value="local" aria-label="Show times in local timezone">
+                <ToggleButton value={TimeZone.Local} aria-label="Show times in local timezone">
                   Local
                 </ToggleButton>
-                <ToggleButton value="utc" aria-label="Show times in UTC timezone">
+                <ToggleButton value={TimeZone.UTC} aria-label="Show times in UTC timezone">
                   UTC
                 </ToggleButton>
               </ToggleButtonGroup>
@@ -165,7 +165,7 @@ export const DateAndRangeSelect = ({
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   returnToDefaultDateTime?: () => void,
-  timeZone: 'local' | 'utc',
+  timeZone: TimeZone,
   onTimeZoneChange: (timeZone: TimeZone) => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,

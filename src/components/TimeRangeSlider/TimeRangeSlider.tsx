@@ -628,7 +628,7 @@ export const TimeRangeSlider = ({
                   end: DateTime.toDate(endForDisplay),
                   originalStart: DateTime.toDate(s.selectedStartDateTime),
                   originalEnd: DateTime.toDate(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2))),
-                  timeZone
+                  timeZone: s.timeZone
                 });
                 return {
                   start: startForDisplay,
@@ -675,8 +675,6 @@ export const TimeRangeSlider = ({
             }}
             animationSpeed={s.animationSpeed}
             theme={theme}
-            dateRangeForReset={dateRangeForReset}
-            timeZone={timeZone}
           />
         </div>
         <NextDateButton onClick={() => {
@@ -695,7 +693,7 @@ export const TimeRangeSlider = ({
           returnToDefaultDateTime={() => {
             d(ResetAll());
           }}
-          timeZone={timeZone}
+          timeZone={s.timeZone}
           onTimeZoneChange={(tz: TimeZone) => d(SetTimeZone({ timeZone: tz }))}
           rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
             ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
