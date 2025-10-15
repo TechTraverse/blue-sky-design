@@ -2,8 +2,8 @@ import "./horizontalCalendar.css";
 import { DateTime } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
-import { useEffect, useRef, useState } from "react";
-import { type PrimaryRange, type SubRange, AnimationSpeed, Theme as AppTheme } from "./timeSliderTypes";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type PrimaryRange, type SubRange, AnimationSpeed, Theme as AppTheme, TimeDuration, TimeZone } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match } from "ts-pattern";
@@ -30,33 +30,12 @@ type Step = {
   label: React.ReactNode
   value: number;
 }
-// Round timestamp to nearest 5-minute boundary
-const roundToFiveMinutes = (timestamp: number): number => {
-  const date = new Date(timestamp);
-  const minutes = date.getMinutes();
-  const roundedMinutes = Math.floor(minutes / 5) * 5;
-  
-  const roundedDate = new Date(date);
-  roundedDate.setMinutes(roundedMinutes, 0, 0); // Also reset seconds and milliseconds
-  return roundedDate.getTime();
-};
-
 const createStepsOverRange = (start: number, end: number, step: number): Step[] => {
   const steps: Step[] = [];
-  
-  // Round start to the nearest 5-minute boundary (floor)
-  const alignedStart = roundToFiveMinutes(start);
-  
-  // Create steps on 5-minute boundaries
-  const fiveMinutesMs = 5 * 60 * 1000; // 5 minutes in milliseconds
-  
-  for (let i = alignedStart; i <= end; i += fiveMinutesMs) {
-    const dateTime = DateTime.unsafeFromDate(new Date(i));
-    const minutes = DateTime.getPart(dateTime, "minutes");
-    const hours = DateTime.getPart(dateTime, "hours");
-    
+  for (let i = start; i <= end; i += step) {
+    const minutes = DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "minutes");
     const label = minutes === 0
-      ? <div className="hour-marks">{hours.toString()}</div>
+      ? <div className="hour-marks">{DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "hours").toString()}</div>
       : minutes % 10 === 0
         ? <div className="minute-marks">{minutes.toString()}</div>
         : <div className="blank-marks" />;
@@ -80,9 +59,10 @@ enum SliderActive {
 }
 
 export const HorizontalCalendar = ({
+  timeZone,
   increment,
   primaryRange,
-  viewRange,
+  viewRange: _viewRange,
   subRanges,
   isStepMode = false,
   onSetSelectedStartDateTime,
@@ -91,9 +71,8 @@ export const HorizontalCalendar = ({
   animationPlayMode,
   animationSpeed,
   theme = AppTheme.Light,
-  dateRangeForReset,
-  timeZone,
 }: {
+  timeZone: TimeZone,
   increment?: number,
   primaryRange: PrimaryRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
@@ -105,53 +84,26 @@ export const HorizontalCalendar = ({
   animationPlayMode?: string,
   animationSpeed?: AnimationSpeed,
   theme?: AppTheme,
-  dateRangeForReset?: RangeValue<Date>,
-  timeZone?: 'local' | 'utc',
 }) => {
+
+  const zonedOffsetMillis = useMemo(() => timeZone === TimeZone.Local
+    ? primaryRange.start.pipe(
+      x => DateTime.setZone(x, DateTime.zoneMakeLocal()),
+      DateTime.zonedOffset
+    )
+    : 0, [primaryRange.start, timeZone]);
+
+  const viewRange = useMemo(() => timeZone === TimeZone.Local
+    ? ({
+      start: DateTime.add(_viewRange.start, { millis: zonedOffsetMillis }),
+      end: DateTime.add(_viewRange.end, { millis: zonedOffsetMillis })
+    })
+    : _viewRange, [_viewRange, timeZone, zonedOffsetMillis]);
+
+
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
-  const [isPhantomSelection, setIsPhantomSelection] = useState<boolean>(false);
-
-  // Timezone conversion utility (same as in TimeRangeSlider)
-  const convertDateTimeForDisplay = (dt: DateTime.DateTime, tz: 'local' | 'utc'): DateTime.DateTime => {
-    const timestamp = DateTime.toEpochMillis(dt);
-    const jsDate = new Date(timestamp);
-
-    if (tz === 'utc') {
-      // Show UTC time for the same moment
-      const utcParts = {
-        year: jsDate.getUTCFullYear(),
-        month: jsDate.getUTCMonth() + 1,
-        day: jsDate.getUTCDate(),
-        hours: jsDate.getUTCHours(),
-        minutes: jsDate.getUTCMinutes(),
-        seconds: jsDate.getUTCSeconds(),
-        millis: jsDate.getUTCMilliseconds()
-      };
-      return DateTime.unsafeMake(utcParts);
-    } else {
-      // Show local time for the same moment
-      const localParts = {
-        year: jsDate.getFullYear(),
-        month: jsDate.getMonth() + 1,
-        day: jsDate.getDate(),
-        hours: jsDate.getHours(),
-        minutes: jsDate.getMinutes(),
-        seconds: jsDate.getSeconds(),
-        millis: jsDate.getMilliseconds()
-      };
-      return DateTime.unsafeMake(localParts);
-    }
-  };
-
-  // Calculate max allowed slider value from dateRangeForReset with timezone conversion
-  const maxAllowedValue = dateRangeForReset && timeZone
-    ? DateTime.toEpochMillis(convertDateTimeForDisplay(
-        DateTime.unsafeFromDate(dateRangeForReset.start), 
-        timeZone
-      ))
-    : undefined;
 
   // Theme-aware colors that align with wlfs-client palette
   const getThemeColors = (currentTheme: AppTheme) => {
@@ -180,6 +132,7 @@ export const HorizontalCalendar = ({
 
   const colors = getThemeColors(theme);
 
+
   /**
    * View range and step settings
    */
@@ -205,7 +158,7 @@ export const HorizontalCalendar = ({
         DateTime.toEpochMillis(viewRange.end),
         increment || 10 * 60 * 1000)
     });
-  }, [viewRange, increment]);
+  }, [viewRange, increment, timeZone]);
 
   /**
    * Selected date range settings and slider active udpates
@@ -230,7 +183,6 @@ export const HorizontalCalendar = ({
           DateTime.toEpochMillis(primaryRange.end)
         ]);
         setSliderActive(SliderActive.Active)
-        setIsPhantomSelection(false)
       })
       .with([true, false], () => {
         setSliderSelectedDateRange([
@@ -238,7 +190,6 @@ export const HorizontalCalendar = ({
           DateTime.toEpochMillis(viewRange.end)
         ]);
         setSliderActive(SliderActive.LeftActive)
-        setIsPhantomSelection(false)
       })
       .with([false, true], () => {
         setSliderSelectedDateRange([
@@ -246,14 +197,11 @@ export const HorizontalCalendar = ({
           DateTime.toEpochMillis(primaryRange.end)
         ]);
         setSliderActive(SliderActive.RightActive)
-        setIsPhantomSelection(false)
       })
       .with([false, false], () => {
-        // Selection is completely outside view - create phantom selection spanning full view
         setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
         DateTime.toEpochMillis(viewRange.end)])
-        setSliderActive(SliderActive.Active)
-        setIsPhantomSelection(true)
+        setSliderActive(SliderActive.Inactive)
       })
       .exhaustive();
   }, [primaryRange, viewRange]);
@@ -281,10 +229,7 @@ export const HorizontalCalendar = ({
   useEffect(() => {
     const selectionStart = sliderSelectedDateRange[0];
     const selectionEnd = sliderSelectedDateRange[1];
-    const viewStart = DateTime.toEpochMillis(viewRange.start);
-    const viewEnd = DateTime.toEpochMillis(viewRange.end);
-    
-    let gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
+    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
       const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
       const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
       if (active) {
@@ -296,25 +241,17 @@ export const HorizontalCalendar = ({
       return acc;
     }, "linear-gradient(to right");
 
-    // Add disabled section beyond dateRangeForReset
-    let railBackground = `${colors.primary}`;
-    if (maxAllowedValue && maxAllowedValue < viewEnd) {
-      const maxAllowedPercent = Math.max(0, Math.min(100, ((maxAllowedValue - viewStart) / (viewEnd - viewStart)) * 100));
-      railBackground = `linear-gradient(to right, ${colors.primary} 0% ${maxAllowedPercent}%, #ccc ${maxAllowedPercent}% 100%)`;
-    }
-
     setSliderSx({
       '& .MuiSlider-track': {
-        background: isPhantomSelection ? 'transparent' : (gradient.includes('red') ? gradient : colors.select),
-        opacity: isPhantomSelection ? '0' : '1',
+        background: gradient.includes('red') ? gradient : colors.select,
       },
       '& .MuiSlider-rail': {
         cursor: 'pointer',
-        background: `${railBackground} !important`,
+        backgroundColor: `${colors.primary} !important`,
         opacity: '1 !important',
       },
       '&.MuiSlider-root .MuiSlider-rail': {
-        background: `${railBackground} !important`,
+        backgroundColor: `${colors.primary} !important`,
         opacity: '1 !important',
       },
       '& .MuiSlider-mark': {
@@ -326,22 +263,17 @@ export const HorizontalCalendar = ({
         opacity: '1 !important',
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme, maxAllowedValue, viewRange, timeZone, isPhantomSelection]);
+  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme]);
 
   const handleSliderClick = (clickValue: number) => {
-    // Prevent clicks beyond the max allowed value
-    if (maxAllowedValue && clickValue > maxAllowedValue) {
-      return;
-    }
-    
     const clickedDateTime = DateTime.unsafeFromDate(new Date(clickValue));
 
     match({ isStepMode, clickValue, primaryRange, subRanges })
       .with({ isStepMode: true }, () => {
-        // Step mode: clicks within selected range do nothing (unless it's a phantom selection), clicks outside select new start date
+        // Step mode: clicks within selected range do nothing, clicks outside select new start date
         const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
 
-        if ((!withinSelectedRange || isPhantomSelection) && onSetSelectedStartDateTime) {
+        if (!withinSelectedRange && onSetSelectedStartDateTime) {
           onSetSelectedStartDateTime(clickedDateTime);
         }
       })
@@ -382,10 +314,10 @@ export const HorizontalCalendar = ({
         const clickRatio = Math.max(0, Math.min(1, clickX / sliderWidth)); // Clamp between 0 and 1
         const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
 
-        // Check if we should ignore this click (step mode + within range, but not phantom selection)
+        // Check if we should ignore this click (step mode + within range)
         if (isStepMode) {
           const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-          if (withinSelectedRange && !isPhantomSelection) {
+          if (withinSelectedRange) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -400,7 +332,7 @@ export const HorizontalCalendar = ({
     // Use capture phase to intercept before MUI handles it
     sliderElement.addEventListener('click', handleClick, true);
     return () => sliderElement.removeEventListener('click', handleClick, true);
-  }, [viewRangeAndStep, sliderSelectedDateRange, isStepMode, primaryRange, onSetSelectedStartDateTime, onSetAnimationStartDateTime, isPhantomSelection]);
+  }, [viewRangeAndStep, sliderSelectedDateRange, isStepMode, primaryRange, onSetSelectedStartDateTime, onSetAnimationStartDateTime]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -432,7 +364,7 @@ export const HorizontalCalendar = ({
         .with(SliderActive.RightActive, () => "hide-left-slider-component")
         .with(SliderActive.LeftActive, () => "hide-right-slider-component")
         .otherwise(() => "")
-        } ${isPhantomSelection ? 'hide-slider-components' : ''} ${isStepMode ? 'step-mode' : 'animation-mode'} ${!isStepMode && animationSpeed && animationSpeed < 0 ? 'negative-speed' : 'positive-speed'}`}>
+        } ${isStepMode ? 'step-mode' : 'animation-mode'} ${!isStepMode && animationSpeed && animationSpeed < 0 ? 'negative-speed' : 'positive-speed'}`}>
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
@@ -450,9 +382,9 @@ export const HorizontalCalendar = ({
               const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
 
               if (isStepMode) {
-                // In step mode, prevent mousedown on track/rail if click is within selected range (but not phantom selection)
+                // In step mode, prevent mousedown on track/rail if click is within selected range
                 const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-                if (withinSelectedRange && !isPhantomSelection) {
+                if (withinSelectedRange) {
                   e.preventDefault();
                   e.stopPropagation();
                   return;
@@ -473,12 +405,6 @@ export const HorizontalCalendar = ({
 
             if (e.type === "mousemove") {
               const [start, end] = newValue as number[];
-              
-              // Prevent setting values beyond maxAllowedValue
-              if (maxAllowedValue && (start > maxAllowedValue || end > maxAllowedValue)) {
-                return; // Don't update if either value exceeds the limit
-              }
-              
               primaryRange.set?.({
                 start: DateTime.unsafeFromDate(new Date(start)),
                 end: DateTime.unsafeFromDate(new Date(end))
@@ -488,21 +414,9 @@ export const HorizontalCalendar = ({
               const [oldX] = sliderSelectedDateRange;
               const [newX, newY] = newValue;
               const newDateTime = oldX === newX ? newY : newX;
-              
-              // Prevent setting values beyond maxAllowedValue
-              if (maxAllowedValue && newDateTime > maxAllowedValue) {
-                return; // Don't update if the new position exceeds the limit
-              }
-              
               const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
               const dateTimeEnd = DateTime.addDuration(
                 dateTimeStart, primaryRange.duration)
-                
-              // Also check if the end would exceed the limit
-              if (maxAllowedValue && DateTime.toEpochMillis(dateTimeEnd) > maxAllowedValue) {
-                return; // Don't update if the end would exceed the limit
-              }
-              
               primaryRange.set?.({
                 start: dateTimeStart,
                 end: dateTimeEnd

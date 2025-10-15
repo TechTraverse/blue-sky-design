@@ -603,6 +603,7 @@ export const TimeRangeSlider = ({
         }} />
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
           <HorizontalCalendar
+            timeZone={s.timeZone}
             increment={DEFAULT_VIEW_INCREMENT}
             isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
             primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
