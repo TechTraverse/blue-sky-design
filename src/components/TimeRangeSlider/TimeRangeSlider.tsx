@@ -364,34 +364,16 @@ export const TimeRangeSlider = ({
       console.warn('convertDateTimeForDisplay received undefined DateTime, using current time');
       dt = DateTime.unsafeNow();
     }
-    const timestamp = DateTime.toEpochMillis(dt);
-    const jsDate = new Date(timestamp);
-
-    if (tz === 'utc') {
-      // Show UTC time for the same moment
-      const utcParts = {
-        year: jsDate.getUTCFullYear(),
-        month: jsDate.getUTCMonth() + 1,
-        day: jsDate.getUTCDate(),
-        hours: jsDate.getUTCHours(),
-        minutes: jsDate.getUTCMinutes(),
-        seconds: jsDate.getUTCSeconds(),
-        millis: jsDate.getUTCMilliseconds()
-      };
-      return DateTime.unsafeMake(utcParts);
-    } else {
-      // Show local time for the same moment
-      const localParts = {
-        year: jsDate.getFullYear(),
-        month: jsDate.getMonth() + 1,
-        day: jsDate.getDate(),
-        hours: jsDate.getHours(),
-        minutes: jsDate.getMinutes(),
-        seconds: jsDate.getSeconds(),
-        millis: jsDate.getMilliseconds()
-      };
-      return DateTime.unsafeMake(localParts);
-    }
+    
+    // Since the DateTime values are already in the correct timezone for internal storage,
+    // we should just return them as-is for display purposes. The HorizontalCalendar 
+    // will handle the actual display formatting.
+    console.log('DEBUG: convertDateTimeForDisplay - returning as-is', {
+      input: DateTime.toDate(dt),
+      tz
+    });
+    
+    return dt;
   };
 
   // Convert user input back from display timezone to stored timezone
@@ -429,19 +411,48 @@ export const TimeRangeSlider = ({
     // Fixed view duration for consistency
     const viewDuration = Duration.hours(4);
     
-    // Center the selection in the view
-    const selectionMidpoint = DateTime.addDuration(selectedStart, Duration.millis(Duration.toMillis(selectedDuration) / 2));
-    const viewStart = roundDateTimeDownToNearestFiveMinutes(
-      DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2))
-    );
-    
-    // Reset values
+    // Reset values (determine valid date boundaries first)
     const resetStart = dateRangeForReset?.start 
       ? DateTime.unsafeFromDate(dateRangeForReset.start)
       : selectedStart;
     const resetDuration = dateRangeForReset?.start && dateRangeForReset?.end
       ? DateTime.distanceDuration(resetStart, DateTime.unsafeFromDate(dateRangeForReset.end))
       : selectedDuration;
+    
+    // Calculate view start, ensuring it encompasses the selection and respects reset boundaries
+    let viewStart: DateTime.DateTime;
+    
+    if (dateRangeForReset?.start && dateRangeForReset?.end) {
+      // If we have reset boundaries, constrain the view
+      const resetEnd = DateTime.unsafeFromDate(dateRangeForReset.end);
+      const selectedEnd = DateTime.addDuration(selectedStart, selectedDuration);
+      
+      // Center the selection in the view, but don't go beyond reset boundaries
+      const selectionMidpoint = DateTime.addDuration(selectedStart, Duration.millis(Duration.toMillis(selectedDuration) / 2));
+      const idealViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2));
+      
+      // Ensure view doesn't extend beyond reset boundaries
+      const viewEnd = DateTime.addDuration(idealViewStart, viewDuration);
+      
+      if (DateTime.greaterThan(viewEnd, resetEnd)) {
+        // If ideal view would extend past reset end, align view end with reset end
+        viewStart = roundDateTimeDownToNearestFiveMinutes(
+          DateTime.subtractDuration(resetEnd, viewDuration)
+        );
+      } else if (DateTime.lessThan(idealViewStart, resetStart)) {
+        // If ideal view would start before reset start, align view start with reset start
+        viewStart = roundDateTimeDownToNearestFiveMinutes(resetStart);
+      } else {
+        // Ideal view fits within boundaries
+        viewStart = roundDateTimeDownToNearestFiveMinutes(idealViewStart);
+      }
+    } else {
+      // No reset boundaries, center the selection in the view
+      const selectionMidpoint = DateTime.addDuration(selectedStart, Duration.millis(Duration.toMillis(selectedDuration) / 2));
+      viewStart = roundDateTimeDownToNearestFiveMinutes(
+        DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(viewDuration) / 2))
+      );
+    }
     
     return {
       selectedStart,
@@ -454,6 +465,11 @@ export const TimeRangeSlider = ({
   };
 
   const initialValues = sanitizeInitialValues();
+  
+  console.log('DEBUG: Props received', {
+    dateRange,
+    dateRangeForReset
+  });
   
   console.log('DEBUG: Sanitized initialization values', {
     selectedStart: DateTime.toDate(initialValues.selectedStart),
@@ -532,21 +548,31 @@ export const TimeRangeSlider = ({
   const sanitizeExternalDateRange = useMemo(() => {
     if (!dateRange?.start || !dateRange?.end) return null;
     
-    // Don't process if state isn't initialized yet
-    if (!stateRef.current?.selectedStartDateTime) return null;
-    
     const startTime = dateRange.start.getTime();
     const endTime = dateRange.end.getTime();
+    
+    // Don't process if state isn't initialized yet
+    if (!stateRef.current?.selectedStartDateTime) {
+      console.log('DEBUG: State not initialized, but will process external date range on first render');
+      return { startTime, endTime }; // Allow initial sync
+    }
     
     // Compare with current state to see if we actually need to update
     const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
     const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
     
+    console.log('DEBUG: Comparing external vs current dates', {
+      external: { startTime, endTime },
+      current: { startTime: currentStartTime, endTime: currentEndTime }
+    });
+    
     // Only return new values if they're actually different
     if (startTime === currentStartTime && endTime === currentEndTime) {
+      console.log('DEBUG: External dates match current state, no update needed');
       return null; // No change needed
     }
     
+    console.log('DEBUG: External dates differ from current state, will update');
     return { startTime, endTime };
   }, [dateRange?.start?.getTime(), dateRange?.end?.getTime(), stateRef.current?.selectedStartDateTime]);
 
@@ -593,11 +619,18 @@ export const TimeRangeSlider = ({
     const newDuration = DateTime.distanceDuration(newStartDateTime, newEndDateTime);
 
     // Additional timing-based protection against rapid updates
-    const isWithinLastSecond = DateTime.distance(
-      DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp) < 1000;
+    // Allow initial sync by checking if this would be the first meaningful update
+    const timeSinceLastUpdate = DateTime.distance(
+      DateTime.unsafeNow(), stateRef.current.extSelectedStartDateTimeTimeStamp);
+    const isWithinLastSecond = timeSinceLastUpdate < 1000;
     
-    if (isWithinLastSecond) {
-      console.log('DEBUG: Skipping external update - within last second');
+    // Check if this is the initial sync (external dates different from current state)
+    const currentStartTime = DateTime.toEpochMillis(stateRef.current.selectedStartDateTime);
+    const currentEndTime = DateTime.toEpochMillis(DateTime.addDuration(stateRef.current.selectedStartDateTime, stateRef.current.selectedDuration));
+    const isInitialSync = sanitizeExternalDateRange.startTime !== currentStartTime || sanitizeExternalDateRange.endTime !== currentEndTime;
+    
+    if (isWithinLastSecond && !isInitialSync) {
+      console.log('DEBUG: Skipping external update - within last second and not initial sync', { timeSinceLastUpdate, isInitialSync });
       return;
     }
 
@@ -618,7 +651,11 @@ export const TimeRangeSlider = ({
         currentViewStart,
         stateRef.current.viewDuration
       );
-      d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+      // Only update if the new view start is significantly different (more than 1 minute)
+      const timeDiff = Math.abs(DateTime.toEpochMillis(optimalViewStart) - DateTime.toEpochMillis(currentViewStart));
+      if (timeDiff > 60000) { // 1 minute threshold
+        d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+      }
     }
     
     d(SetSelectedStartDateTime({
@@ -766,10 +803,20 @@ export const TimeRangeSlider = ({
                 },
                 duration: s.animationDuration
               }
-              : {
-                start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
-                end: convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZoneString),
-                set: (r: RangeValue<DateTime.DateTime>) => {
+              : (() => {
+                const startForDisplay = convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString);
+                const endForDisplay = convertDateTimeForDisplay(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)), timeZoneString);
+                console.log('DEBUG: Primary range being passed to HorizontalCalendar', {
+                  start: DateTime.toDate(startForDisplay),
+                  end: DateTime.toDate(endForDisplay),
+                  originalStart: DateTime.toDate(s.selectedStartDateTime),
+                  originalEnd: DateTime.toDate(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2))),
+                  timeZoneString
+                });
+                return {
+                  start: startForDisplay,
+                  end: endForDisplay,
+                  set: (r: RangeValue<DateTime.DateTime>) => {
                   const convertedStart = convertDateTimeFromDisplay(r.start, timeZoneString);
                   const convertedEnd = convertDateTimeFromDisplay(r.end, timeZoneString);
                   d(SetSelectedStartDateTime({
@@ -782,7 +829,8 @@ export const TimeRangeSlider = ({
                   }));
                 },
                 duration: s.selectedDuration || Duration.hours(2)
-              }}
+                };
+              })()}
             subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? [{
                 start: convertDateTimeForDisplay(s.selectedStartDateTime, timeZoneString),
