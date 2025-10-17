@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type PrimaryRange, type SubRange, AnimationSpeed, Theme as AppTheme, TimeDuration, TimeZone } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
-import { match } from "ts-pattern";
+import { match, P } from "ts-pattern";
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -66,6 +66,7 @@ export const HorizontalCalendar = ({
   subRanges: _subRanges,
   isStepMode = false,
   onSetSelectedStartDateTime,
+  onSetSelectedDuration,
   onSetAnimationStartDateTime,
   onPauseAnimation,
   animationPlayMode,
@@ -79,6 +80,7 @@ export const HorizontalCalendar = ({
   subRanges?: SubRange<DateTime.DateTime>[],
   isStepMode?: boolean,
   onSetSelectedStartDateTime?: (date: DateTime.DateTime) => void,
+  onSetSelectedEndDateTime?: (date: DateTime.DateTime) => void,
   onSetAnimationStartDateTime?: (date: DateTime.DateTime) => void,
   onPauseAnimation?: () => void,
   animationPlayMode?: string,
@@ -278,78 +280,6 @@ export const HorizontalCalendar = ({
     });
   }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme]);
 
-  const handleSliderClick = (clickValue: number) => {
-    const adjustedClickValue = timeZone === TimeZone.Local
-      ? clickValue - zonedOffsetMillis
-      : clickValue;
-    const clickedDateTime = DateTime.unsafeFromDate(new Date(adjustedClickValue));
-
-    match({ isStepMode, clickValue, primaryRange, subRanges })
-      .with({ isStepMode: true }, () => {
-        // Step mode: clicks within selected range do nothing, clicks outside select new start date
-        const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-
-        if (!withinSelectedRange && onSetSelectedStartDateTime) {
-          onSetSelectedStartDateTime(clickedDateTime);
-        }
-      })
-      .with({ isStepMode: false }, () => {
-        // Animation mode
-        const animationStart = DateTime.toEpochMillis(primaryRange.start);
-        const animationEnd = DateTime.toEpochMillis(primaryRange.end);
-        const withinAnimationRange = clickValue >= animationStart && clickValue <= animationEnd;
-
-        if (withinAnimationRange && onSetSelectedStartDateTime) {
-          // Click within animation range: pause animation and update selected start date
-          onPauseAnimation?.();
-          onSetSelectedStartDateTime(clickedDateTime);
-        } else if (!withinAnimationRange && onSetAnimationStartDateTime && onSetSelectedStartDateTime) {
-          // Click outside animation range: pause animation, then set new animation start and selected start to same date
-          onPauseAnimation?.();
-          onSetAnimationStartDateTime(clickedDateTime);
-          onSetSelectedStartDateTime(clickedDateTime);
-        }
-      })
-      .exhaustive();
-  };
-
-  // Add click listener to slider rail/track
-  useEffect(() => {
-    const sliderElement = sliderRef.current;
-    if (!sliderElement) return;
-
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const sliderRoot = sliderElement.querySelector('.MuiSlider-root');
-
-      // Check if click is anywhere on the slider (not just specific elements)
-      if (sliderRoot && sliderRoot.contains(target)) {
-        const rect = sliderRoot.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const sliderWidth = rect.width;
-        const clickRatio = Math.max(0, Math.min(1, clickX / sliderWidth)); // Clamp between 0 and 1
-        const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
-
-        // Check if we should ignore this click (step mode + within range)
-        if (isStepMode) {
-          const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-          if (withinSelectedRange) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-          }
-        }
-
-        handleSliderClick(clickValue);
-      }
-    };
-
-    // Use capture phase to intercept before MUI handles it
-    sliderElement.addEventListener('click', handleClick, true);
-    return () => sliderElement.removeEventListener('click', handleClick, true);
-  }, [viewRangeAndStep, sliderSelectedDateRange, isStepMode, primaryRange, onSetSelectedStartDateTime, onSetAnimationStartDateTime]);
-
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
     DateTime.lessThanOrEqualTo(date, viewRange.end);
@@ -385,59 +315,26 @@ export const HorizontalCalendar = ({
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           value={sliderSelectedDateRange}
-          onMouseDown={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.classList.contains('MuiSlider-track') ||
-              target.classList.contains('MuiSlider-rail') ||
-              target.classList.contains('MuiSlider-root')) {
-
-              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-              const clickX = e.clientX - rect.left;
-              const sliderWidth = rect.width;
-              const clickRatio = Math.max(0, Math.min(1, clickX / sliderWidth));
-              const clickValue = viewRangeAndStep.start + (viewRangeAndStep.end - viewRangeAndStep.start) * clickRatio;
-
-              if (isStepMode) {
-                // In step mode, prevent mousedown on track/rail if click is within selected range
-                const withinSelectedRange = clickValue >= sliderSelectedDateRange[0] && clickValue <= sliderSelectedDateRange[1];
-                if (withinSelectedRange) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  return;
-                }
-              } else {
-                // In animation mode, prevent ALL clicks on track/rail - we'll handle them with our custom handler
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-              }
-            }
-          }}
           onChange={(e, newValue) => {
-            // In animation mode, only allow mousemove (dragging) interactions
-            if (!isStepMode && e.type !== "mousemove") {
-              return;
-            }
+            const offsetValues = match(newValue)
+              .with([P.number, P.number], (x) => x.map(v => v - zonedOffsetMillis) as [number, number])
+              .otherwise(() => undefined);
+            if (!offsetValues) return;
 
-            if (e.type === "mousemove") {
-              const [start, end] = newValue as number[];
-              primaryRange.set?.({
-                start: DateTime.unsafeFromDate(new Date(start)),
-                end: DateTime.unsafeFromDate(new Date(end))
-              });
-            } else {
-              // This should only happen in step mode now
-              const [oldX] = sliderSelectedDateRange;
-              const [newX, newY] = newValue;
-              const newDateTime = oldX === newX ? newY : newX;
-              const dateTimeStart = DateTime.unsafeFromDate(new Date(newDateTime));
-              const dateTimeEnd = DateTime.addDuration(
-                dateTimeStart, primaryRange.duration)
-              primaryRange.set?.({
-                start: dateTimeStart,
-                end: dateTimeEnd
-              });
-            }
+            match([offsetValues, e.type])
+              // .with([[
+              //   P.when((x) => x >= primaryRange.start.pipe(DateTime.toEpochMillis) - (increment || 0)),
+              //   P.number
+              // ], "mousemove"], ([[start]]) => {
+              //   const newStartDateTime = DateTime.unsafeFromDate(new Date(start));
+              //   // End date time stays the same, meaning duration increases
+              //   const duration = DateTime.distanceDuration(newStartDateTime, primaryRange.end);
+              //   onSetSelectedStartDateTime?.(newStartDateTime);
+              //   onSetSelectedDuration?.(duration);
+              // })
+              .with([[P.number, P.number], P.any], ([[start]]) => {
+                onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
+              })
           }}
           valueLabelDisplay="auto"
           valueLabelFormat={(value) => {

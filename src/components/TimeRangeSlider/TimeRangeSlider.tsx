@@ -666,6 +666,12 @@ export const TimeRangeSlider = ({
                 updateSource: UpdateSource.UserInteraction
               }));
             }}
+            onSetSelectedDuration={(duration: Duration.Duration) => {
+              d(SetSelectedDuration({
+                selectedDuration: duration,
+                updateSource: UpdateSource.UserInteraction
+              }));
+            }}
             onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
               const convertedDate = date
               d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
