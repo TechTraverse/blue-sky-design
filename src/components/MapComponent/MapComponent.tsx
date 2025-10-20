@@ -67,9 +67,9 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   id = 'map',
   className,
   style,
-  initialCenter,
-  initialZoom,
-  initialBasemap,
+  initialCenter = [-98.583333, 39.833333],
+  initialZoom = 4,
+  initialBasemap = 'https://basemaps.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   initialLayers = [],
   controls = {
     navigation: true,
@@ -89,6 +89,68 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   const { mapService, isReady } = useMapService();
   const [isInitialized, setIsInitialized] = useState(false);
   const cleanupFunctionsRef = useRef<Array<() => void>>([]);
+
+  // Setup event handlers and initialization
+  useEffect(() => {
+    if (!mapService || !isReady) return;
+
+    const setupEventHandlers = async () => {
+      try {
+        // Register event handlers
+        if (eventHandlers.onClick) {
+          const cleanup = await mapService.registerEventHandler('click', eventHandlers.onClick);
+          cleanupFunctionsRef.current.push(cleanup);
+        }
+
+        if (eventHandlers.onMouseMove) {
+          const cleanup = await mapService.registerEventHandler('mousemove', eventHandlers.onMouseMove);
+          cleanupFunctionsRef.current.push(cleanup);
+        }
+
+        if (eventHandlers.onLoad) {
+          const cleanup = await mapService.registerEventHandler('load', eventHandlers.onLoad);
+          cleanupFunctionsRef.current.push(cleanup);
+        }
+
+        // Set initial map position
+        if (initialCenter || initialZoom) {
+          await mapService.flyTo({ 
+            center: initialCenter, 
+            zoom: initialZoom 
+          });
+        }
+
+        // Initialize with basemap
+        await mapService.setBasemap(initialBasemap);
+        onBasemapChange?.(initialBasemap);
+
+        // Add initial layers
+        for (const layer of initialLayers) {
+          const layerConfig = {
+            id: layer.id,
+            type: layer.type,
+            sourceConfig: layer.sourceConfig,
+          };
+          await mapService.addLayer(layerConfig);
+          onLayerAdd?.(layerConfig);
+        }
+
+        setIsInitialized(true);
+        onMapReady?.();
+      } catch (error) {
+        console.error('Error setting up map:', error);
+        onMapError?.(error as Error);
+      }
+    };
+
+    setupEventHandlers();
+
+    return () => {
+      // Cleanup event handlers
+      cleanupFunctionsRef.current.forEach(cleanup => cleanup());
+      cleanupFunctionsRef.current = [];
+    };
+  }, [mapService, isReady, eventHandlers, initialBasemap, initialLayers, onMapReady, onMapError, onBasemapChange, onLayerAdd, initialCenter, initialZoom]);
 
   // Expose imperative API through ref
   useImperativeHandle(ref, () => ({
