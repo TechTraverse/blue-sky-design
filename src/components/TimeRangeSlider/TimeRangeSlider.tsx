@@ -33,6 +33,7 @@ enum UpdateSource {
 
 type State = {
   timeZone: TimeZone;
+  increment: TimeDuration;
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
   viewDuration: Duration.Duration;
@@ -66,6 +67,8 @@ type State = {
 type Action = D.TaggedEnum<{
   SetTimeZone: { timeZone: TimeZone; };
   ExtSetTimeZone: { timeZone: TimeZone; };
+  SetIncrement: { increment: TimeDuration; };
+  ExtSetIncrement: { increment: TimeDuration; };
 
   SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
   SetViewDuration: { viewDuration: Duration.Duration; };
@@ -113,6 +116,7 @@ const {
 
   SetTimeZone,
   ExtSetTimeZone,
+  ExtSetIncrement,
   SetViewStartDateTime,
   SetViewDuration,
 
@@ -268,6 +272,14 @@ const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.D
       ...state,
       timeZone: x.timeZone,
     }),
+    SetIncrement: (x) => ({
+      ...state,
+      increment: x.increment,
+    }),
+    ExtSetIncrement: (x) => ({
+      ...state,
+      increment: x.increment,
+    }),
 
     SetViewStartDateTime: (x) => ({
       ...state,
@@ -346,8 +358,8 @@ const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.D
 function withMiddleware(
   reducer: (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime) => State,
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
-  onTimeZoneChange?: (timeZone: TimeZone) => void,
-  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime
+  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
+  onTimeZoneChange?: (timeZone: TimeZone) => void
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
     // Determine latest state
@@ -391,27 +403,28 @@ export const TimeRangeSlider = ({
   increment = TimeDuration["5m"],
 }: TimeRangeSliderProps) => {
 
-  const viewIncrement = increment;
-
-  const roundDateTimeDownToNearestIncrement = (dateTime: DateTime.DateTime): DateTime.DateTime => {
-    const incrementMinutes = viewIncrement / (60 * 1000);
-    return dateTime.pipe(
-      DateTime.toParts,
-      (parts) => {
-        const roundedToFloorMins = Math.floor(parts.minutes / incrementMinutes) * incrementMinutes;
-        return DateTime.unsafeMake({
-          ...parts,
-          minutes: roundedToFloorMins,
-          seconds: 0,
-          milliseconds: 0,
+  const roundDateTimeDownToNearestIncrement = useMemo<(dateTime: DateTime.DateTime) => DateTime.DateTime>(() => {
+    return (dateTime: DateTime.DateTime): DateTime.DateTime => {
+      const incrementMinutes = increment / (60 * 1000);
+      return dateTime.pipe(
+        DateTime.toParts,
+        (parts) => {
+          const roundedToFloorMins = Math.floor(parts.minutes / incrementMinutes) * incrementMinutes;
+          return DateTime.unsafeMake({
+            ...parts,
+            minutes: roundedToFloorMins,
+            seconds: 0,
+            milliseconds: 0,
+          });
         });
-      });
-  };
+    };
+  }, [increment]);
 
 
   const initialValues = useMemo(() => {
     // Fixed init vals
     const timeZone = TimeZone.Local;
+    const increment = TimeDuration["5m"];
     const animationSpeed = AnimationSpeed['5 min/sec'];
     const resetAnimationSpeed = AnimationSpeed['5 min/sec'];
     const resetAnimationDuration = DEFAULT_ANIMATION_DURATION;
@@ -478,6 +491,7 @@ export const TimeRangeSlider = ({
 
     return {
       timeZone,
+      increment,
       viewStartDateTime,
       viewDuration,
 
@@ -501,7 +515,7 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, onTimeZoneChange, roundDateTimeDownToNearestIncrement), null, () => initialValues);
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, roundDateTimeDownToNearestIncrement, onTimeZoneChange), null, () => initialValues);
 
 
   /**
@@ -615,6 +629,14 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeZone]);
 
+  // increment prop change
+  useEffect(() => {
+    if (increment !== s.increment) {
+      d(ExtSetIncrement({ increment }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [increment]);
+
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
 
@@ -629,7 +651,7 @@ export const TimeRangeSlider = ({
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
           <HorizontalCalendar
             timeZone={s.timeZone}
-            increment={viewIncrement}
+            increment={s.increment}
             isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
             primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? {
