@@ -23,6 +23,7 @@ export interface TimeRangeSliderProps {
   theme?: AppTheme;
   timeZone?: TimeZone;
   onTimeZoneChange?: (timeZone: TimeZone) => void;
+  increment?: TimeDuration;
 }
 
 enum UpdateSource {
@@ -137,7 +138,6 @@ const {
  */
 
 const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
-const DEFAULT_VIEW_INCREMENT = Duration.minutes(5).pipe(Duration.toMillis);
 
 
 /**
@@ -161,7 +161,8 @@ const calculateOptimalViewStart = (
   nStart: DateTime.DateTime,
   nDuration: Duration.Duration,
   cViewStart: DateTime.DateTime,
-  cViewDuration: Duration.Duration
+  cViewDuration: Duration.Duration,
+  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime = roundDateTimeDownToNearestFiveMinutes
 ): DateTime.DateTime => {
   // Check if new selection is outside current view
   const nEnd = DateTime.addDuration(nStart, nDuration);
@@ -172,12 +173,13 @@ const calculateOptimalViewStart = (
     // Center the selection in the view
     const selectionMidpoint = DateTime.addDuration(nStart, Duration.millis(Duration.toMillis(nDuration) / 2));
     const unroundedViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(cViewDuration) / 2));
-    return roundDateTimeDownToNearestFiveMinutes(unroundedViewStart);
+    return roundingFn(unroundedViewStart);
   }
 
   // Selection is within view, keep current view
   return cViewStart;
 };
+
 
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
   .with(P.number.lt(100), () => Duration.minutes(30))
@@ -199,19 +201,20 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
  * State management: reducer
  */
 
-const getSetSelectedStartDateTimeAction = (state: State) => (x: {
+const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
   selectedStartDateTime: DateTime.DateTime;
   updateSource: UpdateSource;
 }) => {
   const start = x.selectedStartDateTime;
 
-  // Calculate optimal view range with 5-minute alignment and padding
+  // Calculate optimal view range with configurable alignment and padding
   const optimalViewStart = calculateOptimalViewStart(
     state.selectedStartDateTime, // Old start
     start,
     state.selectedDuration,
     state.viewStartDateTime,
-    state.viewDuration
+    state.viewDuration,
+    roundingFn
   );
 
   // Only update view range if selected date + duration goes outside current view range
@@ -235,7 +238,7 @@ const getSetSelectedStartDateTimeAction = (state: State) => (x: {
   }
 }
 
-const getSetSelectedDurationAction = (state: State) => (x: {
+const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
   selectedDuration: Duration.Duration;
 }) => {
   // Calculate optimal view range with new duration
@@ -244,7 +247,8 @@ const getSetSelectedDurationAction = (state: State) => (x: {
     state.selectedStartDateTime,
     x.selectedDuration,
     state.viewStartDateTime,
-    state.viewDuration
+    state.viewDuration,
+    roundingFn
   );
 
   return {
@@ -254,7 +258,7 @@ const getSetSelectedDurationAction = (state: State) => (x: {
   };
 }
 
-const reducer = (state: State, action: Action): State =>
+const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime = roundDateTimeDownToNearestFiveMinutes): State =>
   $actionMatch({
     SetTimeZone: (x) => ({
       ...state,
@@ -268,7 +272,7 @@ const reducer = (state: State, action: Action): State =>
     SetViewStartDateTime: (x) => ({
       ...state,
       viewStartDateTime:
-        roundDateTimeDownToNearestFiveMinutes(x.viewStartDateTime),
+        roundingFn(x.viewStartDateTime),
     }),
     SetViewDuration: (x) => ({
       ...state,
@@ -284,11 +288,11 @@ const reducer = (state: State, action: Action): State =>
       resetDuration: x.resetDuration,
     }),
 
-    SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
-    ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
+    SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state, roundingFn),
+    ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state, roundingFn),
 
-    SetSelectedDuration: getSetSelectedDurationAction(state),
-    ExtSetSelectedDuration: getSetSelectedDurationAction(state),
+    SetSelectedDuration: getSetSelectedDurationAction(state, roundingFn),
+    ExtSetSelectedDuration: getSetSelectedDurationAction(state, roundingFn),
 
     SetAnimationOrStepMode: (x) => ({
       ...state,
@@ -340,13 +344,14 @@ const reducer = (state: State, action: Action): State =>
  */
 
 function withMiddleware(
-  reducer: (state: State, action: Action) => State,
+  reducer: (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime) => State,
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
-  onTimeZoneChange?: (timeZone: TimeZone) => void
+  onTimeZoneChange?: (timeZone: TimeZone) => void,
+  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
     // Determine latest state
-    const newState = reducer(oldState, action);
+    const newState = reducer(oldState, action, roundingFn);
     match(action._tag)
       .with("SetSelectedStartDateTime", () => {
         const start = newState.selectedStartDateTime;
@@ -383,7 +388,26 @@ export const TimeRangeSlider = ({
   theme = AppTheme.Light,
   timeZone = TimeZone.Local,
   onTimeZoneChange,
+  increment = TimeDuration["5m"],
 }: TimeRangeSliderProps) => {
+
+  const viewIncrement = increment;
+
+  const roundDateTimeDownToNearestIncrement = (dateTime: DateTime.DateTime): DateTime.DateTime => {
+    const incrementMinutes = viewIncrement / (60 * 1000);
+    return dateTime.pipe(
+      DateTime.toParts,
+      (parts) => {
+        const roundedToFloorMins = Math.floor(parts.minutes / incrementMinutes) * incrementMinutes;
+        return DateTime.unsafeMake({
+          ...parts,
+          minutes: roundedToFloorMins,
+          seconds: 0,
+          milliseconds: 0,
+        });
+      });
+  };
+
 
   const initialValues = useMemo(() => {
     // Fixed init vals
@@ -402,7 +426,7 @@ export const TimeRangeSlider = ({
         (x) => DateTime.unsafeFromDate(x.start))
       .otherwise(() => {
         console.warn("TimeRangeSlider: dateRange prop is malformed or undefined, defaulting to current time");
-        const now = DateTime.unsafeNow().pipe(roundDateTimeDownToNearestFiveMinutes);
+        const now = DateTime.unsafeNow().pipe(roundDateTimeDownToNearestIncrement);
         return now;
       });
     const prevSelectedStartDateTime = selectedStartDateTime;
@@ -448,7 +472,8 @@ export const TimeRangeSlider = ({
       selectedStartDateTime,
       selectedDuration,
       DateTime.subtractDuration(selectedStartDateTime, Duration.hours(2)),
-      viewDuration
+      viewDuration,
+      roundDateTimeDownToNearestIncrement
     );
 
     return {
@@ -476,7 +501,7 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, onTimeZoneChange), null, () => initialValues);
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, onTimeZoneChange, roundDateTimeDownToNearestIncrement), null, () => initialValues);
 
 
   /**
@@ -604,7 +629,7 @@ export const TimeRangeSlider = ({
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
           <HorizontalCalendar
             timeZone={s.timeZone}
-            increment={DEFAULT_VIEW_INCREMENT}
+            increment={viewIncrement}
             isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
             primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? {
