@@ -315,25 +315,30 @@ export const HorizontalCalendar = ({
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           value={sliderSelectedDateRange}
-          onChange={(e, newValue) => {
+          onChange={(e, newValue, activeThumb) => {
+            console.log("Active Thumb:", activeThumb);
+            console.log("Slider Change Event:", e.type);
             const offsetValues = match(newValue)
               .with([P.number, P.number], (x) => x.map(v => v - zonedOffsetMillis) as [number, number])
               .otherwise(() => undefined);
-            if (!offsetValues) return;
 
             match([offsetValues, e.type])
               // .with([[
-              //   P.when((x) => x >= primaryRange.start.pipe(DateTime.toEpochMillis) - (increment || 0)),
+              //   P.when((x: number) => {
+              //     // The lower thumb value is within "increment" of the previous value
+              //     return Math.abs(x - DateTime.toEpochMillis(primaryRange.start)) <= (increment || 10 * 60 * 1000);
+              //   }),
               //   P.number
-              // ], "mousemove"], ([[start]]) => {
-              //   const newStartDateTime = DateTime.unsafeFromDate(new Date(start));
-              //   // End date time stays the same, meaning duration increases
-              //   const duration = DateTime.distanceDuration(newStartDateTime, primaryRange.end);
-              //   onSetSelectedStartDateTime?.(newStartDateTime);
-              //   onSetSelectedDuration?.(duration);
+              // ], "mousemove"], ([[start, end]]) => {
+              //   onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
+              //   onSetSelectedDuration?.(DateTime.distanceDuration(
+              //     DateTime.unsafeFromDate(new Date(start)),
+              //     DateTime.unsafeFromDate(new Date(end))
+              //   ));
               // })
               .with([[P.number, P.number], P.any], ([[start]]) => {
-                onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
+                onSetSelectedStartDateTime?.
+                  (DateTime.unsafeFromDate(new Date(start)));
               })
           }}
           valueLabelDisplay="auto"
