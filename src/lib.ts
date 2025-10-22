@@ -10,7 +10,7 @@ export { TimeRangeSlider } from './components/TimeRangeSlider/TimeRangeSlider';
 export type { TimeRangeSliderProps } from './components/TimeRangeSlider/TimeRangeSliderSimplified';
 export { TimeDuration, Theme, TimeZone } from './components/TimeRangeSlider/timeSliderTypes';
 
-// MapComponent exports
+// MapComponent exports - React-only and effect-ts enhanced APIs
 export { MapComponent, MapComponentEffect } from './components/MapComponent';
 export type { 
   MapComponentProps, 
