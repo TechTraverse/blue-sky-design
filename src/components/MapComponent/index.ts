@@ -18,6 +18,17 @@ export type {
   MapComponentCallbacks,
   MapOperations,
   MapComponentCoreProps,
+  ExtendedLayer,
+  VectorSourceConfig,
+  RasterSourceConfig,
+  GeoJSONSourceConfig,
+  LayerTypes,
+  TypedLayerConfig,
+  MapTheme,
+  MapStyleConfig,
+  AnimationOptions,
+  TransitionOptions,
+  AdvancedMapOperations,
 } from './types';
 
 // Service interface exports (for advanced usage)
