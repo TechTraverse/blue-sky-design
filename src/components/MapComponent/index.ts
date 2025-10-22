@@ -2,6 +2,10 @@
 export { MapComponent } from './MapComponent';
 export type { MapComponentProps, MapComponentRef } from './MapComponent';
 
+// Enhanced effect-ts component
+export { MapComponentEffect } from './MapComponentEffect';
+export type { MapComponentEffectProps, MapComponentEffectRef } from './MapComponentEffect';
+
 // Type exports
 export type {
   MapSettings,
