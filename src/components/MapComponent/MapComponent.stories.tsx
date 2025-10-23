@@ -37,7 +37,7 @@ export const CustomPosition: Story = {
 export const DifferentBasemap: Story = {
   args: {
     style: { height: '500px' },
-    initialBasemap: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    initialBasemap: 'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
     initialCenter: [-122.4194, 37.7749], // San Francisco
     initialZoom: 12,
     onBasemapChange: (url) => console.log('Basemap changed to:', url),
@@ -110,7 +110,7 @@ export const MinimalControls: Story = {
 export const CartoDarkBasemap: Story = {
   args: {
     style: { height: '500px' },
-    initialBasemap: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    initialBasemap: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
     initialCenter: [-74.006, 40.7128], // New York
     initialZoom: 10,
     onMapReady: () => console.log('Carto Dark map ready!'),
@@ -120,20 +120,20 @@ export const CartoDarkBasemap: Story = {
 export const CartoLightBasemap: Story = {
   args: {
     style: { height: '500px' },
-    initialBasemap: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    initialBasemap: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
     initialCenter: [2.3522, 48.8566], // Paris
     initialZoom: 12,
     onMapReady: () => console.log('Carto Light map ready!'),
   },
 };
 
-export const StamenTerrainBasemap: Story = {
+export const OpenTopoMapBasemap: Story = {
   args: {
     style: { height: '500px' },
-    initialBasemap: 'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
+    initialBasemap: 'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
     initialCenter: [-119.6492, 37.4267], // Yosemite
     initialZoom: 10,
-    onMapReady: () => console.log('Stamen Terrain map ready!'),
+    onMapReady: () => console.log('OpenTopoMap ready!'),
   },
 };
 

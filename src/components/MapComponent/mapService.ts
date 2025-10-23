@@ -100,9 +100,29 @@ class MapClassWrapper {
     if (this.#instance) {
       return this.#instance;
     }
+
     const m = new maplibregl.Map({
       container: "map",
-      style: basemapUrl,
+      style: {
+        version: 8,
+        sources: {
+          'raster-tiles': {
+            type: 'raster',
+            tiles: [basemapUrl],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors'
+          }
+        },
+        layers: [
+          {
+            id: 'simple-tiles',
+            type: 'raster',
+            source: 'raster-tiles',
+            minzoom: 0,
+            maxzoom: 22
+          }
+        ]
+      },
       // Center over USA
       center: [-98.583333, 39.833333],
       zoom: 4,
@@ -202,6 +222,38 @@ class MapClassWrapper {
     return E.succeed(undefined);
   }
 
+  #createRasterStyle = (tileUrl: string) => ({
+    version: 8,
+    sources: {
+      'raster-tiles': {
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize: 256,
+        attribution: this.#getAttribution(tileUrl)
+      }
+    },
+    layers: [
+      {
+        id: 'simple-tiles',
+        type: 'raster',
+        source: 'raster-tiles',
+        minzoom: 0,
+        maxzoom: 22
+      }
+    ]
+  });
+
+  #getAttribution = (tileUrl: string) => {
+    if (tileUrl.includes('openstreetmap.org')) {
+      return '© OpenStreetMap contributors';
+    } else if (tileUrl.includes('cartocdn.com')) {
+      return '© OpenStreetMap contributors © CARTO';
+    } else if (tileUrl.includes('opentopomap.org')) {
+      return '© OpenStreetMap contributors © OpenTopoMap';
+    }
+    return '© Map contributors';
+  };
+
   #setStyleByResourceUrl = (resourceUrl: string, diff: boolean = true, validate: boolean = true) => {
     if (resourceUrl === this.#loadedBasemapUrl) {
       console.warn("Duplicate resource url detected, skipping style update");
@@ -213,7 +265,10 @@ class MapClassWrapper {
       setTimeout(() => {
         cb(E.succeed(false));
       }, 1000);
-      this.#map.setStyle(resourceUrl, { diff, validate });
+      
+      // Create proper style for raster tiles
+      const style = this.#createRasterStyle(resourceUrl);
+      this.#map.setStyle(style, { diff, validate });
       this.#loadedBasemapUrl = resourceUrl;
       cb(E.succeed(true));
     }).pipe(E.tap(boolCallbackCalled =>
