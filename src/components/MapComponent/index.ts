@@ -18,6 +18,7 @@ export type {
   MapComponentCallbacks,
   MapOperations,
   MapComponentCoreProps,
+  BasemapConfig,
   ExtendedLayer,
   VectorSourceConfig,
   RasterSourceConfig,

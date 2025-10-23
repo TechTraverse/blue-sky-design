@@ -82,12 +82,27 @@ export interface MapComponentCallbacks {
   onMapError?: (error: Error) => void;
 }
 
+// Basemap configuration options
+export interface BasemapConfig {
+  // Simple tile URL (will be converted to proper style)
+  tileUrl?: string;
+  // Or full MapLibre style specification
+  style?: any;
+  // Custom attribution text
+  attribution?: string;
+  // Tile size (default: 256)
+  tileSize?: number;
+  // Min/max zoom levels
+  minZoom?: number;
+  maxZoom?: number;
+}
+
 // Promise-based operations (converted from effect-ts)
 export interface MapOperations {
   addLayer: (layer: Layer, above?: string) => Promise<void>;
   removeLayer: (layerId: string) => Promise<void>;
   updateLayer: (layer: Layer) => Promise<void>;
-  setBasemap: (basemapUrl: string) => Promise<void>;
+  setBasemap: (basemapUrl: string | BasemapConfig) => Promise<void>;
   zoomTo: (bounds: [number, number, number, number]) => Promise<void>;
   flyTo: (options: { center: [number, number]; zoom: number }) => Promise<void>;
   queryRenderedFeatures: (point?: { x: number; y: number }) => Promise<any[]>;
@@ -104,7 +119,7 @@ export interface MapComponentCoreProps {
   // Map configuration
   initialCenter?: [number, number];
   initialZoom?: number;
-  initialBasemap?: string;
+  initialBasemap?: string | BasemapConfig;
   initialBounds?: [number, number, number, number];
   
   // Controls

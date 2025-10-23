@@ -137,6 +137,59 @@ export const OpenTopoMapBasemap: Story = {
   },
 };
 
+// Custom basemap configuration examples
+export const CustomBasemapConfig: Story = {
+  args: {
+    style: { height: '500px' },
+    initialBasemap: {
+      tileUrl: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+      attribution: '© OpenStreetMap contributors © CARTO',
+      tileSize: 256,
+      minZoom: 0,
+      maxZoom: 20
+    },
+    initialCenter: [-104.9903, 39.7392], // Denver (default)
+    initialZoom: 10,
+    onMapReady: () => console.log('Custom basemap config ready!'),
+  },
+};
+
+export const FullStyleBasemap: Story = {
+  args: {
+    style: { height: '500px' },
+    initialBasemap: {
+      style: {
+        version: 8,
+        sources: {
+          'custom-raster': {
+            type: 'raster',
+            tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors © CARTO'
+          }
+        },
+        layers: [
+          {
+            id: 'custom-background',
+            type: 'background',
+            paint: {
+              'background-color': '#f8f8f8'
+            }
+          },
+          {
+            id: 'custom-tiles',
+            type: 'raster',
+            source: 'custom-raster'
+          }
+        ]
+      }
+    },
+    initialCenter: [-104.9903, 39.7392], // Denver (default)
+    initialZoom: 8,
+    onMapReady: () => console.log('Full custom style ready!'),
+  },
+};
+
 // Effect-ts enhanced stories
 const EffectMeta = {
   component: MapComponentEffect,

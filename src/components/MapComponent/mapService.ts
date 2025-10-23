@@ -96,14 +96,19 @@ class MapClassWrapper {
       shareReplay(1));
   }
 
-  static async make(basemapUrl: string, mapSettings?: MapSettings) {
+  static async make(basemapConfig: string | any, mapSettings?: MapSettings) {
     if (this.#instance) {
       return this.#instance;
     }
 
-    const m = new maplibregl.Map({
-      container: "map",
-      style: {
+    // Handle different basemap configuration types
+    let style: any;
+    let basemapUrl: string;
+    
+    if (typeof basemapConfig === 'string') {
+      // Simple tile URL
+      basemapUrl = basemapConfig;
+      style = {
         version: 8,
         sources: {
           'raster-tiles': {
@@ -122,9 +127,41 @@ class MapClassWrapper {
             maxzoom: 22
           }
         ]
-      },
-      // Center over USA
-      center: [-98.583333, 39.833333],
+      };
+    } else if (basemapConfig.style) {
+      // Full MapLibre style specification
+      style = basemapConfig.style;
+      basemapUrl = 'custom-style';
+    } else if (basemapConfig.tileUrl) {
+      // BasemapConfig with tileUrl
+      basemapUrl = basemapConfig.tileUrl;
+      style = {
+        version: 8,
+        sources: {
+          'raster-tiles': {
+            type: 'raster',
+            tiles: [basemapUrl],
+            tileSize: basemapConfig.tileSize || 256,
+            attribution: basemapConfig.attribution || '© Map contributors'
+          }
+        },
+        layers: [
+          {
+            id: 'simple-tiles',
+            type: 'raster',
+            source: 'raster-tiles',
+            minzoom: basemapConfig.minZoom || 0,
+            maxzoom: basemapConfig.maxZoom || 22
+          }
+        ]
+      };
+    }
+
+    const m = new maplibregl.Map({
+      container: "map",
+      style: style,
+      // Center over Denver, CO
+      center: [-104.9903, 39.7392],
       zoom: 4,
       ...(mapSettings ?? {}),
     });

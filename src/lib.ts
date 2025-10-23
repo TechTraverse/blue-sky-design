@@ -25,6 +25,7 @@ export type {
   MapEventHandlers,
   MapControls,
   MapOperations,
+  BasemapConfig,
   ExtendedLayer,
   VectorSourceConfig,
   RasterSourceConfig,

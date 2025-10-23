@@ -53,11 +53,12 @@ export class MapServiceAdapter implements MapOperations {
     await this.addLayer(layer);
   }
 
-  async setBasemap(basemapUrl: string): Promise<void> {
+  async setBasemap(basemapConfig: string | any): Promise<void> {
+    const resourceUrl = typeof basemapConfig === 'string' ? basemapConfig : (basemapConfig.tileUrl || 'custom-style');
     const basemapLayer: LayerType = {
       _tag: "Basemap",
       id: "basemap",
-      resourceUrl: basemapUrl,
+      resourceUrl: resourceUrl,
     };
     const effect = this.mapService.addLayer(basemapLayer);
     return E.runPromise(effect);

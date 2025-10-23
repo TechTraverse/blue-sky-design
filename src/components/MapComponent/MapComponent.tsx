@@ -67,7 +67,7 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   id = 'map',
   className,
   style,
-  initialCenter = [-98.583333, 39.833333],
+  initialCenter = [-104.9903, 39.7392], // Denver, CO
   initialZoom = 4,
   initialBasemap = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   initialLayers = [],
