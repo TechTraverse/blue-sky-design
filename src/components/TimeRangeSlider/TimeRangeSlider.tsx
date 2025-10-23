@@ -33,7 +33,6 @@ enum UpdateSource {
 
 type State = {
   timeZone: TimeZone;
-  increment: TimeDuration;
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
   viewDuration: Duration.Duration;
@@ -43,7 +42,6 @@ type State = {
   resetDuration: Duration.Duration;
 
   // User-selected date range
-  prevSelectedStartDateTime: DateTime.DateTime;
   selectedStartDateTime: DateTime.DateTime;
   selectedDuration: Duration.Duration;
 
@@ -67,8 +65,6 @@ type State = {
 type Action = D.TaggedEnum<{
   SetTimeZone: { timeZone: TimeZone; };
   ExtSetTimeZone: { timeZone: TimeZone; };
-  SetIncrement: { increment: TimeDuration; };
-  ExtSetIncrement: { increment: TimeDuration; };
 
   SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
   SetViewDuration: { viewDuration: Duration.Duration; };
@@ -116,7 +112,6 @@ const {
 
   SetTimeZone,
   ExtSetTimeZone,
-  ExtSetIncrement,
   SetViewStartDateTime,
   SetViewDuration,
 
@@ -142,47 +137,13 @@ const {
  */
 
 const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
+const DEFAULT_VIEW_INCREMENT = Duration.minutes(5).pipe(Duration.toMillis);
 
 
 /**
  * Helper functions
  */
 
-const roundDateTimeDownToNearestFiveMinutes = (dateTime: DateTime.DateTime): DateTime.DateTime => dateTime.pipe(
-  DateTime.toParts,
-  (parts) => {
-    const roundedToFiveFloorMins = Math.floor(parts.minutes / 5) * 5;
-    return DateTime.unsafeMake({
-      ...parts,
-      minutes: roundedToFiveFloorMins,
-      seconds: 0,
-      milliseconds: 0,
-    });
-  });
-
-const calculateOptimalViewStart = (
-  pStart: DateTime.DateTime,
-  nStart: DateTime.DateTime,
-  nDuration: Duration.Duration,
-  cViewStart: DateTime.DateTime,
-  cViewDuration: Duration.Duration,
-  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime = roundDateTimeDownToNearestFiveMinutes
-): DateTime.DateTime => {
-  // Check if new selection is outside current view
-  const nEnd = DateTime.addDuration(nStart, nDuration);
-  const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
-  const isOutsideView = DateTime.lessThan(nStart, cViewStart) || DateTime.greaterThan(nEnd, cViewEnd);
-
-  if (isOutsideView) {
-    // Center the selection in the view
-    const selectionMidpoint = DateTime.addDuration(nStart, Duration.millis(Duration.toMillis(nDuration) / 2));
-    const unroundedViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(cViewDuration) / 2));
-    return roundingFn(unroundedViewStart);
-  }
-
-  // Selection is within view, keep current view
-  return cViewStart;
-};
 
 
 const widthToDuration: (width: number) => Duration.Duration = (width) => match(width)
@@ -205,20 +166,19 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
  * State management: reducer
  */
 
-const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
+const getSetSelectedStartDateTimeAction = (state: State) => (x: {
   selectedStartDateTime: DateTime.DateTime;
   updateSource: UpdateSource;
 }) => {
   const start = x.selectedStartDateTime;
 
-  // Calculate optimal view range with configurable alignment and padding
+  // Calculate optimal view range with 5-minute alignment and padding
   const optimalViewStart = calculateOptimalViewStart(
     state.selectedStartDateTime, // Old start
     start,
     state.selectedDuration,
     state.viewStartDateTime,
-    state.viewDuration,
-    roundingFn
+    state.viewDuration
   );
 
   // Only update view range if selected date + duration goes outside current view range
@@ -237,12 +197,11 @@ const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: 
   return {
     ...state,
     viewStartDateTime,
-    prevSelectedStartDateTime: state.selectedStartDateTime,
     selectedStartDateTime: start,
   }
 }
 
-const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
+const getSetSelectedDurationAction = (state: State) => (x: {
   selectedDuration: Duration.Duration;
 }) => {
   // Calculate optimal view range with new duration
@@ -251,8 +210,7 @@ const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateT
     state.selectedStartDateTime,
     x.selectedDuration,
     state.viewStartDateTime,
-    state.viewDuration,
-    roundingFn
+    state.viewDuration
   );
 
   return {
@@ -262,7 +220,7 @@ const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateT
   };
 }
 
-const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime = roundDateTimeDownToNearestFiveMinutes): State =>
+const reducer = (state: State, action: Action): State =>
   $actionMatch({
     SetTimeZone: (x) => ({
       ...state,
@@ -272,19 +230,11 @@ const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.D
       ...state,
       timeZone: x.timeZone,
     }),
-    SetIncrement: (x) => ({
-      ...state,
-      increment: x.increment,
-    }),
-    ExtSetIncrement: (x) => ({
-      ...state,
-      increment: x.increment,
-    }),
 
     SetViewStartDateTime: (x) => ({
       ...state,
       viewStartDateTime:
-        roundingFn(x.viewStartDateTime),
+        roundDateTimeDownToNearestIncrement(x.viewStartDateTime),
     }),
     SetViewDuration: (x) => ({
       ...state,
@@ -300,11 +250,11 @@ const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.D
       resetDuration: x.resetDuration,
     }),
 
-    SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state, roundingFn),
-    ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state, roundingFn),
+    SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
+    ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state),
 
-    SetSelectedDuration: getSetSelectedDurationAction(state, roundingFn),
-    ExtSetSelectedDuration: getSetSelectedDurationAction(state, roundingFn),
+    SetSelectedDuration: getSetSelectedDurationAction(state),
+    ExtSetSelectedDuration: getSetSelectedDurationAction(state),
 
     SetAnimationOrStepMode: (x) => ({
       ...state,
@@ -340,7 +290,6 @@ const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.D
       ...state,
       viewStartDateTime: state.resetStartDateTime,
       viewDuration: state.resetDuration,
-      prevSelectedStartDateTime: state.resetStartDateTime,
       selectedStartDateTime: state.resetStartDateTime,
       selectedDuration: state.resetDuration,
       animationOrStepMode: AnimationOrStepMode.Step,
@@ -356,14 +305,13 @@ const reducer = (state: State, action: Action, roundingFn: (dateTime: DateTime.D
  */
 
 function withMiddleware(
-  reducer: (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime) => State,
+  reducer: (state: State, action: Action) => State,
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
-  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
   onTimeZoneChange?: (timeZone: TimeZone) => void
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
     // Determine latest state
-    const newState = reducer(oldState, action, roundingFn);
+    const newState = reducer(oldState, action);
     match(action._tag)
       .with("SetSelectedStartDateTime", () => {
         const start = newState.selectedStartDateTime;
@@ -403,28 +351,49 @@ export const TimeRangeSlider = ({
   increment = TimeDuration["5m"],
 }: TimeRangeSliderProps) => {
 
-  const roundDateTimeDownToNearestIncrement = useMemo<(dateTime: DateTime.DateTime) => DateTime.DateTime>(() => {
-    return (dateTime: DateTime.DateTime): DateTime.DateTime => {
-      const incrementMinutes = increment / (60 * 1000);
-      return dateTime.pipe(
-        DateTime.toParts,
-        (parts) => {
-          const roundedToFloorMins = Math.floor(parts.minutes / incrementMinutes) * incrementMinutes;
-          return DateTime.unsafeMake({
-            ...parts,
-            minutes: roundedToFloorMins,
-            seconds: 0,
-            milliseconds: 0,
-          });
-        });
-    };
-  }, [increment]);
+  const viewIncrement = increment;
 
+  const roundDateTimeDownToNearestIncrement = (dateTime: DateTime.DateTime): DateTime.DateTime => {
+    const incrementMinutes = viewIncrement / (60 * 1000);
+    return dateTime.pipe(
+      DateTime.toParts,
+      (parts) => {
+        const roundedToFloorMins = Math.floor(parts.minutes / incrementMinutes) * incrementMinutes;
+        return DateTime.unsafeMake({
+          ...parts,
+          minutes: roundedToFloorMins,
+          seconds: 0,
+          milliseconds: 0,
+        });
+      });
+  };
+
+  const calculateOptimalViewStart = (
+    pStart: DateTime.DateTime,
+    nStart: DateTime.DateTime,
+    nDuration: Duration.Duration,
+    cViewStart: DateTime.DateTime,
+    cViewDuration: Duration.Duration
+  ): DateTime.DateTime => {
+    // Check if new selection is outside current view
+    const nEnd = DateTime.addDuration(nStart, nDuration);
+    const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
+    const isOutsideView = DateTime.lessThan(nStart, cViewStart) || DateTime.greaterThan(nEnd, cViewEnd);
+
+    if (isOutsideView) {
+      // Center the selection in the view
+      const selectionMidpoint = DateTime.addDuration(nStart, Duration.millis(Duration.toMillis(nDuration) / 2));
+      const unroundedViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(cViewDuration) / 2));
+      return roundDateTimeDownToNearestIncrement(unroundedViewStart);
+    }
+
+    // Selection is within view, keep current view
+    return cViewStart;
+  };
 
   const initialValues = useMemo(() => {
     // Fixed init vals
     const timeZone = TimeZone.Local;
-    const increment = TimeDuration["5m"];
     const animationSpeed = AnimationSpeed['5 min/sec'];
     const resetAnimationSpeed = AnimationSpeed['5 min/sec'];
     const resetAnimationDuration = DEFAULT_ANIMATION_DURATION;
@@ -442,7 +411,6 @@ export const TimeRangeSlider = ({
         const now = DateTime.unsafeNow().pipe(roundDateTimeDownToNearestIncrement);
         return now;
       });
-    const prevSelectedStartDateTime = selectedStartDateTime;
     const animationStartDateTime = selectedStartDateTime;
 
     const selectedDuration = match(dateRange)
@@ -485,13 +453,11 @@ export const TimeRangeSlider = ({
       selectedStartDateTime,
       selectedDuration,
       DateTime.subtractDuration(selectedStartDateTime, Duration.hours(2)),
-      viewDuration,
-      roundDateTimeDownToNearestIncrement
+      viewDuration
     );
 
     return {
       timeZone,
-      increment,
       viewStartDateTime,
       viewDuration,
 
@@ -499,7 +465,6 @@ export const TimeRangeSlider = ({
       resetDuration,
 
       selectedStartDateTime,
-      prevSelectedStartDateTime,
       selectedDuration,
 
       animationOrStepMode,
@@ -515,7 +480,7 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, roundDateTimeDownToNearestIncrement, onTimeZoneChange), null, () => initialValues);
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, onTimeZoneChange), null, () => initialValues);
 
 
   /**
@@ -629,14 +594,6 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeZone]);
 
-  // increment prop change
-  useEffect(() => {
-    if (increment !== s.increment) {
-      d(ExtSetIncrement({ increment }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [increment]);
-
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
 
@@ -651,7 +608,7 @@ export const TimeRangeSlider = ({
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
           <HorizontalCalendar
             timeZone={s.timeZone}
-            increment={s.increment}
+            increment={viewIncrement}
             isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
             primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
               ? {
