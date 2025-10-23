@@ -262,8 +262,8 @@ export class MapService extends Context.Tag("MapService")<
 const MapServiceLive = Layer.effect(
   MapService,
   E.gen(function* () {
-    // Default basemap URL - can be made configurable
-    const defaultBasemapUrl = "https://basemaps.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+    // Default basemap URL - OpenStreetMap (no API key required, CORS-friendly)
+    const defaultBasemapUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
     
     const mapWrapper = yield* E.promise(() => MapClassWrapper.make(defaultBasemapUrl));
     

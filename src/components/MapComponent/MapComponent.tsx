@@ -69,7 +69,7 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   style,
   initialCenter = [-98.583333, 39.833333],
   initialZoom = 4,
-  initialBasemap = 'https://basemaps.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  initialBasemap = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   initialLayers = [],
   controls = {
     navigation: true,
