@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { MapComponent, MapComponentEffect } from './MapComponent';
+import { MapComponent, MapComponentEffect } from './index';
 import { Effect as E } from 'effect';
 
 const meta = {
