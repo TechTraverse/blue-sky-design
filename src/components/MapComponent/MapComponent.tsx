@@ -40,7 +40,7 @@ function useMapService() {
         });
 
         const providedProgram = E.provide(program, MapServiceLayer);
-        const service = await runtime.runPromise(providedProgram);
+        const service = await E.runPromise(providedProgram);
         
         const adapter = new MapServiceAdapter(service, runtime);
         setMapService(adapter);

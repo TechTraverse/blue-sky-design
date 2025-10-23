@@ -57,7 +57,7 @@ function useMapServiceEffect(
         // Use external layer if provided, otherwise use default
         const serviceLayer = externalLayer || MapServiceLayer;
         const providedProgram = E.provide(program, serviceLayer);
-        const service = await runtime.runPromise(providedProgram);
+        const service = await E.runPromise(providedProgram);
         
         const effectService = createMapServiceEffect(service);
         setMapServiceEffect(effectService);
@@ -122,14 +122,14 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
             };
             eventHandlers.onClick!(cleanEvent);
           });
-          await runtime.runPromise(effect);
+          await E.runPromise(effect);
         }
 
         if (eventHandlers.onLoad) {
           const effect = mapServiceEffect.registerEventHandlerEffect('load', () => {
             eventHandlers.onLoad!();
           });
-          await runtime.runPromise(effect);
+          await E.runPromise(effect);
         }
 
         setIsInitialized(true);
@@ -148,7 +148,7 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
     getMapServiceEffect: () => mapServiceEffect,
     runEffect: async <A, E, R>(effect: E.Effect<A, E, R>) => {
       if (!mapServiceEffect) throw new Error('MapService not ready');
-      return runtime.runPromise(effect);
+      return E.runPromise(effect);
     },
     getMapInstance: () => {
       if (!mapServiceEffect) throw new Error('MapService not ready');

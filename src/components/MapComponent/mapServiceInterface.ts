@@ -35,7 +35,7 @@ export class MapServiceAdapter implements MapOperations {
   async addLayer(layer: Layer, above?: string): Promise<void> {
     const layerType = convertToLayerType(layer);
     const effect = this.mapService.addLayer(layerType);
-    return this.runtime.runPromise(effect);
+    return E.runPromise(effect);
   }
 
   async removeLayer(layerId: string): Promise<void> {
@@ -44,7 +44,7 @@ export class MapServiceAdapter implements MapOperations {
       id: layerId,
     };
     const effect = this.mapService.rmLayer(layerType);
-    return this.runtime.runPromise(effect);
+    return E.runPromise(effect);
   }
 
   async updateLayer(layer: Layer): Promise<void> {
@@ -60,7 +60,7 @@ export class MapServiceAdapter implements MapOperations {
       resourceUrl: basemapUrl,
     };
     const effect = this.mapService.addLayer(basemapLayer);
-    return this.runtime.runPromise(effect);
+    return E.runPromise(effect);
   }
 
   async zoomTo(bounds: [number, number, number, number]): Promise<void> {
@@ -106,7 +106,7 @@ export class MapServiceAdapter implements MapOperations {
       handler(cleanEvent);
     });
     
-    const subscription = await this.runtime.runPromise(effect);
+    const subscription = await E.runPromise(effect);
     return () => subscription.unsubscribe();
   }
 
