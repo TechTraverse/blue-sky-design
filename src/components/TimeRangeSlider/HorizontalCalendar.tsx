@@ -59,33 +59,35 @@ enum SliderActive {
 }
 
 export const HorizontalCalendar = ({
+  primaryRange: _primaryRange,
+  subRange: _subRange,
+  viewRange: _viewRange,
+  latestValidDateTime,
   timeZone,
   increment,
-  primaryRange: _primaryRange,
-  viewRange: _viewRange,
-  subRanges: _subRanges,
-  isStepMode = false,
-  onSetSelectedStartDateTime,
-  onSetSelectedDuration,
-  onSetAnimationStartDateTime,
-  onPauseAnimation,
-  animationPlayMode,
-  animationSpeed,
   theme = AppTheme.Light,
+  // isStepMode = false,
+  // onSetSelectedStartDateTime,
+  // onSetSelectedDuration,
+  // onSetAnimationStartDateTime,
+  // onPauseAnimation,
+  // animationPlayMode,
+  // animationSpeed,
 }: {
+  primaryRange: PrimaryRange<DateTime.DateTime>,
+  subRange?: SubRange<DateTime.DateTime>,
+  viewRange: RangeValue<DateTime.DateTime>,
+  latestValidDateTime?: DateTime.DateTime,
   timeZone: TimeZone,
   increment?: number,
-  primaryRange: PrimaryRange<DateTime.DateTime>,
-  viewRange: RangeValue<DateTime.DateTime>,
-  subRanges?: SubRange<DateTime.DateTime>[],
-  isStepMode?: boolean,
-  onSetSelectedStartDateTime?: (date: DateTime.DateTime) => void,
-  onSetSelectedEndDateTime?: (date: DateTime.DateTime) => void,
-  onSetAnimationStartDateTime?: (date: DateTime.DateTime) => void,
-  onPauseAnimation?: () => void,
-  animationPlayMode?: string,
-  animationSpeed?: AnimationSpeed,
   theme?: AppTheme,
+  // isStepMode?: boolean,
+  // onSetSelectedStartDateTime?: (date: DateTime.DateTime) => void,
+  // onSetSelectedEndDateTime?: (date: DateTime.DateTime) => void,
+  // onSetAnimationStartDateTime?: (date: DateTime.DateTime) => void,
+  // onPauseAnimation?: () => void,
+  // animationPlayMode?: string,
+  // animationSpeed?: AnimationSpeed,
 }) => {
 
   const zonedOffsetMillis = useMemo(() => timeZone === TimeZone.Local
@@ -109,13 +111,13 @@ export const HorizontalCalendar = ({
     })
     : _primaryRange, [_primaryRange, timeZone, zonedOffsetMillis]);
 
-  const subRanges = useMemo(() => timeZone === TimeZone.Local && _subRanges
-    ? _subRanges.map(r => ({
+  const subRange = useMemo(() => timeZone === TimeZone.Local && _subRange
+    ? [_subRange].map(r => ({
       ...r,
       start: DateTime.add(r.start, { millis: zonedOffsetMillis }),
       end: DateTime.add(r.end, { millis: zonedOffsetMillis })
-    }))
-    : _subRanges, [_subRanges, timeZone, zonedOffsetMillis]);
+    }))[0]
+    : _subRange, [_subRange, timeZone, zonedOffsetMillis]);
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
@@ -223,8 +225,8 @@ export const HorizontalCalendar = ({
 
   const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
   useEffect(() => {
-    if (subRanges) {
-      setSliderSubRanges(subRanges.map((r) => ({
+    if (subRange) {
+      setSliderSubRanges([subRange].map((r) => ({
         start: DateTime.toEpochMillis(r.start),
         end: DateTime.toEpochMillis(r.end),
         set: (range: { start: number; end: number }) => {
@@ -238,7 +240,7 @@ export const HorizontalCalendar = ({
     } else {
       setSliderSubRanges([]);
     }
-  }, [subRanges]);
+  }, [subRange]);
 
   const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
   useEffect(() => {
@@ -278,7 +280,7 @@ export const HorizontalCalendar = ({
         opacity: '1 !important',
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges, isStepMode, theme]);
+  }, [sliderSelectedDateRange, sliderSubRanges, theme, colors.select, colors.primary, colors.text]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -310,7 +312,7 @@ export const HorizontalCalendar = ({
         .with(SliderActive.RightActive, () => "hide-left-slider-component")
         .with(SliderActive.LeftActive, () => "hide-right-slider-component")
         .otherwise(() => "")
-        } ${isStepMode ? 'step-mode' : 'animation-mode'} ${!isStepMode && animationSpeed && animationSpeed < 0 ? 'negative-speed' : 'positive-speed'}`}>
+        }`}>
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
@@ -321,25 +323,26 @@ export const HorizontalCalendar = ({
             const offsetValues = match(newValue)
               .with([P.number, P.number], (x) => x.map(v => v - zonedOffsetMillis) as [number, number])
               .otherwise(() => undefined);
+            console.log("Offset Values:", offsetValues);
 
-            match([offsetValues, e.type])
-              // .with([[
-              //   P.when((x: number) => {
-              //     // The lower thumb value is within "increment" of the previous value
-              //     return Math.abs(x - DateTime.toEpochMillis(primaryRange.start)) <= (increment || 10 * 60 * 1000);
-              //   }),
-              //   P.number
-              // ], "mousemove"], ([[start, end]]) => {
-              //   onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
-              //   onSetSelectedDuration?.(DateTime.distanceDuration(
-              //     DateTime.unsafeFromDate(new Date(start)),
-              //     DateTime.unsafeFromDate(new Date(end))
-              //   ));
-              // })
-              .with([[P.number, P.number], P.any], ([[start]]) => {
-                onSetSelectedStartDateTime?.
-                  (DateTime.unsafeFromDate(new Date(start)));
-              })
+            // match([offsetValues, e.type])
+            // .with([[
+            //   P.when((x: number) => {
+            //     // The lower thumb value is within "increment" of the previous value
+            //     return Math.abs(x - DateTime.toEpochMillis(primaryRange.start)) <= (increment || 10 * 60 * 1000);
+            //   }),
+            //   P.number
+            // ], "mousemove"], ([[start, end]]) => {
+            //   onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
+            //   onSetSelectedDuration?.(DateTime.distanceDuration(
+            //     DateTime.unsafeFromDate(new Date(start)),
+            //     DateTime.unsafeFromDate(new Date(end))
+            //   ));
+            // })
+            // .with([[P.number, P.number], P.any], ([[start]]) => {
+            //   onSetSelectedStartDateTime?.
+            //     (DateTime.unsafeFromDate(new Date(start)));
+            // })
           }}
           valueLabelDisplay="auto"
           valueLabelFormat={(value) => {
@@ -350,43 +353,43 @@ export const HorizontalCalendar = ({
           marks={viewRangeAndStep.stepArr}
           min={viewRangeAndStep.start}
           max={viewRangeAndStep.end}
-          slotProps={{
-            thumb: (ownerState, thumbProps) => {
-              // Access data-index from thumbProps to differentiate thumbs
-              const dataIndex = thumbProps?.['data-index'];
+        // slotProps={{
+        //   thumb: (ownerState, thumbProps) => {
+        //     // Access data-index from thumbProps to differentiate thumbs
+        //     const dataIndex = thumbProps?.['data-index'];
 
-              if (isStepMode) {
-                // Step mode - different colors for left/right thumbs
-                const isLeftThumb = dataIndex === 0;
-                return {
-                  'data-index': dataIndex,
-                  style: {
-                    width: '3px',
-                    height: '24px',
-                    borderRadius: '0px',
-                    backgroundColor: isLeftThumb ? colors.select : '#f44336', // Primary blue left, red right
-                    border: 'none',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-                    cursor: 'ew-resize',
-                  }
-                };
-              } else {
-                // Animation mode - activity color for both thumbs
-                return {
-                  'data-index': dataIndex,
-                  style: {
-                    width: '3px',
-                    height: '24px',
-                    borderRadius: '0px',
-                    backgroundColor: colors.activity, // Theme-aware activity color
-                    border: 'none',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-                    cursor: 'ew-resize',
-                  }
-                };
-              }
-            }
-          }}
+        //     if (isStepMode) {
+        //       // Step mode - different colors for left/right thumbs
+        //       const isLeftThumb = dataIndex === 0;
+        //       return {
+        //         'data-index': dataIndex,
+        //         style: {
+        //           width: '3px',
+        //           height: '24px',
+        //           borderRadius: '0px',
+        //           backgroundColor: isLeftThumb ? colors.select : '#f44336', // Primary blue left, red right
+        //           border: 'none',
+        //           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+        //           cursor: 'ew-resize',
+        //         }
+        //       };
+        //     } else {
+        //       // Animation mode - activity color for both thumbs
+        //       return {
+        //         'data-index': dataIndex,
+        //         style: {
+        //           width: '3px',
+        //           height: '24px',
+        //           borderRadius: '0px',
+        //           backgroundColor: colors.activity, // Theme-aware activity color
+        //           border: 'none',
+        //           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+        //           cursor: 'ew-resize',
+        //         }
+        //       };
+        //     }
+        //   }
+        // }}
         />
       </Box>
     </div>);

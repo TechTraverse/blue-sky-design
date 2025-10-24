@@ -562,7 +562,7 @@ export const TimeRangeSlider = ({
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
   // Render ranges for HorizontalCalendar
-  const primaryRangeForHorizontalCalendar = useMemo(() =>
+  const primaryRangeHC = useMemo(() =>
     state.animationMode === AnimationOrStepMode.Animation
       ? {
         start: state.animationStart,
@@ -588,7 +588,7 @@ export const TimeRangeSlider = ({
         duration: state.selectedDuration
       }, [state, updateSelectedRange]);
 
-  const subRange = useMemo(() => {
+  const subRangeHC = useMemo(() => {
     if (state.animationMode === AnimationOrStepMode.Animation) {
       return {
         start: state.selectedStart,
@@ -596,10 +596,10 @@ export const TimeRangeSlider = ({
         active: true,
       };
     }
-    return [];
+    return undefined;
   }, [state]);
 
-  const viewRange = useMemo(() => ({
+  const viewRangeHC = useMemo(() => ({
     start: convertDateTimeForDisplay(state.viewStart, timeZoneString),
     end: convertDateTimeForDisplay(DateTime.addDuration(state.viewStart, state.viewDuration), timeZoneString)
   }), [state.viewStart, state.viewDuration, timeZoneString]);
@@ -621,14 +621,16 @@ export const TimeRangeSlider = ({
 
         <div className="horizontal-calendar-grid-body">
           <HorizontalCalendar
-            // isStepMode={state.animationMode === AnimationOrStepMode.Step}
-            primaryRange={primaryRangeForHorizontalCalendar}
-            subRange={subRange}
-            viewRange={viewRange}
-            latestValidDateTime={ }
-            timeZone={"timeZoneEnum"}
+            primaryRange={primaryRangeHC}
+            subRange={subRangeHC}
+            viewRange={viewRangeHC}
+            latestValidDateTime={dateRangeForReset?.end
+              ? dateToDateTime(dateRangeForReset.end)
+              : undefined}
+            timeZone={timeZone}
             increment={VIEW_INCREMENT}
             theme={theme}
+          // isStepMode={state.animationMode === AnimationOrStepMode.Step}
           // onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
           //   const convertedDate = convertDateTimeFromDisplay(date, timeZoneString);
           //   updateSelectedRange(convertedDate, state.selectedDuration);

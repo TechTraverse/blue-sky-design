@@ -33,6 +33,7 @@ enum UpdateSource {
 
 type State = {
   timeZone: TimeZone;
+  increment: TimeDuration;
   // The current viewable range of dates
   viewStartDateTime: DateTime.DateTime;
   viewDuration: Duration.Duration;
@@ -261,9 +262,9 @@ const reducer = (state: State, action: Action, roundingFn?: (dateTime: DateTime.
         milliseconds: 0,
       });
     });
-  
+
   const actualRoundingFn = roundingFn || defaultRounding;
-  
+
   return $actionMatch({
     SetTimeZone: (x) => ({
       ...state,
@@ -454,6 +455,7 @@ export const TimeRangeSlider = ({
     const animationPlayMode = PlayMode.Pause;
     const animationOrStepMode = AnimationOrStepMode.Step;
     const viewDuration = Duration.hours(4);
+    const increment = TimeDuration["5m"];
 
     // Values for calculating remaining initial state
     const selectedStartDateTime = match(dateRange)
@@ -658,6 +660,53 @@ export const TimeRangeSlider = ({
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
+  /**
+   * Render horizontal calendar with appropriate ranges
+   */
+  const primaryRangeHC = useMemo(() =>
+    s.animationOrStepMode === AnimationOrStepMode.Animation
+      ? {
+        start: s.animationStartDateTime,
+        end: DateTime.addDuration(
+          s.animationStartDateTime, s.animationDuration),
+        set: (r: RangeValue<DateTime.DateTime>) => {
+          d(SetAnimationStartDateTime({ animationStartDateTime: r.start }));
+          d(SetAnimationDuration({
+            animationDuration: DateTime.distanceDuration(r.start, r.end)
+          }));
+        },
+        duration: s.animationDuration
+      }
+      : {
+        start: s.selectedStartDateTime,
+        end: DateTime.addDuration(
+          s.selectedStartDateTime, s.selectedDuration),
+        set: (r: RangeValue<DateTime.DateTime>) => {
+          d(SetSelectedStartDateTime({
+            selectedStartDateTime: r.start,
+            updateSource: UpdateSource.UserInteraction
+          }));
+        },
+        duration: s.selectedDuration
+      }, [s.animationOrStepMode, s.animationStartDateTime,
+      s.animationDuration, s.selectedStartDateTime, s.selectedDuration]);
+
+  const subRangeHC = useMemo(() => {
+    if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+      return {
+        start: s.selectedStartDateTime,
+        end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+        active: true,
+      };
+    }
+    return undefined;
+  }, [s.animationOrStepMode, s.selectedStartDateTime, s.selectedDuration]);
+
+  const viewRangeHC = useMemo(() => ({
+    start: s.viewStartDateTime,
+    end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration)
+  }), [s.viewStartDateTime, s.viewDuration]);
+
 
   return (
     <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
@@ -669,83 +718,16 @@ export const TimeRangeSlider = ({
         }} />
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
           <HorizontalCalendar
-            timeZone={s.timeZone}
-            increment={viewIncrement}
-            isStepMode={s.animationOrStepMode === AnimationOrStepMode.Step}
-            primaryRange={s.animationOrStepMode === AnimationOrStepMode.Animation
-              ? {
-                start: s.animationStartDateTime,
-                end: DateTime.addDuration(s.animationStartDateTime, s.animationDuration),
-                set: (r: RangeValue<DateTime.DateTime>) => {
-                  const convertedStart = r.start;
-                  const convertedEnd = r.end;
-                  d(SetAnimationStartDateTime({ animationStartDateTime: convertedStart }));
-                  d(SetAnimationDuration({
-                    animationDuration: DateTime.distanceDuration(convertedStart, convertedEnd)
-                  }));
-                },
-                duration: s.animationDuration
-              }
-              : (() => {
-                const startForDisplay = s.selectedStartDateTime;
-                const endForDisplay = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2));
-                console.log('DEBUG: Primary range being passed to HorizontalCalendar', {
-                  start: DateTime.toDate(startForDisplay),
-                  end: DateTime.toDate(endForDisplay),
-                  originalStart: DateTime.toDate(s.selectedStartDateTime),
-                  originalEnd: DateTime.toDate(DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2))),
-                  timeZone: s.timeZone
-                });
-                return {
-                  start: startForDisplay,
-                  end: endForDisplay,
-                  set: (r: RangeValue<DateTime.DateTime>) => {
-                    const convertedStart = r.start;
-                    const convertedEnd = r.end;
-                    d(SetSelectedStartDateTime({
-                      selectedStartDateTime: convertedStart,
-                      updateSource: UpdateSource.UserInteraction
-                    }));
-                    d(SetSelectedDuration({
-                      selectedDuration: DateTime.distanceDuration(convertedStart, convertedEnd),
-                      updateSource: UpdateSource.UserInteraction
-                    }));
-                  },
-                  duration: s.selectedDuration || Duration.hours(2)
-                };
-              })()}
-            subRanges={s.animationOrStepMode === AnimationOrStepMode.Animation
-              ? [{
-                start: s.selectedStartDateTime,
-                end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration || Duration.hours(2)),
-                active: true,
-              }]
-              : []}
-            viewRange={{
-              start: s.viewStartDateTime,
-              end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration)
-            }}
-            onSetSelectedStartDateTime={(date: DateTime.DateTime) => {
-              const convertedDate = date;
-              d(SetSelectedStartDateTime({
-                selectedStartDateTime: convertedDate,
-                updateSource: UpdateSource.UserInteraction
-              }));
-            }}
-            onSetSelectedDuration={(duration: Duration.Duration) => {
-              d(SetSelectedDuration({
-                selectedDuration: duration,
-                updateSource: UpdateSource.UserInteraction
-              }));
-            }}
-            onSetAnimationStartDateTime={(date: DateTime.DateTime) => {
-              const convertedDate = date
-              d(SetAnimationStartDateTime({ animationStartDateTime: convertedDate }));
-            }}
-            onPauseAnimation={() => {
-              d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
-            }}
-            animationSpeed={s.animationSpeed}
+            primaryRange={primaryRangeHC}
+            subRange={subRangeHC}
+            viewRange={viewRangeHC}
+            latestValidDateTime={
+              dateRangeForReset
+                ? DateTime.unsafeFromDate(dateRangeForReset.start)
+                : undefined
+            }
+            timeZone={timeZone}
+            increment={s.increment}
             theme={theme}
           />
         </div>
