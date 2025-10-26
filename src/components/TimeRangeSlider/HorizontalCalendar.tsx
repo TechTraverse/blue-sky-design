@@ -226,64 +226,58 @@ export const HorizontalCalendar = ({
       .exhaustive();
   }, [primaryRange, viewRange]);
 
-  // const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
-  // useEffect(() => {
-  //   if (!subRange) {
-  //     setSliderSubRanges([]);
-  //     return;
-  //   }
-  //   setSliderSubRanges([subRange].map((r) => ({
-  //     start: DateTime.toEpochMillis(r.start),
-  //     end: DateTime.toEpochMillis(r.end),
-  //     set: (range: { start: number; end: number }) => {
-  //       r.set?.({
-  //         start: DateTime.unsafeFromDate(new Date(range.start)),
-  //         end: DateTime.unsafeFromDate(new Date(range.end))
-  //       });
-  //     },
-  //     active: r.active
-  //   })));
-  // }, [subRange]);
+  const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
+  useEffect(() => {
+    if (!subRange) {
+      setSliderSubRanges([]);
+      return;
+    }
+    setSliderSubRanges([subRange].map((r) => ({
+      start: DateTime.toEpochMillis(r.start),
+      end: DateTime.toEpochMillis(r.end),
+      active: r.active
+    })));
+  }, [subRange]);
 
-  // const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
-  // useEffect(() => {
-  //   const selectionStart = sliderSelectedDateRange[0];
-  //   const selectionEnd = sliderSelectedDateRange[1];
-  //   const gradient = [subRange].reduce((acc: string, { start, end, active }: SubRange<number> /*, idx: number */) => {
-  //     const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
-  //     const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
-  //     if (active) {
-  //       acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
-  //     }
-  //     // if (idx === sliderSubRanges.length - 1) {
-  //     //   acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
-  //     // }
-  //     return acc;
-  //   }, "linear-gradient(to right");
+  const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
+  useEffect(() => {
+    const selectionStart = sliderSelectedDateRange[0];
+    const selectionEnd = sliderSelectedDateRange[1];
+    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number> /*, idx: number */) => {
+      const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
+      const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
+      if (active) {
+        acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
+      }
+      // if (idx === sliderSubRanges.length - 1) {
+      //   acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
+      // }
+      return acc;
+    }, "linear-gradient(to right");
 
-  //   setSliderSx({
-  //     '& .MuiSlider-track': {
-  //       background: gradient.includes('red') ? gradient : colors.select,
-  //     },
-  //     '& .MuiSlider-rail': {
-  //       cursor: 'pointer',
-  //       backgroundColor: `${colors.primary} !important`,
-  //       opacity: '1 !important',
-  //     },
-  //     '&.MuiSlider-root .MuiSlider-rail': {
-  //       backgroundColor: `${colors.primary} !important`,
-  //       opacity: '1 !important',
-  //     },
-  //     '& .MuiSlider-mark': {
-  //       backgroundColor: `${colors.text} !important`,
-  //       opacity: '1 !important',
-  //     },
-  //     '& .MuiSlider-markLabel': {
-  //       color: `${colors.text} !important`,
-  //       opacity: '1 !important',
-  //     }
-  //   });
-  // }, [sliderSelectedDateRange, theme, colors.select, colors.primary, colors.text]);
+    setSliderSx({
+      '& .MuiSlider-track': {
+        background: gradient.includes('red') ? gradient : colors.select,
+      },
+      '& .MuiSlider-rail': {
+        cursor: 'pointer',
+        backgroundColor: `${colors.primary} !important`,
+        opacity: '1 !important',
+      },
+      '&.MuiSlider-root .MuiSlider-rail': {
+        backgroundColor: `${colors.primary} !important`,
+        opacity: '1 !important',
+      },
+      '& .MuiSlider-mark': {
+        backgroundColor: `${colors.text} !important`,
+        opacity: '1 !important',
+      },
+      '& .MuiSlider-markLabel': {
+        color: `${colors.text} !important`,
+        opacity: '1 !important',
+      }
+    });
+  }, [sliderSelectedDateRange, sliderSubRanges, theme, colors.select, colors.primary, colors.text]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -319,7 +313,7 @@ export const HorizontalCalendar = ({
         .otherwise(() => "")
         }`}>
         <Slider
-          // sx={sliderSx}
+          sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           value={sliderSelectedDateRange}
           onChange={(e, newValue, activeThumb) => {
