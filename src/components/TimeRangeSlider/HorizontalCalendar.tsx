@@ -97,19 +97,13 @@ export const HorizontalCalendar = ({
     )
     : 0, [_primaryRange.start, timeZone]);
 
-  const viewRange = useMemo(() => timeZone === TimeZone.Local
-    ? ({
-      start: DateTime.add(_viewRange.start, { millis: zonedOffsetMillis }),
-      end: DateTime.add(_viewRange.end, { millis: zonedOffsetMillis })
-    })
-    : _viewRange, [_viewRange, timeZone, zonedOffsetMillis]);
-
   const primaryRange = useMemo(() => timeZone === TimeZone.Local
     ? ({
       start: DateTime.add(_primaryRange.start, { millis: zonedOffsetMillis }),
       end: DateTime.add(_primaryRange.end, { millis: zonedOffsetMillis })
     })
     : _primaryRange, [_primaryRange, timeZone, zonedOffsetMillis]);
+  const { set: setPrimaryRange } = _primaryRange;
 
   const subRange = useMemo(() => timeZone === TimeZone.Local && _subRange
     ? [_subRange].map(r => ({
@@ -119,8 +113,13 @@ export const HorizontalCalendar = ({
     }))[0]
     : _subRange, [_subRange, timeZone, zonedOffsetMillis]);
 
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
+
+  const viewRange = useMemo(() => timeZone === TimeZone.Local
+    ? ({
+      start: DateTime.add(_viewRange.start, { millis: zonedOffsetMillis }),
+      end: DateTime.add(_viewRange.end, { millis: zonedOffsetMillis })
+    })
+    : _viewRange, [_viewRange, timeZone, zonedOffsetMillis]);
 
   // Theme-aware colors that align with wlfs-client palette
   const getThemeColors = (currentTheme: AppTheme) => {
@@ -166,6 +165,7 @@ export const HorizontalCalendar = ({
       // 10m in milliseconds
       increment || 10 * 60 * 1000)
   });
+
   useEffect(() => {
     setViewRangeAndStep({
       start: DateTime.toEpochMillis(viewRange.start),
@@ -180,6 +180,9 @@ export const HorizontalCalendar = ({
   /**
    * Selected date range settings and slider active udpates
    */
+
+  const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
+
   const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number]>([
     DateTime.toEpochMillis(primaryRange.start),
     DateTime.toEpochMillis(primaryRange.end)
@@ -223,64 +226,64 @@ export const HorizontalCalendar = ({
       .exhaustive();
   }, [primaryRange, viewRange]);
 
-  const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
-  useEffect(() => {
-    if (subRange) {
-      setSliderSubRanges([subRange].map((r) => ({
-        start: DateTime.toEpochMillis(r.start),
-        end: DateTime.toEpochMillis(r.end),
-        set: (range: { start: number; end: number }) => {
-          r.set?.({
-            start: DateTime.unsafeFromDate(new Date(range.start)),
-            end: DateTime.unsafeFromDate(new Date(range.end))
-          });
-        },
-        active: r.active
-      })));
-    } else {
-      setSliderSubRanges([]);
-    }
-  }, [subRange]);
+  // const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
+  // useEffect(() => {
+  //   if (!subRange) {
+  //     setSliderSubRanges([]);
+  //     return;
+  //   }
+  //   setSliderSubRanges([subRange].map((r) => ({
+  //     start: DateTime.toEpochMillis(r.start),
+  //     end: DateTime.toEpochMillis(r.end),
+  //     set: (range: { start: number; end: number }) => {
+  //       r.set?.({
+  //         start: DateTime.unsafeFromDate(new Date(range.start)),
+  //         end: DateTime.unsafeFromDate(new Date(range.end))
+  //       });
+  //     },
+  //     active: r.active
+  //   })));
+  // }, [subRange]);
 
-  const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
-  useEffect(() => {
-    const selectionStart = sliderSelectedDateRange[0];
-    const selectionEnd = sliderSelectedDateRange[1];
-    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>, idx: number) => {
-      const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
-      const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
-      if (active) {
-        acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
-      }
-      if (idx === sliderSubRanges.length - 1) {
-        acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
-      }
-      return acc;
-    }, "linear-gradient(to right");
+  // const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
+  // useEffect(() => {
+  //   const selectionStart = sliderSelectedDateRange[0];
+  //   const selectionEnd = sliderSelectedDateRange[1];
+  //   const gradient = [subRange].reduce((acc: string, { start, end, active }: SubRange<number> /*, idx: number */) => {
+  //     const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
+  //     const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
+  //     if (active) {
+  //       acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
+  //     }
+  //     // if (idx === sliderSubRanges.length - 1) {
+  //     //   acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
+  //     // }
+  //     return acc;
+  //   }, "linear-gradient(to right");
 
-    setSliderSx({
-      '& .MuiSlider-track': {
-        background: gradient.includes('red') ? gradient : colors.select,
-      },
-      '& .MuiSlider-rail': {
-        cursor: 'pointer',
-        backgroundColor: `${colors.primary} !important`,
-        opacity: '1 !important',
-      },
-      '&.MuiSlider-root .MuiSlider-rail': {
-        backgroundColor: `${colors.primary} !important`,
-        opacity: '1 !important',
-      },
-      '& .MuiSlider-mark': {
-        backgroundColor: `${colors.text} !important`,
-        opacity: '1 !important',
-      },
-      '& .MuiSlider-markLabel': {
-        color: `${colors.text} !important`,
-        opacity: '1 !important',
-      }
-    });
-  }, [sliderSelectedDateRange, sliderSubRanges, theme, colors.select, colors.primary, colors.text]);
+  //   setSliderSx({
+  //     '& .MuiSlider-track': {
+  //       background: gradient.includes('red') ? gradient : colors.select,
+  //     },
+  //     '& .MuiSlider-rail': {
+  //       cursor: 'pointer',
+  //       backgroundColor: `${colors.primary} !important`,
+  //       opacity: '1 !important',
+  //     },
+  //     '&.MuiSlider-root .MuiSlider-rail': {
+  //       backgroundColor: `${colors.primary} !important`,
+  //       opacity: '1 !important',
+  //     },
+  //     '& .MuiSlider-mark': {
+  //       backgroundColor: `${colors.text} !important`,
+  //       opacity: '1 !important',
+  //     },
+  //     '& .MuiSlider-markLabel': {
+  //       color: `${colors.text} !important`,
+  //       opacity: '1 !important',
+  //     }
+  //   });
+  // }, [sliderSelectedDateRange, theme, colors.select, colors.primary, colors.text]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -295,6 +298,8 @@ export const HorizontalCalendar = ({
   const headerGridLocation = dayDividerIndex === -1
     ? "10px"
     : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
+
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -314,7 +319,7 @@ export const HorizontalCalendar = ({
         .otherwise(() => "")
         }`}>
         <Slider
-          sx={sliderSx}
+          // sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           value={sliderSelectedDateRange}
           onChange={(e, newValue, activeThumb) => {
@@ -324,6 +329,11 @@ export const HorizontalCalendar = ({
               .with([P.number, P.number], (x) => x.map(v => v - zonedOffsetMillis) as [number, number])
               .otherwise(() => undefined);
             console.log("Offset Values:", offsetValues);
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            offsetValues && setPrimaryRange({
+              start: DateTime.unsafeFromDate(new Date(offsetValues[0])),
+              end: DateTime.unsafeFromDate(new Date(offsetValues[1]))
+            });
 
             // match([offsetValues, e.type])
             // .with([[
