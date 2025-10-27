@@ -348,6 +348,49 @@ export const HorizontalCalendar = ({
             //     (DateTime.unsafeFromDate(new Date(start)));
             // })
           }}
+          onClick={(e) => {
+            /**
+             * Confirm click is on rail/background area only
+             */
+            const target = e.target as HTMLElement;
+            const isRailClick = target.classList.contains('MuiSlider-rail')
+              || target.closest('.MuiSlider-rail')
+              || (target.classList.contains('MuiSlider-root')
+                && !target.classList.contains('MuiSlider-thumb')
+                && !target.closest('.MuiSlider-thumb'));
+            if (!isRailClick) return;
+
+
+            const sliderRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const clickX = e.clientX - sliderRect.left;
+            const clickRatio = clickX / sliderRect.width;
+            const clickValue = viewRangeAndStep.start + (clickRatio * (viewRangeAndStep.end - viewRangeAndStep.start));
+
+            const currentEnd = sliderSelectedDateRange[1];
+            const minIncrement = increment ?? 5 * 60 * 1000; // 5 minutes in milliseconds
+
+            match(sliderActive)
+              .with(SliderActive.Inactive, () => {
+                // Create minimum viable range at click position
+                const newStart = clickValue;
+                const newEnd = clickValue + minIncrement;
+                const offsetValues = [newStart - zonedOffsetMillis, newEnd - zonedOffsetMillis] as [number, number];
+                setPrimaryRange({
+                  start: DateTime.unsafeFromDate(new Date(offsetValues[0])),
+                  end: DateTime.unsafeFromDate(new Date(offsetValues[1]))
+                });
+              })
+              // Is active
+              .otherwise(() => {
+                // Any click sets new start position
+                const newStart = clickValue;
+                const offsetValues = [newStart - zonedOffsetMillis, currentEnd - zonedOffsetMillis] as [number, number];
+                setPrimaryRange({
+                  start: DateTime.unsafeFromDate(new Date(offsetValues[0])),
+                  end: DateTime.unsafeFromDate(new Date(offsetValues[1]))
+                });
+              });
+          }}
           valueLabelDisplay="auto"
           valueLabelFormat={(value) => {
             const date = DateTime.unsafeFromDate(new Date(value));
