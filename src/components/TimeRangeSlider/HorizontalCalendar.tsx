@@ -187,44 +187,45 @@ export const HorizontalCalendar = ({
     DateTime.toEpochMillis(primaryRange.start),
     DateTime.toEpochMillis(primaryRange.end)
   ]);
-  useEffect(() => {
-    const startWithinView = DateTime.between(primaryRange.start, {
-      minimum: viewRange.start,
-      maximum: viewRange.end
-    });
-    const endWithinView = DateTime.between(primaryRange.end, {
-      minimum: viewRange.start,
-      maximum: viewRange.end
-    });
-    match([startWithinView, endWithinView])
-      .with([true, true], () => {
-        setSliderSelectedDateRange([
-          DateTime.toEpochMillis(primaryRange.start),
-          DateTime.toEpochMillis(primaryRange.end)
-        ]);
-        setSliderActive(SliderActive.Active)
-      })
-      .with([true, false], () => {
-        setSliderSelectedDateRange([
-          DateTime.toEpochMillis(primaryRange.start),
-          DateTime.toEpochMillis(viewRange.end)
-        ]);
-        setSliderActive(SliderActive.LeftActive)
-      })
-      .with([false, true], () => {
-        setSliderSelectedDateRange([
-          DateTime.toEpochMillis(viewRange.start),
-          DateTime.toEpochMillis(primaryRange.end)
-        ]);
-        setSliderActive(SliderActive.RightActive)
-      })
-      .with([false, false], () => {
-        setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
-        DateTime.toEpochMillis(viewRange.end)])
-        setSliderActive(SliderActive.Inactive)
-      })
-      .exhaustive();
-  }, [primaryRange, viewRange]);
+  // Commented out for basic testing - this was overriding slider changes
+  // useEffect(() => {
+  //   const startWithinView = DateTime.between(primaryRange.start, {
+  //     minimum: viewRange.start,
+  //     maximum: viewRange.end
+  //   });
+  //   const endWithinView = DateTime.between(primaryRange.end, {
+  //     minimum: viewRange.start,
+  //     maximum: viewRange.end
+  //   });
+  //   match([startWithinView, endWithinView])
+  //     .with([true, true], () => {
+  //       setSliderSelectedDateRange([
+  //         DateTime.toEpochMillis(primaryRange.start),
+  //         DateTime.toEpochMillis(primaryRange.end)
+  //       ]);
+  //       setSliderActive(SliderActive.Active)
+  //     })
+  //     .with([true, false], () => {
+  //       setSliderSelectedDateRange([
+  //         DateTime.toEpochMillis(primaryRange.start),
+  //         DateTime.toEpochMillis(viewRange.end)
+  //       ]);
+  //       setSliderActive(SliderActive.LeftActive)
+  //     })
+  //     .with([false, true], () => {
+  //       setSliderSelectedDateRange([
+  //         DateTime.toEpochMillis(viewRange.start),
+  //         DateTime.toEpochMillis(primaryRange.end)
+  //       ]);
+  //       setSliderActive(SliderActive.RightActive)
+  //     })
+  //     .with([false, false], () => {
+  //       setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
+  //       DateTime.toEpochMillis(viewRange.end)])
+  //       setSliderActive(SliderActive.Inactive)
+  //     })
+  //     .exhaustive();
+  // }, [primaryRange, viewRange]);
 
   const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
   useEffect(() => {
@@ -317,37 +318,52 @@ export const HorizontalCalendar = ({
           getAriaLabel={() => 'Minimum distance'}
           value={sliderSelectedDateRange}
           onChange={(e, newValue, activeThumb) => {
-            console.log("Active Thumb:", activeThumb);
-            console.log("Slider Change Event:", e.type);
-            const offsetValues = match(newValue)
-              .with([P.number, P.number], (x) => x.map(v => v - zonedOffsetMillis) as [number, number])
-              .otherwise(() => undefined);
-            console.log("Offset Values:", offsetValues);
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            offsetValues && setPrimaryRange({
-              start: DateTime.unsafeFromDate(new Date(offsetValues[0])),
-              end: DateTime.unsafeFromDate(new Date(offsetValues[1]))
-            });
-
-            // match([offsetValues, e.type])
-            // .with([[
-            //   P.when((x: number) => {
-            //     // The lower thumb value is within "increment" of the previous value
-            //     return Math.abs(x - DateTime.toEpochMillis(primaryRange.start)) <= (increment || 10 * 60 * 1000);
-            //   }),
-            //   P.number
-            // ], "mousemove"], ([[start, end]]) => {
-            //   onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
-            //   onSetSelectedDuration?.(DateTime.distanceDuration(
-            //     DateTime.unsafeFromDate(new Date(start)),
-            //     DateTime.unsafeFromDate(new Date(end))
-            //   ));
-            // })
-            // .with([[P.number, P.number], P.any], ([[start]]) => {
-            //   onSetSelectedStartDateTime?.
-            //     (DateTime.unsafeFromDate(new Date(start)));
-            // })
+            if (Array.isArray(newValue) && newValue.length === 2) {
+              let [newStart, newEnd] = newValue as [number, number];
+              
+              // Apply increment-based rounding
+              const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
+              const roundToIncrement = (value: number) => {
+                const baseTime = DateTime.toEpochMillis(viewRange.start);
+                const offsetFromBase = value - baseTime;
+                const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
+                return baseTime + roundedOffset;
+              };
+              
+              newStart = roundToIncrement(newStart);
+              newEnd = roundToIncrement(newEnd);
+              
+              // Update local state immediately for smooth interaction
+              setSliderSelectedDateRange([newStart, newEnd]);
+              
+              // Sync with primaryRange - provide complete range to avoid partial update issues
+              const offsetStart = newStart - zonedOffsetMillis;
+              const offsetEnd = newEnd - zonedOffsetMillis;
+              
+              setPrimaryRange({
+                start: DateTime.unsafeFromDate(new Date(offsetStart)),
+                end: DateTime.unsafeFromDate(new Date(offsetEnd))
+              });
+            }
           }}
+          // match([offsetValues, e.type])
+          // .with([[
+          //   P.when((x: number) => {
+          //     // The lower thumb value is within "increment" of the previous value
+          //     return Math.abs(x - DateTime.toEpochMillis(primaryRange.start)) <= (increment || 10 * 60 * 1000);
+          //   }),
+          //   P.number
+          // ], "mousemove"], ([[start, end]]) => {
+          //   onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
+          //   onSetSelectedDuration?.(DateTime.distanceDuration(
+          //     DateTime.unsafeFromDate(new Date(start)),
+          //     DateTime.unsafeFromDate(new Date(end))
+          //   ));
+          // })
+          // .with([[P.number, P.number], P.any], ([[start]]) => {
+          //   onSetSelectedStartDateTime?.
+          //     (DateTime.unsafeFromDate(new Date(start)));
+          // })
           onClick={(e) => {
             /**
              * Confirm click is on rail/background area only
@@ -400,43 +416,24 @@ export const HorizontalCalendar = ({
           marks={viewRangeAndStep.stepArr}
           min={viewRangeAndStep.start}
           max={viewRangeAndStep.end}
-        // slotProps={{
-        //   thumb: (ownerState, thumbProps) => {
-        //     // Access data-index from thumbProps to differentiate thumbs
-        //     const dataIndex = thumbProps?.['data-index'];
+          slotProps={{
+            thumb: (ownerState, thumbProps) => {
+              const dataIndex = thumbProps?.['data-index'];
 
-        //     if (isStepMode) {
-        //       // Step mode - different colors for left/right thumbs
-        //       const isLeftThumb = dataIndex === 0;
-        //       return {
-        //         'data-index': dataIndex,
-        //         style: {
-        //           width: '3px',
-        //           height: '24px',
-        //           borderRadius: '0px',
-        //           backgroundColor: isLeftThumb ? colors.select : '#f44336', // Primary blue left, red right
-        //           border: 'none',
-        //           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-        //           cursor: 'ew-resize',
-        //         }
-        //       };
-        //     } else {
-        //       // Animation mode - activity color for both thumbs
-        //       return {
-        //         'data-index': dataIndex,
-        //         style: {
-        //           width: '3px',
-        //           height: '24px',
-        //           borderRadius: '0px',
-        //           backgroundColor: colors.activity, // Theme-aware activity color
-        //           border: 'none',
-        //           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-        //           cursor: 'ew-resize',
-        //         }
-        //       };
-        //     }
-        //   }
-        // }}
+              return {
+                'data-index': dataIndex,
+                style: {
+                  width: '12px',
+                  height: '24px',
+                  borderRadius: '2px',
+                  backgroundColor: colors.activity,
+                  border: '2px solid white',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+                  cursor: 'ew-resize',
+                }
+              };
+            }
+          }}
         />
       </Box>
     </div>);

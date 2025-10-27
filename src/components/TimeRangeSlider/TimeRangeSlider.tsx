@@ -669,11 +669,16 @@ export const TimeRangeSlider = ({
         start: s.animationStartDateTime,
         end: DateTime.addDuration(
           s.animationStartDateTime, s.animationDuration),
-        set: (r: RangeValue<DateTime.DateTime>) => {
-          d(SetAnimationStartDateTime({ animationStartDateTime: r.start }));
-          d(SetAnimationDuration({
-            animationDuration: DateTime.distanceDuration(r.start, r.end)
-          }));
+        set: (r: {
+          start?: DateTime.DateTime;
+          end?: DateTime.DateTime;
+        }) => {
+          const newStart = r.start || s.animationStartDateTime;
+          const newDuration = r.start
+            ? DateTime.distanceDuration(newStart, r.end || DateTime.addDuration(newStart, s.animationDuration))
+            : s.animationDuration;
+          d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
+          d(SetAnimationDuration({ animationDuration: newDuration }));
         },
         duration: s.animationDuration
       }
@@ -681,11 +686,16 @@ export const TimeRangeSlider = ({
         start: s.selectedStartDateTime,
         end: DateTime.addDuration(
           s.selectedStartDateTime, s.selectedDuration),
-        set: (r: RangeValue<DateTime.DateTime>) => {
-          d(SetSelectedStartDateTime({
-            selectedStartDateTime: r.start,
-            updateSource: UpdateSource.UserInteraction
-          }));
+        set: (r: {
+          start?: DateTime.DateTime;
+          end?: DateTime.DateTime;
+        }) => {
+          const newStart = r.start || s.selectedStartDateTime;
+          const newDuration = r.start
+            ? DateTime.distanceDuration(newStart, r.end || DateTime.addDuration(newStart, s.selectedDuration))
+            : s.selectedDuration;
+          d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
+          d(SetAnimationDuration({ animationDuration: newDuration }));
         },
         duration: s.selectedDuration
       }, [s.animationOrStepMode, s.animationStartDateTime,

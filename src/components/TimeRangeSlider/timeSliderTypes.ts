@@ -67,7 +67,7 @@ export enum TimeZone {
 //   AnimationActive } = D.taggedEnum<AnimationState>();
 
 export type PrimaryRange<T> = RangeValue<T> & {
-  set: (range: { start: T; end: T }) => void;
+  set: (range: { start?: T; end?: T }) => void;
   duration: Duration.Duration;
 }
 
