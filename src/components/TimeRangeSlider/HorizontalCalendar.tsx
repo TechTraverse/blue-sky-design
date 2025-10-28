@@ -1,5 +1,5 @@
 import "./horizontalCalendar.css";
-import { DateTime, pipe } from "effect";
+import { DateTime, Match, pipe } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -62,7 +62,7 @@ export const HorizontalCalendar = ({
   primaryRange: _primaryRange,
   subRange: _subRange,
   viewRange: _viewRange,
-  latestValidDateTime,
+  latestValidDateTime: _latestValidDateTime,
   timeZone,
   increment,
   theme = AppTheme.Light,
@@ -115,6 +115,15 @@ export const HorizontalCalendar = ({
       start: _viewRange.start,
       end: _viewRange.end
     }, [_viewRange.start, _viewRange.end, timeZone, zonedOffsetMillis]);
+
+  const latestValidDateTime = useMemo(() => {
+    if (!_latestValidDateTime) {
+      return undefined;
+    }
+    return timeZone === TimeZone.Local
+      ? DateTime.add(_latestValidDateTime, { millis: zonedOffsetMillis })
+      : _latestValidDateTime;
+  }, [_latestValidDateTime, timeZone, zonedOffsetMillis]);
 
   // Theme-aware colors that align with wlfs-client palette
   const getThemeColors = (currentTheme: AppTheme) => {
@@ -306,13 +315,28 @@ export const HorizontalCalendar = ({
             /**
              * Maintain a minimum distance between thumbs
              */
-            const [a, b] = _newValue as [number, number];
-            const newValue = match(activeThumb)
+            let [a, b] = _newValue as [number, number];
+            let newValue = match(activeThumb)
               .with(0, () => (b - a) <= incrementMs,
                 () => [b - incrementMs, b] as [number, number])
               .with(1, () => (b - a) <= incrementMs,
                 () => [a, a + incrementMs])
               .otherwise(() => _newValue as [number, number]);
+
+            /**
+             * Enforce latest valid date time if set
+             */
+            [a, b] = newValue;
+            const ldt = latestValidDateTime
+              ? DateTime.toEpochMillis(latestValidDateTime)
+              : -1;
+            const maxNew = Math.max(...(newValue as [number, number]));
+            newValue = match(ldt)
+              .with(-1, () => newValue)
+              .with(P._,
+                (x) => maxNew > x,
+                (x) => ([x - incrementMs, x] as [number, number]))
+              .otherwise(() => newValue)
 
             /**
              * Set up conditions that determine if this is mousemove
@@ -350,7 +374,7 @@ export const HorizontalCalendar = ({
               .exhaustive();
 
             /**
-             * Dynamic rounding based on increment
+             * Dynamic rounding fn based on increment used below
              */
             const roundToIncrement = (value: number) => {
               const baseTime = DateTime.toEpochMillis(viewRange.start);
