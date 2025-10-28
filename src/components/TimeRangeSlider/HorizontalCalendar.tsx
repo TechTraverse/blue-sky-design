@@ -297,61 +297,74 @@ export const HorizontalCalendar = ({
           getAriaLabel={() => 'Minimum distance'}
           value={primaryRangeMillis}
           onChange={(e, newValue, activeThumb) => {
-            if (Array.isArray(newValue) && newValue.length === 2) {
-              const rangePad = increment || 5 * 60 * 1000; // Default to 5 minutes
-              const paddedCurrentRange = [primaryRangeMillis[0] - rangePad, primaryRangeMillis[1] + rangePad];
-              const [currentRangeStart, currentRangeEnd] = paddedCurrentRange;
-              const [newRangeStart, newRangeEnd] = newValue as [number, number];
-              const currentClickValue = activeThumb === 0 ? newRangeStart : newRangeEnd;
-              const currentClickIsWithinRange =
-                currentRangeStart <= currentClickValue && currentClickValue <= currentRangeEnd;
-              const prevEvtType = lastEvtTypeRef.current;
-              const partOfMouseMoveStream = prevEvtType === 'mousemove' && e.type === 'mousemove';
-              const isWithinOrMouseMove = currentClickIsWithinRange || partOfMouseMoveStream;
-              lastEvtTypeRef.current = e.type;
-
-              const [newStart, newEnd] = match(isWithinOrMouseMove)
-                .with(true, () => newValue as [number, number])
-                .with(false, () => {
-                  // Side-effect, set slider active
-                  if (sliderActive === SliderActive.Inactive)
-                    setSliderActive(SliderActive.Active);
-                  // Bump range up to start at current click position
-                  const duration = primaryRangeMillis[1] - primaryRangeMillis[0];
-                  const newStart = activeThumb === 0
-                    ? (newValue as [number, number])[0]
-                    : (newValue as [number, number])[1];
-                  const newEnd = newStart + duration;
-                  return [newStart, newEnd] as [number, number];
-                })
-                .exhaustive();
-
-              // Apply increment-based rounding
-              const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
-              const roundToIncrement = (value: number) => {
-                const baseTime = DateTime.toEpochMillis(viewRange.start);
-                const offsetFromBase = value - baseTime;
-                const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
-                return baseTime + roundedOffset;
-              };
-
-              // Sync with primaryRange - provide complete range to avoid partial update issues
-              const start = pipe(
-                newStart,
-                roundToIncrement,
-                x => x - zonedOffsetMillis,
-                x => new Date(x),
-                DateTime.unsafeFromDate
-              );
-              const end = pipe(
-                newEnd,
-                roundToIncrement,
-                x => x - zonedOffsetMillis,
-                x => new Date(x),
-                DateTime.unsafeFromDate
-              );
-              setPrimaryRange({ start, end });
+            if (!(Array.isArray(newValue) && newValue.length === 2)) {
+              return;
             }
+
+            /**
+             * Set up conditions that determine if this is mousemove
+             * continuation or if it's within current range click
+             */
+            const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
+            const paddedCurrentRange = [primaryRangeMillis[0] - incrementMs, primaryRangeMillis[1] + incrementMs];
+            const [currentRangeStart, currentRangeEnd] = paddedCurrentRange;
+            const [newRangeStart, newRangeEnd] = newValue as [number, number];
+            const currentClickValue = activeThumb === 0 ? newRangeStart : newRangeEnd;
+            const currentClickIsWithinRange =
+              currentRangeStart <= currentClickValue && currentClickValue <= currentRangeEnd;
+            const prevEvtType = lastEvtTypeRef.current;
+            const partOfMouseMoveStream = prevEvtType === 'mousemove' && e.type === 'mousemove';
+            const isWithinOrMouseMove = currentClickIsWithinRange || partOfMouseMoveStream;
+            lastEvtTypeRef.current = e.type;
+
+            /**
+             * New values are either adjusting thumbs' range or a click
+             * that moves the entire range
+             */
+            const [newStart, newEnd] = match(isWithinOrMouseMove)
+              .with(true, () => newValue as [number, number])
+              .with(false, () => {
+                // Side-effect, set slider active
+                if (sliderActive === SliderActive.Inactive)
+                  setSliderActive(SliderActive.Active);
+                // Bump range up to start at current click position
+                const duration = primaryRangeMillis[1] - primaryRangeMillis[0];
+                const newStart = activeThumb === 0
+                  ? (newValue as [number, number])[0]
+                  : (newValue as [number, number])[1];
+                const newEnd = newStart + duration;
+                return [newStart, newEnd] as [number, number];
+              })
+              .exhaustive();
+
+            /**
+             * Dynamic rounding based on increment
+             */
+            const roundToIncrement = (value: number) => {
+              const baseTime = DateTime.toEpochMillis(viewRange.start);
+              const offsetFromBase = value - baseTime;
+              const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
+              return baseTime + roundedOffset;
+            };
+
+            /**
+             * Rounded and offset-corrected start/end for primary range
+             */
+            const start = pipe(
+              newStart,
+              roundToIncrement,
+              x => x - zonedOffsetMillis,
+              x => new Date(x),
+              DateTime.unsafeFromDate
+            );
+            const end = pipe(
+              newEnd,
+              roundToIncrement,
+              x => x - zonedOffsetMillis,
+              x => new Date(x),
+              DateTime.unsafeFromDate
+            );
+            setPrimaryRange({ start, end });
           }}
           valueLabelDisplay="auto"
           valueLabelFormat={(value) => {
