@@ -66,13 +66,6 @@ export const HorizontalCalendar = ({
   timeZone,
   increment,
   theme = AppTheme.Light,
-  // isStepMode = false,
-  // onSetSelectedStartDateTime,
-  // onSetSelectedDuration,
-  // onSetAnimationStartDateTime,
-  // onPauseAnimation,
-  // animationPlayMode,
-  // animationSpeed,
 }: {
   primaryRange: PrimaryRange<DateTime.DateTime>,
   subRange?: SubRange<DateTime.DateTime>,
@@ -81,13 +74,6 @@ export const HorizontalCalendar = ({
   timeZone: TimeZone,
   increment?: number,
   theme?: AppTheme,
-  // isStepMode?: boolean,
-  // onSetSelectedStartDateTime?: (date: DateTime.DateTime) => void,
-  // onSetSelectedEndDateTime?: (date: DateTime.DateTime) => void,
-  // onSetAnimationStartDateTime?: (date: DateTime.DateTime) => void,
-  // onPauseAnimation?: () => void,
-  // animationPlayMode?: string,
-  // animationSpeed?: AnimationSpeed,
 }) => {
 
   const zonedOffsetMillis = useMemo(() => timeZone === TimeZone.Local
@@ -201,36 +187,18 @@ export const HorizontalCalendar = ({
       minimum: viewRange.start,
       maximum: viewRange.end
     });
-    console.log(
-      "Primary range: ",
-      DateTime.formatIso(primaryRange.start),
-      " - ",
-      DateTime.formatIso(primaryRange.end),
-      " | View range: ",
-      DateTime.formatIso(viewRange.start),
-      " - ",
-      DateTime.formatIso(viewRange.end),
-      " | Start within view: ",
-      startWithinView,
-      " | End within view: ",
-      endWithinView
-    );
     match([startWithinView, endWithinView])
       .with([true, true], () => {
         setSliderActive(SliderActive.Active)
-        console.log('both within view');
       })
       .with([true, false], () => {
         setSliderActive(SliderActive.LeftActive)
-        console.log('start within view');
       })
       .with([false, true], () => {
         setSliderActive(SliderActive.RightActive)
-        console.log('end within view');
       })
       .with([false, false], () => {
         setSliderActive(SliderActive.Inactive)
-        console.log('neither within view');
       })
       .exhaustive();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,9 +273,6 @@ export const HorizontalCalendar = ({
 
   const sliderRef = useRef<HTMLDivElement>(null);
 
-  console.log("_primaryRange", DateTime.formatIso(_primaryRange.start), " - ", DateTime.formatIso(_primaryRange.end));
-  console.log("Primary range:", DateTime.formatIso(primaryRange.start), " - ", DateTime.formatIso(primaryRange.end));
-  console.log("Primary range millis:", new Date(primaryRangeMillis[0]), " - ", new Date(primaryRangeMillis[1]));
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -371,11 +336,6 @@ export const HorizontalCalendar = ({
                 x => new Date(x),
                 DateTime.unsafeFromDate
               );
-              console.log("Setting primary range from slider:",
-                DateTime.formatIso(start),
-                " - ",
-                DateTime.formatIso(end));
-
               setPrimaryRange({ start, end });
             }
           }}
