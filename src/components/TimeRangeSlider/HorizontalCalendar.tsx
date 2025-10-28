@@ -332,7 +332,20 @@ export const HorizontalCalendar = ({
           value={primaryRangeMillis}
           onChange={(e, newValue, activeThumb) => {
             if (Array.isArray(newValue) && newValue.length === 2) {
-              const [newStart, newEnd] = newValue as [number, number];
+
+              const [newStart, newEnd] = match(sliderActive)
+                .with(SliderActive.Inactive, () => {
+                  // Side-effect, set slider active
+                  setSliderActive(SliderActive.Active);
+                  // Bump range up to start at current click position
+                  const duration = primaryRangeMillis[1] - primaryRangeMillis[0];
+                  const newStart = activeThumb === 0
+                    ? (newValue as [number, number])[0]
+                    : (newValue as [number, number])[1];
+                  const newEnd = newStart + duration;
+                  return [newStart, newEnd];
+                })
+                .otherwise(() => newValue as [number, number])
 
               // Apply increment-based rounding
               const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
