@@ -296,16 +296,28 @@ export const HorizontalCalendar = ({
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
           value={primaryRangeMillis}
-          onChange={(e, newValue, activeThumb) => {
-            if (!(Array.isArray(newValue) && newValue.length === 2)) {
+          onChange={(e, _newValue, activeThumb) => {
+            if (!(Array.isArray(_newValue) && _newValue.length === 2)) {
               return;
             }
+            // Default to 5 minutes
+            const incrementMs = increment || 5 * 60 * 1000;
+
+            /**
+             * Maintain a minimum distance between thumbs
+             */
+            const [a, b] = _newValue as [number, number];
+            const newValue = match(activeThumb)
+              .with(0, () => (b - a) <= incrementMs,
+                () => [b - incrementMs, b] as [number, number])
+              .with(1, () => (b - a) <= incrementMs,
+                () => [a, a + incrementMs])
+              .otherwise(() => _newValue as [number, number]);
 
             /**
              * Set up conditions that determine if this is mousemove
              * continuation or if it's within current range click
              */
-            const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
             const paddedCurrentRange = [primaryRangeMillis[0] - incrementMs, primaryRangeMillis[1] + incrementMs];
             const [currentRangeStart, currentRangeEnd] = paddedCurrentRange;
             const [newRangeStart, newRangeEnd] = newValue as [number, number];
@@ -366,7 +378,7 @@ export const HorizontalCalendar = ({
             );
             setPrimaryRange({ start, end });
           }}
-          valueLabelDisplay="auto"
+          valueLabelDisplay="off"
           valueLabelFormat={(value) => {
             const date = DateTime.unsafeFromDate(new Date(value));
             return DateTime.formatIsoDate(date);
