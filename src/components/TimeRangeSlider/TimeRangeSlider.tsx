@@ -673,12 +673,14 @@ export const TimeRangeSlider = ({
           start?: DateTime.DateTime;
           end?: DateTime.DateTime;
         }) => {
-          const newStart = r.start || s.animationStartDateTime;
-          const newDuration = r.start
-            ? DateTime.distanceDuration(newStart, r.end || DateTime.addDuration(newStart, s.animationDuration))
-            : s.animationDuration;
-          d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
-          d(SetAnimationDuration({ animationDuration: newDuration }));
+          if (r.start) {
+            d(SetAnimationStartDateTime({ animationStartDateTime: r.start }));
+          }
+          if (r.end) {
+            const start = r.start || s.animationStartDateTime;
+            const newDuration = DateTime.distanceDuration(start, r.end);
+            d(SetAnimationDuration({ animationDuration: newDuration }));
+          }
         },
         duration: s.animationDuration
       }
@@ -690,12 +692,15 @@ export const TimeRangeSlider = ({
           start?: DateTime.DateTime;
           end?: DateTime.DateTime;
         }) => {
-          const newStart = r.start || s.selectedStartDateTime;
-          const newDuration = r.start
-            ? DateTime.distanceDuration(newStart, r.end || DateTime.addDuration(newStart, s.selectedDuration))
-            : s.selectedDuration;
-          d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
-          d(SetAnimationDuration({ animationDuration: newDuration }));
+          if (r.start) {
+            d(SetSelectedStartDateTime(
+              { selectedStartDateTime: r.start, updateSource: UpdateSource.UserInteraction }));
+          }
+          if (r.end) {
+            const start = r.start || s.selectedStartDateTime;
+            const newDuration = DateTime.distanceDuration(start, r.end);
+            d(SetSelectedDuration({ selectedDuration: newDuration, updateSource: UpdateSource.UserInteraction }));
+          }
         },
         duration: s.selectedDuration
       }, [s.animationOrStepMode, s.animationStartDateTime,

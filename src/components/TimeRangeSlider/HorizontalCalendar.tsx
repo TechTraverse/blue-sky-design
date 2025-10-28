@@ -1,5 +1,5 @@
 import "./horizontalCalendar.css";
-import { DateTime } from "effect";
+import { DateTime, pipe } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -97,21 +97,27 @@ export const HorizontalCalendar = ({
     )
     : 0, [_primaryRange.start, timeZone]);
 
+  const { start: prStart, end: prEnd } = _primaryRange;
   const primaryRange = useMemo(() => timeZone === TimeZone.Local
     ? ({
-      start: DateTime.add(_primaryRange.start, { millis: zonedOffsetMillis }),
-      end: DateTime.add(_primaryRange.end, { millis: zonedOffsetMillis })
+      start: DateTime.add(prStart, { millis: zonedOffsetMillis }),
+      end: DateTime.add(prEnd, { millis: zonedOffsetMillis })
     })
-    : _primaryRange, [_primaryRange, timeZone, zonedOffsetMillis]);
+    : { start: prStart, end: prEnd }, [prStart, prEnd, timeZone, zonedOffsetMillis]);
   const { set: setPrimaryRange } = _primaryRange;
+  const primaryRangeMillis = useMemo(() => ([
+    primaryRange.start.pipe(DateTime.toEpochMillis),
+    primaryRange.end.pipe(DateTime.toEpochMillis)
+  ]), [primaryRange.start, primaryRange.end]);
 
-  const subRange = useMemo(() => timeZone === TimeZone.Local && _subRange
-    ? [_subRange].map(r => ({
-      ...r,
-      start: DateTime.add(r.start, { millis: zonedOffsetMillis }),
-      end: DateTime.add(r.end, { millis: zonedOffsetMillis })
-    }))[0]
-    : _subRange, [_subRange, timeZone, zonedOffsetMillis]);
+  const subRange = useMemo(() =>
+    timeZone === TimeZone.Local && _subRange?.start
+      ? {
+        start: DateTime.add(_subRange.start, { millis: zonedOffsetMillis }),
+        end: DateTime.add(_subRange.end, { millis: zonedOffsetMillis }),
+        active: _subRange.active
+      }
+      : undefined, [_subRange?.active, _subRange?.start, _subRange?.end, timeZone, zonedOffsetMillis]);
 
 
   const viewRange = useMemo(() => timeZone === TimeZone.Local
@@ -119,7 +125,10 @@ export const HorizontalCalendar = ({
       start: DateTime.add(_viewRange.start, { millis: zonedOffsetMillis }),
       end: DateTime.add(_viewRange.end, { millis: zonedOffsetMillis })
     })
-    : _viewRange, [_viewRange, timeZone, zonedOffsetMillis]);
+    : {
+      start: _viewRange.start,
+      end: _viewRange.end
+    }, [_viewRange.start, _viewRange.end, timeZone, zonedOffsetMillis]);
 
   // Theme-aware colors that align with wlfs-client palette
   const getThemeColors = (currentTheme: AppTheme) => {
@@ -183,11 +192,6 @@ export const HorizontalCalendar = ({
 
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
 
-  const [sliderSelectedDateRange, setSliderSelectedDateRange] = useState<[number, number]>([
-    DateTime.toEpochMillis(primaryRange.start),
-    DateTime.toEpochMillis(primaryRange.end)
-  ]);
-
   useEffect(() => {
     const startWithinView = DateTime.between(primaryRange.start, {
       minimum: viewRange.start,
@@ -197,18 +201,36 @@ export const HorizontalCalendar = ({
       minimum: viewRange.start,
       maximum: viewRange.end
     });
+    console.log(
+      "Primary range: ",
+      DateTime.formatIso(primaryRange.start),
+      " - ",
+      DateTime.formatIso(primaryRange.end),
+      " | View range: ",
+      DateTime.formatIso(viewRange.start),
+      " - ",
+      DateTime.formatIso(viewRange.end),
+      " | Start within view: ",
+      startWithinView,
+      " | End within view: ",
+      endWithinView
+    );
     match([startWithinView, endWithinView])
       .with([true, true], () => {
         setSliderActive(SliderActive.Active)
+        console.log('both within view');
       })
       .with([true, false], () => {
         setSliderActive(SliderActive.LeftActive)
+        console.log('start within view');
       })
       .with([false, true], () => {
         setSliderActive(SliderActive.RightActive)
+        console.log('end within view');
       })
       .with([false, false], () => {
         setSliderActive(SliderActive.Inactive)
+        console.log('neither within view');
       })
       .exhaustive();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,8 +251,8 @@ export const HorizontalCalendar = ({
 
   const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
   useEffect(() => {
-    const selectionStart = sliderSelectedDateRange[0];
-    const selectionEnd = sliderSelectedDateRange[1];
+    const selectionStart = primaryRangeMillis[0];
+    const selectionEnd = primaryRangeMillis[1];
     const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number> /*, idx: number */) => {
       const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
       const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
@@ -265,7 +287,7 @@ export const HorizontalCalendar = ({
         opacity: '1 !important',
       }
     });
-  }, [sliderSelectedDateRange, sliderSubRanges, theme, colors.select, colors.primary, colors.text]);
+  }, [sliderSubRanges, theme, colors.select, colors.primary, colors.text, primaryRangeMillis]);
 
   const viewInMinIncrements = [];
   for (let date = viewRange.start;
@@ -282,6 +304,10 @@ export const HorizontalCalendar = ({
     : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
 
   const sliderRef = useRef<HTMLDivElement>(null);
+
+  console.log("_primaryRange", DateTime.formatIso(_primaryRange.start), " - ", DateTime.formatIso(_primaryRange.end));
+  console.log("Primary range:", DateTime.formatIso(primaryRange.start), " - ", DateTime.formatIso(primaryRange.end));
+  console.log("Primary range millis:", new Date(primaryRangeMillis[0]), " - ", new Date(primaryRangeMillis[1]));
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -303,10 +329,10 @@ export const HorizontalCalendar = ({
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
-          value={sliderSelectedDateRange}
+          value={primaryRangeMillis}
           onChange={(e, newValue, activeThumb) => {
             if (Array.isArray(newValue) && newValue.length === 2) {
-              let [newStart, newEnd] = newValue as [number, number];
+              const [newStart, newEnd] = newValue as [number, number];
 
               // Apply increment-based rounding
               const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
@@ -317,20 +343,27 @@ export const HorizontalCalendar = ({
                 return baseTime + roundedOffset;
               };
 
-              newStart = roundToIncrement(newStart);
-              newEnd = roundToIncrement(newEnd);
-
-              // Update local state immediately for smooth interaction
-              setSliderSelectedDateRange([newStart, newEnd]);
-
               // Sync with primaryRange - provide complete range to avoid partial update issues
-              const offsetStart = newStart - zonedOffsetMillis;
-              const offsetEnd = newEnd - zonedOffsetMillis;
+              const start = pipe(
+                newStart,
+                roundToIncrement,
+                x => x - zonedOffsetMillis,
+                x => new Date(x),
+                DateTime.unsafeFromDate
+              );
+              const end = pipe(
+                newEnd,
+                roundToIncrement,
+                x => x - zonedOffsetMillis,
+                x => new Date(x),
+                DateTime.unsafeFromDate
+              );
+              console.log("Setting primary range from slider:",
+                DateTime.formatIso(start),
+                " - ",
+                DateTime.formatIso(end));
 
-              setPrimaryRange({
-                start: DateTime.unsafeFromDate(new Date(offsetStart)),
-                end: DateTime.unsafeFromDate(new Date(offsetEnd))
-              });
+              setPrimaryRange({ start, end });
             }
           }}
           valueLabelDisplay="auto"
