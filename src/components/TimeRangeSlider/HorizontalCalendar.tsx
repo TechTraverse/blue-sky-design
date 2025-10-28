@@ -187,45 +187,32 @@ export const HorizontalCalendar = ({
     DateTime.toEpochMillis(primaryRange.start),
     DateTime.toEpochMillis(primaryRange.end)
   ]);
-  // Commented out for basic testing - this was overriding slider changes
-  // useEffect(() => {
-  //   const startWithinView = DateTime.between(primaryRange.start, {
-  //     minimum: viewRange.start,
-  //     maximum: viewRange.end
-  //   });
-  //   const endWithinView = DateTime.between(primaryRange.end, {
-  //     minimum: viewRange.start,
-  //     maximum: viewRange.end
-  //   });
-  //   match([startWithinView, endWithinView])
-  //     .with([true, true], () => {
-  //       setSliderSelectedDateRange([
-  //         DateTime.toEpochMillis(primaryRange.start),
-  //         DateTime.toEpochMillis(primaryRange.end)
-  //       ]);
-  //       setSliderActive(SliderActive.Active)
-  //     })
-  //     .with([true, false], () => {
-  //       setSliderSelectedDateRange([
-  //         DateTime.toEpochMillis(primaryRange.start),
-  //         DateTime.toEpochMillis(viewRange.end)
-  //       ]);
-  //       setSliderActive(SliderActive.LeftActive)
-  //     })
-  //     .with([false, true], () => {
-  //       setSliderSelectedDateRange([
-  //         DateTime.toEpochMillis(viewRange.start),
-  //         DateTime.toEpochMillis(primaryRange.end)
-  //       ]);
-  //       setSliderActive(SliderActive.RightActive)
-  //     })
-  //     .with([false, false], () => {
-  //       setSliderSelectedDateRange([DateTime.toEpochMillis(viewRange.start),
-  //       DateTime.toEpochMillis(viewRange.end)])
-  //       setSliderActive(SliderActive.Inactive)
-  //     })
-  //     .exhaustive();
-  // }, [primaryRange, viewRange]);
+
+  useEffect(() => {
+    const startWithinView = DateTime.between(primaryRange.start, {
+      minimum: viewRange.start,
+      maximum: viewRange.end
+    });
+    const endWithinView = DateTime.between(primaryRange.end, {
+      minimum: viewRange.start,
+      maximum: viewRange.end
+    });
+    match([startWithinView, endWithinView])
+      .with([true, true], () => {
+        setSliderActive(SliderActive.Active)
+      })
+      .with([true, false], () => {
+        setSliderActive(SliderActive.LeftActive)
+      })
+      .with([false, true], () => {
+        setSliderActive(SliderActive.RightActive)
+      })
+      .with([false, false], () => {
+        setSliderActive(SliderActive.Inactive)
+      })
+      .exhaustive();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewRange]); /* Only respond to view range changes */
 
   const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
   useEffect(() => {
@@ -345,49 +332,6 @@ export const HorizontalCalendar = ({
                 end: DateTime.unsafeFromDate(new Date(offsetEnd))
               });
             }
-          }}
-          onClick={(e) => {
-            /**
-             * Confirm click is on rail/background area only
-             */
-            const target = e.target as HTMLElement;
-            const isRailClick = target.classList.contains('MuiSlider-rail')
-              || target.closest('.MuiSlider-rail')
-              || (target.classList.contains('MuiSlider-root')
-                && !target.classList.contains('MuiSlider-thumb')
-                && !target.closest('.MuiSlider-thumb'));
-            if (!isRailClick) return;
-
-
-            const sliderRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            const clickX = e.clientX - sliderRect.left;
-            const clickRatio = clickX / sliderRect.width;
-            const clickValue = viewRangeAndStep.start + (clickRatio * (viewRangeAndStep.end - viewRangeAndStep.start));
-
-            const currentEnd = sliderSelectedDateRange[1];
-            const minIncrement = increment ?? 5 * 60 * 1000; // 5 minutes in milliseconds
-
-            match(sliderActive)
-              .with(SliderActive.Inactive, () => {
-                // Create minimum viable range at click position
-                const newStart = clickValue;
-                const newEnd = clickValue + minIncrement;
-                const offsetValues = [newStart - zonedOffsetMillis, newEnd - zonedOffsetMillis] as [number, number];
-                setPrimaryRange({
-                  start: DateTime.unsafeFromDate(new Date(offsetValues[0])),
-                  end: DateTime.unsafeFromDate(new Date(offsetValues[1]))
-                });
-              })
-              // Is active
-              .otherwise(() => {
-                // Any click sets new start position
-                const newStart = clickValue;
-                const offsetValues = [newStart - zonedOffsetMillis, currentEnd - zonedOffsetMillis] as [number, number];
-                setPrimaryRange({
-                  start: DateTime.unsafeFromDate(new Date(offsetValues[0])),
-                  end: DateTime.unsafeFromDate(new Date(offsetValues[1]))
-                });
-              });
           }}
           valueLabelDisplay="auto"
           valueLabelFormat={(value) => {
