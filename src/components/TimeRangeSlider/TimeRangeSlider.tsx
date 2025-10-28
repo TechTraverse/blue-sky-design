@@ -743,7 +743,7 @@ export const TimeRangeSlider = ({
                 ? DateTime.unsafeFromDate(dateRangeForReset.start)
                 : undefined
             }
-            timeZone={timeZone}
+            timeZone={s.timeZone}
             increment={s.increment}
             theme={theme}
           />
