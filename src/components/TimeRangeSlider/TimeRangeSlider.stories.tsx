@@ -28,7 +28,8 @@ export const Default: Story = {
       console.log('Timezone changed to:', timeZone);
     },
     theme: Theme.Dark,
-    timeZone: TimeZone.Local
+    timeZone: TimeZone.Local,
+    hideAnimationToggle: true
   }
 };
 
@@ -50,5 +51,27 @@ export const UTCTimeZone: Story = {
     },
     theme: Theme.Light,
     timeZone: TimeZone.UTC
+  }
+};
+
+export const HiddenAnimationToggle: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    dateRangeForReset: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    onTimeZoneChange: (timeZone) => {
+      console.log('Timezone changed to:', timeZone);
+    },
+    theme: Theme.Light,
+    timeZone: TimeZone.Local,
+    hideAnimationToggle: true
   }
 };

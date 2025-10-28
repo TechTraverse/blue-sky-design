@@ -19,6 +19,7 @@ export const AnimateAndStepControls = ({
   decrementStartDateTime,
   incrementAnimationSpeed,
   decrementAnimationSpeed,
+  hideAnimationToggle = false,
 }: {
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
@@ -32,6 +33,7 @@ export const AnimateAndStepControls = ({
   decrementStartDateTime?: () => void,
   incrementAnimationSpeed?: () => void,
   decrementAnimationSpeed?: () => void,
+  hideAnimationToggle?: boolean,
 }) => {
 
   const handleCenterButtonClick = () => {
@@ -53,39 +55,41 @@ export const AnimateAndStepControls = ({
   return (
     <>
       <div className={`playback-section ${animationEnabled ? "animate" : "step"} playback-section-relative`}>
-        <div className="unified-control-panel">
-          {/* Mode Section */}
-          <div className="control-section mode-section">
-            <div className="playback-toggle-container">
-              <Tooltip
-                title={`${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
-                PopperProps={{
-                  sx: { zIndex: 10003 }
-                }}
-              >
-                <div
-                  onClick={handleModeToggle}
-                  className="playback-toggle-switch"
+        <div className={`unified-control-panel${hideAnimationToggle ? ' compressed' : ''}`}>
+          {/* Mode Section - Hidden when hideAnimationToggle is true */}
+          {!hideAnimationToggle && (
+            <div className="control-section mode-section">
+              <div className="playback-toggle-container">
+                <Tooltip
+                  title={`${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
+                  PopperProps={{
+                    sx: { zIndex: 10003 }
+                  }}
                 >
-                  {/* Step Mode */}
                   <div
-                    className={`playback-toggle-step${!animationEnabled ? ' active' : ''}`}
-                    title="Step Mode"
+                    onClick={handleModeToggle}
+                    className="playback-toggle-switch"
                   >
-                    S
-                  </div>
+                    {/* Step Mode */}
+                    <div
+                      className={`playback-toggle-step${!animationEnabled ? ' active' : ''}`}
+                      title="Step Mode"
+                    >
+                      S
+                    </div>
 
-                  {/* Animation Mode */}
-                  <div
-                    className={`playback-toggle-animate${animationEnabled ? ' active' : ''}`}
-                    title="Animation Mode"
-                  >
-                    A
+                    {/* Animation Mode */}
+                    <div
+                      className={`playback-toggle-animate${animationEnabled ? ' active' : ''}`}
+                      title="Animation Mode"
+                    >
+                      A
+                    </div>
                   </div>
-                </div>
-              </Tooltip>
+                </Tooltip>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Playback Controls */}
           <div className={`playback-button-container ${animationEnabled ? 'animation-mode' : 'step-mode'}`}>
@@ -142,19 +146,21 @@ export const AnimateAndStepControls = ({
             </Button>
           </div>
 
-          {/* Settings Section */}
-          <div className="control-section settings-section">
-            <div className="control-settings-inline">
-              <ControlSettings
-                animationEnabled={animationEnabled}
-                animationSpeed={animationSpeed}
-                setAnimationSpeed={setAnimationSpeed}
-                animationDuration={animationDuration}
-                setAnimationDuration={setAnimationDuration}
-                disabled={false}
-              />
+          {/* Settings Section - Hidden when hideAnimationToggle is true */}
+          {!hideAnimationToggle && (
+            <div className="control-section settings-section">
+              <div className="control-settings-inline">
+                <ControlSettings
+                  animationEnabled={animationEnabled}
+                  animationSpeed={animationSpeed}
+                  setAnimationSpeed={setAnimationSpeed}
+                  animationDuration={animationDuration}
+                  setAnimationDuration={setAnimationDuration}
+                  disabled={false}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </>);

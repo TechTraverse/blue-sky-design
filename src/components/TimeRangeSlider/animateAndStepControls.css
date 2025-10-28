@@ -140,6 +140,21 @@
   border-radius: 12px;
   padding: 8px 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+/* Compressed state when animation toggle is hidden */
+.unified-control-panel.compressed {
+  width: 180px;
+  min-width: 180px;
+  justify-content: center;
+  gap: 0;
+}
+
+.unified-control-panel.compressed .playback-button-container {
+  border-left: none;
+  padding-left: 0;
+  margin-right: 0;
 }
 
 .control-settings-inline {
@@ -432,6 +447,19 @@
   background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .unified-control-panel.compressed {
+  width: 180px;
+  min-width: 180px;
+  justify-content: center;
+  gap: 0;
+}
+
+.dark-theme .unified-control-panel.compressed .playback-button-container {
+  border-left: none;
+  padding-left: 0;
+  margin-right: 0;
 }
 
 .dark-theme .control-settings-inline {

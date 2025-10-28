@@ -24,6 +24,7 @@ export interface TimeRangeSliderProps {
   timeZone?: TimeZone;
   onTimeZoneChange?: (timeZone: TimeZone) => void;
   increment?: TimeDuration;
+  hideAnimationToggle?: boolean;
 }
 
 enum UpdateSource {
@@ -403,6 +404,7 @@ export const TimeRangeSlider = ({
   timeZone = TimeZone.Local,
   onTimeZoneChange,
   increment = TimeDuration["5m"],
+  hideAnimationToggle = false,
 }: TimeRangeSliderProps) => {
 
   const viewIncrement = increment;
@@ -813,6 +815,9 @@ export const TimeRangeSlider = ({
               updateSource: UpdateSource.UserInteraction
             }));
           }}
+
+          /* Feature toggle */
+          hideAnimationToggle={hideAnimationToggle}
 
           /* Animation toggle */
           animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}
