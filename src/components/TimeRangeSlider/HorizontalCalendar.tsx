@@ -320,7 +320,7 @@ export const HorizontalCalendar = ({
           onChange={(e, newValue, activeThumb) => {
             if (Array.isArray(newValue) && newValue.length === 2) {
               let [newStart, newEnd] = newValue as [number, number];
-              
+
               // Apply increment-based rounding
               const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
               const roundToIncrement = (value: number) => {
@@ -329,41 +329,23 @@ export const HorizontalCalendar = ({
                 const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
                 return baseTime + roundedOffset;
               };
-              
+
               newStart = roundToIncrement(newStart);
               newEnd = roundToIncrement(newEnd);
-              
+
               // Update local state immediately for smooth interaction
               setSliderSelectedDateRange([newStart, newEnd]);
-              
+
               // Sync with primaryRange - provide complete range to avoid partial update issues
               const offsetStart = newStart - zonedOffsetMillis;
               const offsetEnd = newEnd - zonedOffsetMillis;
-              
+
               setPrimaryRange({
                 start: DateTime.unsafeFromDate(new Date(offsetStart)),
                 end: DateTime.unsafeFromDate(new Date(offsetEnd))
               });
             }
           }}
-          // match([offsetValues, e.type])
-          // .with([[
-          //   P.when((x: number) => {
-          //     // The lower thumb value is within "increment" of the previous value
-          //     return Math.abs(x - DateTime.toEpochMillis(primaryRange.start)) <= (increment || 10 * 60 * 1000);
-          //   }),
-          //   P.number
-          // ], "mousemove"], ([[start, end]]) => {
-          //   onSetSelectedStartDateTime?.(DateTime.unsafeFromDate(new Date(start)));
-          //   onSetSelectedDuration?.(DateTime.distanceDuration(
-          //     DateTime.unsafeFromDate(new Date(start)),
-          //     DateTime.unsafeFromDate(new Date(end))
-          //   ));
-          // })
-          // .with([[P.number, P.number], P.any], ([[start]]) => {
-          //   onSetSelectedStartDateTime?.
-          //     (DateTime.unsafeFromDate(new Date(start)));
-          // })
           onClick={(e) => {
             /**
              * Confirm click is on rail/background area only
