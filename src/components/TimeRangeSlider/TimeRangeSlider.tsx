@@ -368,7 +368,7 @@ function withMiddleware(
     // Determine latest state
     const newState = reducer(oldState, action, roundingFn);
     match(action._tag)
-      .with("SetSelectedStartDateTime", () => {
+      .with(P.union("SetSelectedStartDateTime", "SetSelectedDuration"), () => {
         const start = newState.selectedStartDateTime;
         const end = DateTime.addDuration(start, newState.selectedDuration);
 
