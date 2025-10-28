@@ -272,6 +272,7 @@ export const HorizontalCalendar = ({
     : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
 
   const sliderRef = useRef<HTMLDivElement>(null);
+  const lastEvtTypeRef = useRef<string>('')
 
 
   return (
@@ -297,20 +298,33 @@ export const HorizontalCalendar = ({
           value={primaryRangeMillis}
           onChange={(e, newValue, activeThumb) => {
             if (Array.isArray(newValue) && newValue.length === 2) {
+              const rangePad = increment || 5 * 60 * 1000; // Default to 5 minutes
+              const paddedCurrentRange = [primaryRangeMillis[0] - rangePad, primaryRangeMillis[1] + rangePad];
+              const [currentRangeStart, currentRangeEnd] = paddedCurrentRange;
+              const [newRangeStart, newRangeEnd] = newValue as [number, number];
+              const currentClickValue = activeThumb === 0 ? newRangeStart : newRangeEnd;
+              const currentClickIsWithinRange =
+                currentRangeStart <= currentClickValue && currentClickValue <= currentRangeEnd;
+              const prevEvtType = lastEvtTypeRef.current;
+              const partOfMouseMoveStream = prevEvtType === 'mousemove' && e.type === 'mousemove';
+              const isWithinOrMouseMove = currentClickIsWithinRange || partOfMouseMoveStream;
+              lastEvtTypeRef.current = e.type;
 
-              const [newStart, newEnd] = match(sliderActive)
-                .with(SliderActive.Inactive, () => {
+              const [newStart, newEnd] = match(isWithinOrMouseMove)
+                .with(true, () => newValue as [number, number])
+                .with(false, () => {
                   // Side-effect, set slider active
-                  setSliderActive(SliderActive.Active);
+                  if (sliderActive === SliderActive.Inactive)
+                    setSliderActive(SliderActive.Active);
                   // Bump range up to start at current click position
                   const duration = primaryRangeMillis[1] - primaryRangeMillis[0];
                   const newStart = activeThumb === 0
                     ? (newValue as [number, number])[0]
                     : (newValue as [number, number])[1];
                   const newEnd = newStart + duration;
-                  return [newStart, newEnd];
+                  return [newStart, newEnd] as [number, number];
                 })
-                .otherwise(() => newValue as [number, number])
+                .exhaustive();
 
               // Apply increment-based rounding
               const incrementMs = increment || 5 * 60 * 1000; // Default to 5 minutes
