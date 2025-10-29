@@ -3,10 +3,11 @@ import { DateTime, Match, pipe } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type PrimaryRange, type SubRange, AnimationSpeed, Theme as AppTheme, TimeDuration, TimeZone } from "./timeSliderTypes";
+import { type PrimaryRange, type SubRange, Theme as AppTheme, TimeDuration } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match, P } from "ts-pattern";
+import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -30,12 +31,14 @@ type Step = {
   label: React.ReactNode
   value: number;
 }
-const createStepsOverRange = (start: number, end: number, step: number): Step[] => {
+const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime): Step[] => {
   const steps: Step[] = [];
   for (let i = start; i <= end; i += step) {
-    const minutes = DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "minutes");
+    const dt = DateTime.unsafeFromDate(new Date(i));
+    const displayDt = toDisplay(dt);
+    const minutes = DateTime.getPart(displayDt, "minutes");
     const label = minutes === 0
-      ? <div className="hour-marks">{DateTime.getPart(DateTime.unsafeFromDate(new Date(i)), "hours").toString()}</div>
+      ? <div className="hour-marks">{DateTime.getPart(displayDt, "hours").toString()}</div>
       : minutes % 10 === 0
         ? <div className="minute-marks">{minutes.toString()}</div>
         : <div className="blank-marks" />;
@@ -59,11 +62,10 @@ enum SliderActive {
 }
 
 export const HorizontalCalendar = ({
-  primaryRange: _primaryRange,
-  subRange: _subRange,
-  viewRange: _viewRange,
-  latestValidDateTime: _latestValidDateTime,
-  timeZone,
+  primaryRange,
+  subRange,
+  viewRange,
+  latestValidDateTime,
   increment,
   theme = AppTheme.Light,
 }: {
@@ -71,59 +73,38 @@ export const HorizontalCalendar = ({
   subRange?: SubRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
   latestValidDateTime?: DateTime.DateTime,
-  timeZone: TimeZone,
   increment?: number,
   theme?: AppTheme,
 }) => {
+  const { toDisplay, fromDisplay, mode } = useTimeZoneDisplay();
 
-  const zonedOffsetMillis = useMemo(() => timeZone === TimeZone.Local
-    ? _primaryRange.start.pipe(
-      x => DateTime.setZone(x, DateTime.zoneMakeLocal()),
-      DateTime.zonedOffset
-    )
-    : 0, [_primaryRange.start, timeZone]);
+  // Convert all DateTimes to display timezone
+  const displayPrimaryRange = useMemo(() => ({
+    start: toDisplay(primaryRange.start),
+    end: toDisplay(primaryRange.end)
+  }), [primaryRange.start, primaryRange.end, toDisplay]);
 
-  const { start: prStart, end: prEnd } = _primaryRange;
-  const primaryRange = useMemo(() => timeZone === TimeZone.Local
-    ? ({
-      start: DateTime.add(prStart, { millis: zonedOffsetMillis }),
-      end: DateTime.add(prEnd, { millis: zonedOffsetMillis })
-    })
-    : { start: prStart, end: prEnd }, [prStart, prEnd, timeZone, zonedOffsetMillis]);
-  const { set: setPrimaryRange } = _primaryRange;
+  const displaySubRange = useMemo(() => 
+    subRange ? {
+      start: toDisplay(subRange.start),
+      end: toDisplay(subRange.end),
+      active: subRange.active
+    } : undefined
+  , [subRange, toDisplay]);
+
+  const displayViewRange = useMemo(() => ({
+    start: toDisplay(viewRange.start),
+    end: toDisplay(viewRange.end)
+  }), [viewRange.start, viewRange.end, toDisplay]);
+
+  const displayLatestValidDateTime = useMemo(() => 
+    latestValidDateTime ? toDisplay(latestValidDateTime) : undefined
+  , [latestValidDateTime, toDisplay]);
+
   const primaryRangeMillis = useMemo(() => ([
-    primaryRange.start.pipe(DateTime.toEpochMillis),
-    primaryRange.end.pipe(DateTime.toEpochMillis)
-  ]), [primaryRange.start, primaryRange.end]);
-
-  const subRange = useMemo(() =>
-    timeZone === TimeZone.Local && _subRange?.start
-      ? {
-        start: DateTime.add(_subRange.start, { millis: zonedOffsetMillis }),
-        end: DateTime.add(_subRange.end, { millis: zonedOffsetMillis }),
-        active: _subRange.active
-      }
-      : undefined, [_subRange?.active, _subRange?.start, _subRange?.end, timeZone, zonedOffsetMillis]);
-
-
-  const viewRange = useMemo(() => timeZone === TimeZone.Local
-    ? ({
-      start: DateTime.add(_viewRange.start, { millis: zonedOffsetMillis }),
-      end: DateTime.add(_viewRange.end, { millis: zonedOffsetMillis })
-    })
-    : {
-      start: _viewRange.start,
-      end: _viewRange.end
-    }, [_viewRange.start, _viewRange.end, timeZone, zonedOffsetMillis]);
-
-  const latestValidDateTime = useMemo(() => {
-    if (!_latestValidDateTime) {
-      return undefined;
-    }
-    return timeZone === TimeZone.Local
-      ? DateTime.add(_latestValidDateTime, { millis: zonedOffsetMillis })
-      : _latestValidDateTime;
-  }, [_latestValidDateTime, timeZone, zonedOffsetMillis]);
+    DateTime.toEpochMillis(displayPrimaryRange.start),
+    DateTime.toEpochMillis(displayPrimaryRange.end)
+  ]), [displayPrimaryRange.start, displayPrimaryRange.end]);
 
   // Theme-aware colors that align with wlfs-client palette
   const getThemeColors = (currentTheme: AppTheme) => {
@@ -152,7 +133,6 @@ export const HorizontalCalendar = ({
 
   const colors = getThemeColors(theme);
 
-
   /**
    * View range and step settings
    */
@@ -161,40 +141,43 @@ export const HorizontalCalendar = ({
     end: number;
     stepArr: Step[];
   }>({
-    start: DateTime.toEpochMillis(viewRange.start),
-    end: DateTime.toEpochMillis(viewRange.end),
+    start: DateTime.toEpochMillis(displayViewRange.start),
+    end: DateTime.toEpochMillis(displayViewRange.end),
     stepArr: createStepsOverRange(
-      DateTime.toEpochMillis(viewRange.start),
-      DateTime.toEpochMillis(viewRange.end),
-      // 10m in milliseconds
-      increment || 10 * 60 * 1000)
+      DateTime.toEpochMillis(displayViewRange.start),
+      DateTime.toEpochMillis(displayViewRange.end),
+      increment || 10 * 60 * 1000,
+      toDisplay
+    )
   });
 
   useEffect(() => {
     setViewRangeAndStep({
-      start: DateTime.toEpochMillis(viewRange.start),
-      end: DateTime.toEpochMillis(viewRange.end),
+      start: DateTime.toEpochMillis(displayViewRange.start),
+      end: DateTime.toEpochMillis(displayViewRange.end),
       stepArr: createStepsOverRange(
-        DateTime.toEpochMillis(viewRange.start),
-        DateTime.toEpochMillis(viewRange.end),
-        increment || 10 * 60 * 1000)
+        DateTime.toEpochMillis(displayViewRange.start),
+        DateTime.toEpochMillis(displayViewRange.end),
+        increment || 10 * 60 * 1000,
+        toDisplay
+      )
     });
-  }, [viewRange, increment, timeZone]);
+  }, [displayViewRange, increment, toDisplay]);
 
   /**
-   * Selected date range settings and slider active udpates
+   * Selected date range settings and slider active updates
    */
 
   const [sliderActive, setSliderActive] = useState<SliderActive>(SliderActive.Active);
 
   useEffect(() => {
-    const startWithinView = DateTime.between(primaryRange.start, {
-      minimum: viewRange.start,
-      maximum: viewRange.end
+    const startWithinView = DateTime.between(displayPrimaryRange.start, {
+      minimum: displayViewRange.start,
+      maximum: displayViewRange.end
     });
-    const endWithinView = DateTime.between(primaryRange.end, {
-      minimum: viewRange.start,
-      maximum: viewRange.end
+    const endWithinView = DateTime.between(displayPrimaryRange.end, {
+      minimum: displayViewRange.start,
+      maximum: displayViewRange.end
     });
     match([startWithinView, endWithinView])
       .with([true, true], () => {
@@ -210,35 +193,31 @@ export const HorizontalCalendar = ({
         setSliderActive(SliderActive.Inactive)
       })
       .exhaustive();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewRange]); /* Only respond to view range changes */
+  }, [displayViewRange, displayPrimaryRange]);
 
   const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
   useEffect(() => {
-    if (!subRange) {
+    if (!displaySubRange) {
       setSliderSubRanges([]);
       return;
     }
-    setSliderSubRanges([subRange].map((r) => ({
+    setSliderSubRanges([displaySubRange].map((r) => ({
       start: DateTime.toEpochMillis(r.start),
       end: DateTime.toEpochMillis(r.end),
       active: r.active
     })));
-  }, [subRange]);
+  }, [displaySubRange]);
 
   const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
   useEffect(() => {
     const selectionStart = primaryRangeMillis[0];
     const selectionEnd = primaryRangeMillis[1];
-    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number> /*, idx: number */) => {
+    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>) => {
       const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
       const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
       if (active) {
         acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
       }
-      // if (idx === sliderSubRanges.length - 1) {
-      //   acc = `${acc}, transparent ${linearGradientEnd}% 100%)`;
-      // }
       return acc;
     }, "linear-gradient(to right");
 
@@ -267,8 +246,8 @@ export const HorizontalCalendar = ({
   }, [sliderSubRanges, theme, colors.select, colors.primary, colors.text, primaryRangeMillis]);
 
   const viewInMinIncrements = [];
-  for (let date = viewRange.start;
-    DateTime.lessThanOrEqualTo(date, viewRange.end);
+  for (let date = displayViewRange.start;
+    DateTime.lessThanOrEqualTo(date, displayViewRange.end);
     date = DateTime.add(date, { minutes: 10 })) {
     viewInMinIncrements.push(date);
   }
@@ -283,15 +262,14 @@ export const HorizontalCalendar = ({
   const sliderRef = useRef<HTMLDivElement>(null);
   const lastEvtTypeRef = useRef<string>('')
 
-
   return (
     <div className={`horizontal-calendar-grid`}>
       <div>
         <div className="horizontal-calendar-grid-header">
           <div style={{ left: headerGridLocation }} className="horizontal-calendar-grid-header-label">
-            {`${getMonth(DateTime.getPart(viewRange.end, "month"))} ` +
-              `${DateTime.getPart(viewRange.end, "day")}, ` +
-              `${DateTime.getPart(viewRange.end, "year")}`}
+            {`${getMonth(DateTime.getPart(displayViewRange.end, "month"))} ` +
+              `${DateTime.getPart(displayViewRange.end, "day")}, ` +
+              `${DateTime.getPart(displayViewRange.end, "year")}`}
           </div>
         </div>
       </div>
@@ -327,8 +305,8 @@ export const HorizontalCalendar = ({
              * Enforce latest valid date time if set
              */
             [a, b] = newValue;
-            const ldt = latestValidDateTime
-              ? DateTime.toEpochMillis(latestValidDateTime)
+            const ldt = displayLatestValidDateTime
+              ? DateTime.toEpochMillis(displayLatestValidDateTime)
               : -1;
             const maxNew = Math.max(...(newValue as [number, number]));
             newValue = match(ldt)
@@ -377,30 +355,28 @@ export const HorizontalCalendar = ({
              * Dynamic rounding fn based on increment used below
              */
             const roundToIncrement = (value: number) => {
-              const baseTime = DateTime.toEpochMillis(viewRange.start);
+              const baseTime = DateTime.toEpochMillis(displayViewRange.start);
               const offsetFromBase = value - baseTime;
               const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
               return baseTime + roundedOffset;
             };
 
             /**
-             * Rounded and offset-corrected start/end for primary range
+             * Convert back to UTC for storage
              */
             const start = pipe(
               newStart,
               roundToIncrement,
-              x => x - zonedOffsetMillis,
-              x => new Date(x),
-              DateTime.unsafeFromDate
+              x => DateTime.unsafeFromDate(new Date(x)),
+              fromDisplay
             );
             const end = pipe(
               newEnd,
               roundToIncrement,
-              x => x - zonedOffsetMillis,
-              x => new Date(x),
-              DateTime.unsafeFromDate
+              x => DateTime.unsafeFromDate(new Date(x)),
+              fromDisplay
             );
-            setPrimaryRange({ start, end });
+            primaryRange.set({ start, end });
           }}
           valueLabelDisplay="off"
           valueLabelFormat={(value) => {

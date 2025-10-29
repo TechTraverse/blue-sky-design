@@ -108,7 +108,7 @@ type Action = D.TaggedEnum<{
   SetResetAnimationSpeed:
   { resetAnimationSpeed: AnimationSpeed; };
 
-  ResetAll: object;
+  ResetAll: {};
 }>;
 
 const {
@@ -116,6 +116,7 @@ const {
 
   SetTimeZone,
   ExtSetTimeZone,
+  SetIncrement,
   ExtSetIncrement,
   SetViewStartDateTime,
   SetViewDuration,
@@ -132,8 +133,10 @@ const {
 
   SetAnimationStartDateTime,
   SetAnimationDuration,
+  SetAnimationRequestFrequency,
   SetAnimationPlayMode,
   SetAnimationSpeed,
+  SetResetAnimationSpeed,
   ResetAll } = D.taggedEnum<Action>();
 
 
@@ -267,10 +270,13 @@ const reducer = (state: State, action: Action, roundingFn?: (dateTime: DateTime.
   const actualRoundingFn = roundingFn || defaultRounding;
 
   return $actionMatch({
-    SetTimeZone: (x) => ({
-      ...state,
-      timeZone: x.timeZone,
-    }),
+    SetTimeZone: (x) => {
+
+      return {
+        ...state,
+        timeZone: x.timeZone,
+      }
+    },
     ExtSetTimeZone: (x) => ({
       ...state,
       timeZone: x.timeZone,
@@ -365,8 +371,11 @@ function withMiddleware(
   onTimeZoneChange?: (timeZone: TimeZone) => void
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
+
     // Determine latest state
     const newState = reducer(oldState, action, roundingFn);
+
+    // Handle callbacks
     match(action._tag)
       .with(P.union("SetSelectedStartDateTime", "SetSelectedDuration"), () => {
         const start = newState.selectedStartDateTime;

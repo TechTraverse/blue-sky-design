@@ -1,10 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { TimeRangeSlider } from './TimeRangeSlider';
-import { Theme, TimeZone } from './timeSliderTypes';
+import { Theme } from './timeSliderTypes';
+import { TimeZoneDisplayProvider } from '../../contexts/TimeZoneDisplayContext';
 
 const meta = {
   component: TimeRangeSlider,
+  decorators: [
+    (Story) => (
+      <TimeZoneDisplayProvider>
+        <Story />
+      </TimeZoneDisplayProvider>
+    ),
+  ],
 } satisfies Meta<typeof TimeRangeSlider>;
 
 export default meta;
@@ -24,16 +32,12 @@ export const Default: Story = {
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);
     },
-    onTimeZoneChange: (timeZone) => {
-      console.log('Timezone changed to:', timeZone);
-    },
     theme: Theme.Dark,
-    timeZone: TimeZone.Local,
     hideAnimationToggle: true
   }
 };
 
-export const UTCTimeZone: Story = {
+export const LightTheme: Story = {
   args: {
     dateRange: {
       start: new Date(1752991200000),
@@ -46,11 +50,7 @@ export const UTCTimeZone: Story = {
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);
     },
-    onTimeZoneChange: (timeZone) => {
-      console.log('Timezone changed to:', timeZone);
-    },
-    theme: Theme.Light,
-    timeZone: TimeZone.UTC
+    theme: Theme.Light
   }
 };
 
@@ -67,11 +67,7 @@ export const HiddenAnimationToggle: Story = {
     onDateRangeSelect: ({ start, end }) => {
       console.log('Selected date range:', start, 'to', end);
     },
-    onTimeZoneChange: (timeZone) => {
-      console.log('Timezone changed to:', timeZone);
-    },
     theme: Theme.Light,
-    timeZone: TimeZone.Local,
     hideAnimationToggle: true
   }
 };

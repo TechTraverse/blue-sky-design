@@ -3,10 +3,12 @@ import { DateTime } from "effect";
 import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Popover, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo } from "react-icons/fa";
-import { TimeDuration, TimeZone } from "./timeSliderTypes";
+import { TimeDuration } from "./timeSliderTypes";
 import type { DatePickerProps, DateValue, ValidationResult, RangeValue } from 'react-aria-components';
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { Button, Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
+import { TimeZoneToggle } from './TimeZoneToggle';
 
 
 interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
@@ -14,8 +16,6 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
   returnToDefaultDateTime?: () => void;
-  timeZone: TimeZone;
-  onTimeZoneChange: (timeZone: TimeZone) => void;
   rangeValue?: TimeDuration;
   setRange?: (timeDuration: TimeDuration) => void;
   dateRangeForReset?: RangeValue<Date>;
@@ -37,7 +37,7 @@ function FieldsetBox({
 
 const SliderDatePicker = <T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek, returnToDefaultDateTime,
-    timeZone, onTimeZoneChange, rangeValue, setRange, dateRangeForReset, ...props }:
+    rangeValue, setRange, dateRangeForReset, ...props }:
     LocalDatePickerProps<T>
 ) => {
 
@@ -97,20 +97,7 @@ const SliderDatePicker = <T extends DateValue>(
             {/* Timezone Setting */}
             <div className="calendar-setting-item">
               <span className="calendar-setting-label">Timezone:</span>
-              <ToggleButtonGroup
-                value={timeZone}
-                exclusive
-                onChange={(_, newTimeZone) => newTimeZone && onTimeZoneChange(newTimeZone)}
-                size="small"
-                className="calendar-timezone-toggle"
-              >
-                <ToggleButton value={TimeZone.Local} aria-label="Show times in local timezone">
-                  Local
-                </ToggleButton>
-                <ToggleButton value={TimeZone.UTC} aria-label="Show times in UTC timezone">
-                  UTC
-                </ToggleButton>
-              </ToggleButtonGroup>
+              <TimeZoneToggle />
             </div>
 
             {/* Step Duration Setting */}
@@ -156,8 +143,6 @@ export const DateAndRangeSelect = ({
   startDateTime,
   setStartDateTime,
   returnToDefaultDateTime,
-  timeZone,
-  onTimeZoneChange,
   rangeValue,
   setRange,
   dateRangeForReset,
@@ -165,74 +150,57 @@ export const DateAndRangeSelect = ({
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   returnToDefaultDateTime?: () => void,
-  timeZone: TimeZone,
-  onTimeZoneChange: (timeZone: TimeZone) => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
   dateRangeForReset?: RangeValue<Date>,
 }) => {
+  const { toDisplay, fromDisplay, mode, getDisplayZone } = useTimeZoneDisplay();
 
-  // Get timezone abbreviation
-  const getTimezoneLabel = () => {
-    if (timeZone === 'utc') return 'UTC';
-
-    // Get local timezone abbreviation
-    const now = new Date();
-    const timeZoneName = Intl.DateTimeFormat('en', {
-      timeZoneName: 'short'
-    }).formatToParts(now).find(part => part.type === 'timeZoneName')?.value;
-
-    return timeZoneName || 'Local';
-  };
-
-  // Convert DateTime to display timezone for the picker
+  // Convert DateTime to CalendarDateTime for display
   const getDisplayDateTime = (dt: DateTime.DateTime | undefined) => {
     if (!dt) return undefined;
 
-    // Get the timestamp in milliseconds
-    const timestamp = DateTime.toEpochMillis(dt);
-    const jsDate = new Date(timestamp);
+    const displayDt = toDisplay(dt);
+    const parts = DateTime.toParts(displayDt);
 
-    if (timeZone === 'utc') {
-      // Show UTC time for the same moment
-      const utcParts = {
-        year: jsDate.getUTCFullYear(),
-        month: jsDate.getUTCMonth() + 1,
-        day: jsDate.getUTCDate(),
-        hours: jsDate.getUTCHours(),
-        minutes: jsDate.getUTCMinutes(),
-        seconds: jsDate.getUTCSeconds(),
-        millis: jsDate.getUTCMilliseconds()
-      };
-      return new CalendarDateTime(utcParts.year, utcParts.month, utcParts.day, utcParts.hours, utcParts.minutes, utcParts.seconds, utcParts.millis);
-    } else {
-      // Show local time for the same moment
-      const localParts = {
-        year: jsDate.getFullYear(),
-        month: jsDate.getMonth() + 1,
-        day: jsDate.getDate(),
-        hours: jsDate.getHours(),
-        minutes: jsDate.getMinutes(),
-        seconds: jsDate.getSeconds(),
-        millis: jsDate.getMilliseconds()
-      };
-      return new CalendarDateTime(localParts.year, localParts.month, localParts.day, localParts.hours, localParts.minutes, localParts.seconds, localParts.millis);
-    }
+    return new CalendarDateTime(
+      parts.year,
+      parts.month,
+      parts.day,
+      parts.hours,
+      parts.minutes,
+      parts.seconds,
+      parts.milliseconds
+    );
   };
 
-  // Convert picker value back to DateTime in correct timezone
+  // Convert CalendarDateTime back to UTC DateTime
   const handleDateChange = (d: DateValue | null) => {
     if (!d || !setStartDateTime) return;
 
-    if (timeZone === TimeZone.UTC) {
-      // User entered UTC time - create a Date in UTC and convert to DateTime
-      const utcDate = new Date(Date.UTC(d.year, d.month - 1, d.day, d.hour, d.minute, d.second, d.millisecond));
-      setStartDateTime(DateTime.unsafeFromDate(utcDate));
+    const {
+      year,
+      month,
+      day,
+      hour = 0,
+      minute = 0,
+      second = 0,
+      millisecond = 0 } = d as CalendarDateTime;
+
+    // Use JavaScript Date as intermediate - it handles timezone conversions reliably
+    let utcDate: Date;
+    
+    if (mode === "utc") {
+      // Input is already in UTC - create Date in UTC
+      utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
     } else {
-      // User entered local time - create a Date in local timezone and convert to DateTime
-      const localDate = new Date(d.year, d.month - 1, d.day, d.hour, d.minute, d.second, d.millisecond);
-      setStartDateTime(DateTime.unsafeFromDate(localDate));
+      // Input is in local time - Date constructor interprets as local
+      utcDate = new Date(year, month - 1, day, hour, minute, second, millisecond);
     }
+    
+    // Convert to DateTime using the reliable unsafeFromDate
+    const utcDt = DateTime.unsafeFromDate(utcDate);
+    setStartDateTime(utcDt);
   };
 
   const calendarDateTime = getDisplayDateTime(startDateTime);
@@ -240,13 +208,11 @@ export const DateAndRangeSelect = ({
   return (
     <div className="date-and-query-range-container">
       <SliderDatePicker
-        label={`Start Date (${getTimezoneLabel()})`}
+        label={`Start Date (${getDisplayZone()})`}
         value={calendarDateTime}
         onChange={handleDateChange}
         firstDayOfWeek={"sun"}
         returnToDefaultDateTime={returnToDefaultDateTime}
-        timeZone={timeZone}
-        onTimeZoneChange={onTimeZoneChange}
         rangeValue={rangeValue}
         setRange={setRange}
         dateRangeForReset={dateRangeForReset}
