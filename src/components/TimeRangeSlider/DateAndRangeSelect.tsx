@@ -40,17 +40,26 @@ const SliderDatePicker = <T extends DateValue>(
     rangeValue, setRange, dateRangeForReset, ...props }:
     LocalDatePickerProps<T>
 ) => {
+  const { toDisplay, mode } = useTimeZoneDisplay();
 
   // Calculate max allowed date from dateRangeForReset
   const getMaxValue = () => {
     if (!dateRangeForReset) return undefined;
 
-    const maxDate = dateRangeForReset.start;
+    // dateRangeForReset.start is actually the max allowed datetime
+    // Convert to display timezone first
+    const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+    const displayMaxDateTime = toDisplay(maxDateTime);
+    const parts = DateTime.toParts(displayMaxDateTime);
+    
     const calendarDate = new CalendarDateTime(
-      maxDate.getFullYear(),
-      maxDate.getMonth() + 1,
-      maxDate.getDate(),
-      23, 59, 59, 999 // Set to end of day to allow the full day
+      parts.year,
+      parts.month,
+      parts.day,
+      parts.hours,
+      parts.minutes,
+      parts.seconds,
+      parts.milliseconds
     );
     return calendarDate;
   };
@@ -187,19 +196,25 @@ export const DateAndRangeSelect = ({
       second = 0,
       millisecond = 0 } = d as CalendarDateTime;
 
-    // Use JavaScript Date as intermediate - it handles timezone conversions reliably
-    let utcDate: Date;
+    // Create DateTime in display timezone, then convert to UTC using fromDisplay
+    // This matches the pattern used in HorizontalCalendar
+    const displayDateTime = DateTime.unsafeFromDate(
+      new Date(year, month - 1, day, hour, minute, second, millisecond)
+    );
     
-    if (mode === "utc") {
-      // Input is already in UTC - create Date in UTC
-      utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
-    } else {
-      // Input is in local time - Date constructor interprets as local
-      utcDate = new Date(year, month - 1, day, hour, minute, second, millisecond);
+    // Convert from display timezone back to UTC
+    const utcDt = fromDisplay(displayDateTime);
+    
+    // Enforce maximum date limit if dateRangeForReset is provided
+    if (dateRangeForReset) {
+      const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+      if (DateTime.greaterThan(utcDt, maxDateTime)) {
+        // Don't update if the selected date exceeds the maximum
+        console.warn("Selected date exceeds maximum allowed date");
+        return;
+      }
     }
     
-    // Convert to DateTime using the reliable unsafeFromDate
-    const utcDt = DateTime.unsafeFromDate(utcDate);
     setStartDateTime(utcDt);
   };
 

@@ -1,5 +1,6 @@
 import { DateTime } from "effect";
 import { createContext, useContext, useState, useMemo, ReactNode } from "react";
+import { TimeZone } from "../components/TimeRangeSlider/timeSliderTypes";
 
 export type TimeZoneDisplayMode = "utc" | "local";
 
@@ -18,15 +19,15 @@ const TimeZoneDisplayContext = createContext<TimeZoneDisplayContextValue | null>
 
 export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<TimeZoneDisplayMode>("local");
-  
+
   const value = useMemo(() => ({
     mode,
     setMode,
     toDisplay: (dt: DateTime.DateTime): DateTime.Zoned | DateTime.Utc => {
       // Always normalize to UTC first
       const utc = DateTime.isZoned(dt) ? DateTime.toUtc(dt) : dt as DateTime.Utc;
-      
-      if (mode === "utc") {
+
+      if (mode === TimeZone.UTC) {
         return utc;
       } else {
         const localZone = DateTime.zoneMakeLocal();
@@ -40,7 +41,7 @@ export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
       return mode === "utc" ? "UTC" : DateTime.zoneToString(DateTime.zoneMakeLocal());
     }
   }), [mode]);
-  
+
   return (
     <TimeZoneDisplayContext.Provider value={value}>
       {children}
