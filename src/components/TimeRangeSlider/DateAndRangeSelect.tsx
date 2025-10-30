@@ -51,7 +51,7 @@ const SliderDatePicker = <T extends DateValue>(
     const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
     const displayMaxDateTime = toDisplay(maxDateTime);
     const parts = DateTime.toParts(displayMaxDateTime);
-    
+
     const calendarDate = new CalendarDateTime(
       parts.year,
       parts.month,
@@ -140,7 +140,7 @@ const SliderDatePicker = <T extends DateValue>(
           <Button onClick={returnToDefaultDateTime}>
             <div className="default-date">
               <FaUndo />
-              <span>Default</span>
+              <span>Latest</span>
             </div>
           </Button>
         </Dialog>
@@ -201,10 +201,10 @@ export const DateAndRangeSelect = ({
     const displayDateTime = DateTime.unsafeFromDate(
       new Date(year, month - 1, day, hour, minute, second, millisecond)
     );
-    
+
     // Convert from display timezone back to UTC
     const utcDt = fromDisplay(displayDateTime);
-    
+
     // Enforce maximum date limit if dateRangeForReset is provided
     if (dateRangeForReset) {
       const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
@@ -214,7 +214,7 @@ export const DateAndRangeSelect = ({
         return;
       }
     }
-    
+
     setStartDateTime(utcDt);
   };
 

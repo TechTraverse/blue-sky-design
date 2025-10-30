@@ -10,7 +10,7 @@ export function TimeZoneToggle() {
       exclusive
       onChange={(_, newMode) => newMode && setMode(newMode)}
       size="small"
-      className="timezone-toggle"
+      className="calendar-timezone-toggle"
       aria-label="Timezone display mode"
     >
       <ToggleButton value="local" aria-label="Show times in local timezone">
