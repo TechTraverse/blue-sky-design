@@ -184,3 +184,30 @@
     display: none;
   }
 }
+
+/* Disabled marks styling - matches popover calendar disabled dates */
+.hour-marks.disabled-marks,
+.minute-marks.disabled-marks,
+.blank-marks.disabled-marks {
+  color: #ccc !important;
+  cursor: not-allowed !important;
+}
+
+.hour-marks.disabled-marks:hover,
+.minute-marks.disabled-marks:hover,
+.blank-marks.disabled-marks:hover {
+  color: #ccc !important;
+}
+
+/* Dark theme disabled marks */
+.dark-theme .hour-marks.disabled-marks,
+.dark-theme .minute-marks.disabled-marks,
+.dark-theme .blank-marks.disabled-marks {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.dark-theme .hour-marks.disabled-marks:hover,
+.dark-theme .minute-marks.disabled-marks:hover,
+.dark-theme .blank-marks.disabled-marks:hover {
+  color: rgba(255, 255, 255, 0.3) !important;
+}

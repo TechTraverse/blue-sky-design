@@ -30,22 +30,28 @@ const getMonth = (number: number): string => {
 type Step = {
   label: React.ReactNode
   value: number;
+  disabled: boolean;
 }
-const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime): Step[] => {
+const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime, latestValidDateTime?: DateTime.DateTime): Step[] => {
   const steps: Step[] = [];
+  const latestValidMillis = latestValidDateTime ? DateTime.toEpochMillis(latestValidDateTime) : undefined;
+  
   for (let i = start; i <= end; i += step) {
     const dt = DateTime.unsafeFromDate(new Date(i));
     const displayDt = toDisplay(dt);
     const minutes = DateTime.getPart(displayDt, "minutes");
+    const isDisabled = latestValidMillis !== undefined && i > latestValidMillis;
+    
     const label = minutes === 0
-      ? <div className="hour-marks">{DateTime.getPart(displayDt, "hours").toString()}</div>
+      ? <div className={`hour-marks ${isDisabled ? 'disabled-marks' : ''}`}>{DateTime.getPart(displayDt, "hours").toString()}</div>
       : minutes % 10 === 0
-        ? <div className="minute-marks">{minutes.toString()}</div>
-        : <div className="blank-marks" />;
+        ? <div className={`minute-marks ${isDisabled ? 'disabled-marks' : ''}`}>{minutes.toString()}</div>
+        : <div className={`blank-marks ${isDisabled ? 'disabled-marks' : ''}`} />;
 
     steps.push({
       value: i,
-      label
+      label,
+      disabled: isDisabled
     });
   }
   return steps;
@@ -147,7 +153,8 @@ export const HorizontalCalendar = ({
       DateTime.toEpochMillis(displayViewRange.start),
       DateTime.toEpochMillis(displayViewRange.end),
       increment || 10 * 60 * 1000,
-      toDisplay
+      toDisplay,
+      displayLatestValidDateTime
     )
   });
 
@@ -159,10 +166,11 @@ export const HorizontalCalendar = ({
         DateTime.toEpochMillis(displayViewRange.start),
         DateTime.toEpochMillis(displayViewRange.end),
         increment || 10 * 60 * 1000,
-        toDisplay
+        toDisplay,
+        displayLatestValidDateTime
       )
     });
-  }, [displayViewRange, increment, toDisplay]);
+  }, [displayViewRange, increment, toDisplay, displayLatestValidDateTime]);
 
   /**
    * Selected date range settings and slider active updates
