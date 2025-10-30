@@ -84,22 +84,22 @@ export const HorizontalCalendar = ({
     end: toDisplay(primaryRange.end)
   }), [primaryRange.start, primaryRange.end, toDisplay]);
 
-  const displaySubRange = useMemo(() => 
+  const displaySubRange = useMemo(() =>
     subRange ? {
       start: toDisplay(subRange.start),
       end: toDisplay(subRange.end),
       active: subRange.active
     } : undefined
-  , [subRange, toDisplay]);
+    , [subRange, toDisplay]);
 
   const displayViewRange = useMemo(() => ({
     start: toDisplay(viewRange.start),
     end: toDisplay(viewRange.end)
   }), [viewRange.start, viewRange.end, toDisplay]);
 
-  const displayLatestValidDateTime = useMemo(() => 
+  const displayLatestValidDateTime = useMemo(() =>
     latestValidDateTime ? toDisplay(latestValidDateTime) : undefined
-  , [latestValidDateTime, toDisplay]);
+    , [latestValidDateTime, toDisplay]);
 
   const primaryRangeMillis = useMemo(() => ([
     DateTime.toEpochMillis(displayPrimaryRange.start),
@@ -301,20 +301,6 @@ export const HorizontalCalendar = ({
                 () => [a, a + incrementMs])
               .otherwise(() => _newValue as [number, number]);
 
-            /**
-             * Enforce latest valid date time if set
-             */
-            [a, b] = newValue;
-            const ldt = displayLatestValidDateTime
-              ? DateTime.toEpochMillis(displayLatestValidDateTime)
-              : -1;
-            const maxNew = Math.max(...(newValue as [number, number]));
-            newValue = match(ldt)
-              .with(-1, () => newValue)
-              .with(P._,
-                (x) => maxNew > x,
-                (x) => ([x - incrementMs, x] as [number, number]))
-              .otherwise(() => newValue)
 
             /**
              * Set up conditions that determine if this is mousemove
@@ -335,7 +321,7 @@ export const HorizontalCalendar = ({
              * New values are either adjusting thumbs' range or a click
              * that moves the entire range
              */
-            const [newStart, newEnd] = match(isWithinOrMouseMove)
+            let [newStart, newEnd] = match(isWithinOrMouseMove)
               .with(true, () => newValue as [number, number])
               .with(false, () => {
                 // Side-effect, set slider active
@@ -350,6 +336,17 @@ export const HorizontalCalendar = ({
                 return [newStart, newEnd] as [number, number];
               })
               .exhaustive();
+
+            /**
+             * Enforce latest valid date time if set
+             */
+            const ldt = displayLatestValidDateTime
+              ? DateTime.toEpochMillis(displayLatestValidDateTime)
+              : -1;
+            if (ldt !== -1 && Math.max(newStart, newEnd) > ldt) {
+              newEnd = ldt;
+              newStart = ldt - incrementMs;
+            }
 
             /**
              * Dynamic rounding fn based on increment used below
@@ -377,6 +374,21 @@ export const HorizontalCalendar = ({
               fromDisplay
             );
             primaryRange.set({ start, end });
+            // There's an issue on the first run of this function, log out all vars used
+            console.log({
+              "newValue": newValue,
+              "activeThumb": activeThumb,
+              "incrementMs": incrementMs,
+              "paddedCurrentRange": paddedCurrentRange,
+              "currentClickValue": currentClickValue,
+              "currentClickIsWithinRange": currentClickIsWithinRange,
+              "partOfMouseMoveStream": partOfMouseMoveStream,
+              "isWithinOrMouseMove": isWithinOrMouseMove,
+              "newStart": newStart,
+              "newEnd": newEnd,
+              "roundedNewStart": roundToIncrement(newStart),
+              "roundedNewEnd": roundToIncrement(newEnd),
+            });
           }}
           valueLabelDisplay="off"
           valueLabelFormat={(value) => {
