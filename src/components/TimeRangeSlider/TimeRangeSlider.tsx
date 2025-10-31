@@ -584,6 +584,43 @@ export const TimeRangeSlider = ({
   }, []);
 
   /**
+   * Ensure limited range (animation range) is always centered in view
+   */
+  useEffect(() => {
+    if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+      // Calculate center of animation range
+      const animationMidpoint = DateTime.addDuration(
+        s.animationStartDateTime,
+        Duration.millis(Duration.toMillis(s.animationDuration) / 2)
+      );
+      
+      // Calculate ideal view start to center the animation range
+      const idealViewStart = DateTime.subtractDuration(
+        animationMidpoint,
+        Duration.millis(Duration.toMillis(s.viewDuration) / 2)
+      );
+      
+      // Round to increment
+      const roundedViewStart = roundDateTimeDownToNearestIncrement(idealViewStart);
+      
+      // Only update if significantly different (more than 1 minute difference)
+      const currentViewCenter = DateTime.addDuration(
+        s.viewStartDateTime,
+        Duration.millis(Duration.toMillis(s.viewDuration) / 2)
+      );
+      
+      const distanceFromCenter = Math.abs(
+        DateTime.toEpochMillis(animationMidpoint) - DateTime.toEpochMillis(currentViewCenter)
+      );
+      
+      // Update view if animation range is not centered (tolerance: 1 minute)
+      if (distanceFromCenter > 60000) {
+        d(SetViewStartDateTime({ viewStartDateTime: roundedViewStart }));
+      }
+    }
+  }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration, s.viewDuration]);
+
+  /**
    * External prop change handlers
    */
 
