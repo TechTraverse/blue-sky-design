@@ -74,3 +74,8 @@ export type PrimaryRange<T> = RangeValue<T> & {
 export type SubRange<T> = Omit<PrimaryRange<T>, "duration" | "set"> & {
   active: boolean;
 }
+
+export type LimitedRange<T> = RangeValue<T> & {
+  set: (range: { start?: T; end?: T }) => void;
+  duration: Duration.Duration;
+}

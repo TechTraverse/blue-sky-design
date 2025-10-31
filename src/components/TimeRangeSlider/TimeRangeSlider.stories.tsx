@@ -33,7 +33,7 @@ export const Default: Story = {
       console.log('Selected date range:', start, 'to', end);
     },
     theme: Theme.Dark,
-    hideAnimationToggle: true
+    hideAnimationToggle: false
   }
 };
 

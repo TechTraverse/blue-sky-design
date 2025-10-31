@@ -669,17 +669,87 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [increment]);
 
+  /**
+   * Animation auto-increment logic
+   * Automatically advances the selection when in Animation mode and playing
+   */
+  useEffect(() => {
+    if (s.animationOrStepMode !== AnimationOrStepMode.Animation || 
+        s.animationPlayMode !== PlayMode.Play) {
+      return;
+    }
+
+    // Calculate milliseconds to advance per animation frame
+    const animationSpeed = s.animationSpeed; // ms of simulated time per real second
+    const frameMs = animationRequestFrequency; // ms per frame
+    const advanceMs = (animationSpeed * frameMs) / 1000; // ms to advance per frame
+
+    const intervalId = setInterval(() => {
+      const currentState = stateRef.current;
+      const newStart = DateTime.addDuration(
+        currentState.selectedStartDateTime,
+        Duration.millis(advanceMs)
+      );
+      const newEnd = DateTime.addDuration(newStart, currentState.selectedDuration);
+      const animationEnd = DateTime.addDuration(
+        currentState.animationStartDateTime,
+        currentState.animationDuration
+      );
+
+      // Check if we've reached the end of the animation range
+      if (DateTime.greaterThan(newEnd, animationEnd)) {
+        // Loop back to the start
+        const newLoopStart = currentState.animationStartDateTime;
+        d(SetSelectedStartDateTime({
+          selectedStartDateTime: newLoopStart,
+          updateSource: UpdateSource.UserInteraction
+        }));
+      } else {
+        // Normal increment
+        d(SetSelectedStartDateTime({
+          selectedStartDateTime: newStart,
+          updateSource: UpdateSource.UserInteraction
+        }));
+      }
+    }, frameMs);
+
+    return () => clearInterval(intervalId);
+  }, [s.animationOrStepMode, s.animationPlayMode, s.animationSpeed, 
+      animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
+
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
   /**
    * Render horizontal calendar with appropriate ranges
+   * 
+   * primaryRange ALWAYS represents the current selection (selectedStartDateTime/selectedDuration)
+   * limitedRange (optional) provides animation bounds that constrain primaryRange
    */
-  const primaryRangeHC = useMemo(() =>
-    s.animationOrStepMode === AnimationOrStepMode.Animation
-      ? {
+  const primaryRangeHC = useMemo(() => ({
+    start: s.selectedStartDateTime,
+    end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
+    set: (r: {
+      start?: DateTime.DateTime;
+      end?: DateTime.DateTime;
+    }) => {
+      if (r.start) {
+        d(SetSelectedStartDateTime(
+          { selectedStartDateTime: r.start, updateSource: UpdateSource.UserInteraction }));
+      }
+      if (r.end) {
+        const start = r.start || s.selectedStartDateTime;
+        const newDuration = DateTime.distanceDuration(start, r.end);
+        d(SetSelectedDuration({ selectedDuration: newDuration, updateSource: UpdateSource.UserInteraction }));
+      }
+    },
+    duration: s.selectedDuration
+  }), [s.selectedStartDateTime, s.selectedDuration]);
+
+  const limitedRangeHC = useMemo(() => {
+    if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+      return {
         start: s.animationStartDateTime,
-        end: DateTime.addDuration(
-          s.animationStartDateTime, s.animationDuration),
+        end: DateTime.addDuration(s.animationStartDateTime, s.animationDuration),
         set: (r: {
           start?: DateTime.DateTime;
           end?: DateTime.DateTime;
@@ -694,39 +764,10 @@ export const TimeRangeSlider = ({
           }
         },
         duration: s.animationDuration
-      }
-      : {
-        start: s.selectedStartDateTime,
-        end: DateTime.addDuration(
-          s.selectedStartDateTime, s.selectedDuration),
-        set: (r: {
-          start?: DateTime.DateTime;
-          end?: DateTime.DateTime;
-        }) => {
-          if (r.start) {
-            d(SetSelectedStartDateTime(
-              { selectedStartDateTime: r.start, updateSource: UpdateSource.UserInteraction }));
-          }
-          if (r.end) {
-            const start = r.start || s.selectedStartDateTime;
-            const newDuration = DateTime.distanceDuration(start, r.end);
-            d(SetSelectedDuration({ selectedDuration: newDuration, updateSource: UpdateSource.UserInteraction }));
-          }
-        },
-        duration: s.selectedDuration
-      }, [s.animationOrStepMode, s.animationStartDateTime,
-      s.animationDuration, s.selectedStartDateTime, s.selectedDuration]);
-
-  const subRangeHC = useMemo(() => {
-    if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
-      return {
-        start: s.selectedStartDateTime,
-        end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-        active: true,
       };
     }
     return undefined;
-  }, [s.animationOrStepMode, s.selectedStartDateTime, s.selectedDuration]);
+  }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration]);
 
   const viewRangeHC = useMemo(() => ({
     start: s.viewStartDateTime,
@@ -745,7 +786,7 @@ export const TimeRangeSlider = ({
         <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
           <HorizontalCalendar
             primaryRange={primaryRangeHC}
-            subRange={subRangeHC}
+            limitedRange={limitedRangeHC}
             viewRange={viewRangeHC}
             latestValidDateTime={
               dateRangeForReset

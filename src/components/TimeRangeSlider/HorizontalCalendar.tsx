@@ -3,7 +3,7 @@ import { DateTime, Match, pipe } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type PrimaryRange, type SubRange, Theme as AppTheme, TimeDuration } from "./timeSliderTypes";
+import { type PrimaryRange, type SubRange, type LimitedRange, Theme as AppTheme, TimeDuration } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match, P } from "ts-pattern";
@@ -69,14 +69,14 @@ enum SliderActive {
 
 export const HorizontalCalendar = ({
   primaryRange,
-  subRange,
+  limitedRange,
   viewRange,
   latestValidDateTime,
   increment,
   theme = AppTheme.Light,
 }: {
   primaryRange: PrimaryRange<DateTime.DateTime>,
-  subRange?: SubRange<DateTime.DateTime>,
+  limitedRange?: LimitedRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
   latestValidDateTime?: DateTime.DateTime,
   increment?: number,
@@ -90,13 +90,12 @@ export const HorizontalCalendar = ({
     end: toDisplay(primaryRange.end)
   }), [primaryRange.start, primaryRange.end, toDisplay]);
 
-  const displaySubRange = useMemo(() =>
-    subRange ? {
-      start: toDisplay(subRange.start),
-      end: toDisplay(subRange.end),
-      active: subRange.active
+  const displayLimitedRange = useMemo(() =>
+    limitedRange ? {
+      start: toDisplay(limitedRange.start),
+      end: toDisplay(limitedRange.end)
     } : undefined
-    , [subRange, toDisplay]);
+    , [limitedRange, toDisplay]);
 
   const displayViewRange = useMemo(() => ({
     start: toDisplay(viewRange.start),
@@ -203,35 +202,11 @@ export const HorizontalCalendar = ({
       .exhaustive();
   }, [displayViewRange, displayPrimaryRange]);
 
-  const [sliderSubRanges, setSliderSubRanges] = useState<SubRange<number>[]>([] as SubRange<number>[]);
-  useEffect(() => {
-    if (!displaySubRange) {
-      setSliderSubRanges([]);
-      return;
-    }
-    setSliderSubRanges([displaySubRange].map((r) => ({
-      start: DateTime.toEpochMillis(r.start),
-      end: DateTime.toEpochMillis(r.end),
-      active: r.active
-    })));
-  }, [displaySubRange]);
-
   const [sliderSx, setSliderSx] = useState<SxProps<Theme>>({});
   useEffect(() => {
-    const selectionStart = primaryRangeMillis[0];
-    const selectionEnd = primaryRangeMillis[1];
-    const gradient = sliderSubRanges.reduce((acc: string, { start, end, active }: SubRange<number>) => {
-      const linearGradientStart = (start - selectionStart) / (selectionEnd - selectionStart) * 100;
-      const linearGradientEnd = (end - selectionStart) / (selectionEnd - selectionStart) * 100;
-      if (active) {
-        acc = `${acc}, transparent ${linearGradientStart}%, red ${linearGradientStart}% ${linearGradientEnd}%`;
-      }
-      return acc;
-    }, "linear-gradient(to right");
-
     setSliderSx({
       '& .MuiSlider-track': {
-        background: gradient.includes('red') ? gradient : colors.select,
+        background: colors.select,
       },
       '& .MuiSlider-rail': {
         cursor: 'pointer',
@@ -251,7 +226,7 @@ export const HorizontalCalendar = ({
         opacity: '1 !important',
       }
     });
-  }, [sliderSubRanges, theme, colors.select, colors.primary, colors.text, primaryRangeMillis]);
+  }, [theme, colors.select, colors.primary, colors.text]);
 
   const viewInMinIncrements = [];
   for (let date = displayViewRange.start;
@@ -268,7 +243,75 @@ export const HorizontalCalendar = ({
     : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
 
   const sliderRef = useRef<HTMLDivElement>(null);
-  const lastEvtTypeRef = useRef<string>('')
+  const lastEvtTypeRef = useRef<string>('');
+  const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
+
+  // Calculate limited range position for visual indicators
+  const limitedRangePosition = useMemo(() => {
+    if (!displayLimitedRange) return null;
+    
+    const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
+    const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
+    const viewStart = viewRangeAndStep.start;
+    const viewEnd = viewRangeAndStep.end;
+    const viewDuration = viewEnd - viewStart;
+    
+    return {
+      left: ((limitStart - viewStart) / viewDuration) * 100,
+      right: ((viewEnd - limitEnd) / viewDuration) * 100,
+      startMs: limitStart,
+      endMs: limitEnd,
+    };
+  }, [displayLimitedRange, viewRangeAndStep]);
+
+  // Handle dragging limited range boundaries
+  useEffect(() => {
+    if (!draggingBoundary || !sliderRef.current || !limitedRange) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = sliderRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const x = e.clientX - rect.left;
+      const percent = Math.max(0, Math.min(1, x / rect.width));
+      const viewStart = viewRangeAndStep.start;
+      const viewEnd = viewRangeAndStep.end;
+      const viewDuration = viewEnd - viewStart;
+      const newMs = viewStart + (percent * viewDuration);
+
+      // Round to increment
+      const incrementMs = increment || 5 * 60 * 1000;
+      const roundedMs = Math.round(newMs / incrementMs) * incrementMs;
+
+      if (draggingBoundary === 'start') {
+        const newStart = pipe(
+          roundedMs,
+          x => DateTime.unsafeFromDate(new Date(x)),
+          fromDisplay
+        );
+        limitedRange.set({ start: newStart });
+      } else {
+        const newEnd = pipe(
+          roundedMs,
+          x => DateTime.unsafeFromDate(new Date(x)),
+          fromDisplay
+        );
+        limitedRange.set({ end: newEnd });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDraggingBoundary(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay]);
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -281,12 +324,88 @@ export const HorizontalCalendar = ({
           </div>
         </div>
       </div>
-      <Box ref={sliderRef} sx={{ maxWidth: "100%", boxSizing: "border-box" }} className={`horizontal-calendar-grid-body ${match(sliderActive)
+      <Box ref={sliderRef} sx={{ maxWidth: "100%", boxSizing: "border-box", position: "relative" }} className={`horizontal-calendar-grid-body ${match(sliderActive)
         .with(SliderActive.Inactive, () => "hide-slider-components")
         .with(SliderActive.RightActive, () => "hide-left-slider-component")
         .with(SliderActive.LeftActive, () => "hide-right-slider-component")
         .otherwise(() => "")
         }`}>
+        {/* Limited range visual indicators */}
+        {limitedRangePosition && limitedRange && (
+          <>
+            {/* Start boundary */}
+            <div 
+              style={{
+                position: 'absolute',
+                left: `${limitedRangePosition.left}%`,
+                top: 0,
+                bottom: 0,
+                width: '12px',
+                marginLeft: '-6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'ew-resize',
+                zIndex: 2,
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDraggingBoundary('start');
+              }}
+            >
+              <div style={{
+                width: '3px',
+                height: '100%',
+                backgroundColor: '#ff6b6b',
+                opacity: draggingBoundary === 'start' ? 1 : 0.7,
+                pointerEvents: 'none'
+              }} />
+            </div>
+
+            {/* End boundary */}
+            <div 
+              style={{
+                position: 'absolute',
+                right: `${limitedRangePosition.right}%`,
+                top: 0,
+                bottom: 0,
+                width: '12px',
+                marginRight: '-6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'ew-resize',
+                zIndex: 2,
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDraggingBoundary('end');
+              }}
+            >
+              <div style={{
+                width: '3px',
+                height: '100%',
+                backgroundColor: '#ff6b6b',
+                opacity: draggingBoundary === 'end' ? 1 : 0.7,
+                pointerEvents: 'none'
+              }} />
+            </div>
+
+            {/* Background highlight for animation range */}
+            <div style={{
+              position: 'absolute',
+              left: `${limitedRangePosition.left}%`,
+              right: `${limitedRangePosition.right}%`,
+              top: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 107, 107, 0.05)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }} />
+          </>
+        )}
         <Slider
           sx={sliderSx}
           getAriaLabel={() => 'Minimum distance'}
@@ -346,6 +465,30 @@ export const HorizontalCalendar = ({
               .exhaustive();
 
             /**
+             * Constrain to limitedRange if it exists
+             */
+            if (displayLimitedRange) {
+              const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
+              const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
+              
+              // If the range extends beyond the limit, constrain it
+              if (newStart < limitStart) {
+                const duration = newEnd - newStart;
+                newStart = limitStart;
+                newEnd = newStart + duration;
+              }
+              if (newEnd > limitEnd) {
+                const duration = newEnd - newStart;
+                newEnd = limitEnd;
+                newStart = newEnd - duration;
+              }
+              
+              // Final check to ensure we're within bounds
+              newStart = Math.max(newStart, limitStart);
+              newEnd = Math.min(newEnd, limitEnd);
+            }
+
+            /**
              * Enforce latest valid date time if set
              */
             const ldt = displayLatestValidDateTime
@@ -382,21 +525,6 @@ export const HorizontalCalendar = ({
               fromDisplay
             );
             primaryRange.set({ start, end });
-            // There's an issue on the first run of this function, log out all vars used
-            console.log({
-              "newValue": newValue,
-              "activeThumb": activeThumb,
-              "incrementMs": incrementMs,
-              "paddedCurrentRange": paddedCurrentRange,
-              "currentClickValue": currentClickValue,
-              "currentClickIsWithinRange": currentClickIsWithinRange,
-              "partOfMouseMoveStream": partOfMouseMoveStream,
-              "isWithinOrMouseMove": isWithinOrMouseMove,
-              "newStart": newStart,
-              "newEnd": newEnd,
-              "roundedNewStart": roundToIncrement(newStart),
-              "roundedNewEnd": roundToIncrement(newEnd),
-            });
           }}
           valueLabelDisplay="off"
           valueLabelFormat={(value) => {
