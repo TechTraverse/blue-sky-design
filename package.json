@@ -19,6 +19,7 @@
     "effect": "^3.18.4",
     "lodash": "^4.17.21",
     "maplibre-gl": "^5.9.0",
+    "material-ui-popup-state": "^5.3.6",
     "react": "^19.1.0",
     "react-aria-components": "^1.10.1",
     "react-dom": "^19.1.0",

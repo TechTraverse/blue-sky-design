@@ -114,8 +114,6 @@
   flex-grow: 1;
   z-index: 100;
   --background-color: #fff;
-  right: 310px;
-  bottom: 100px;
   border: 1px solid var(--border-color);
   background: var(--background-color);
   color: #555;
@@ -127,8 +125,6 @@
   box-shadow: 0 8px 20px #0000001a;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 12px;
-  top: unset !important;
-  left: unset !important;
   header {
     width: 100%;
     border-bottom: 1px solid var(--border-color);
@@ -167,8 +163,7 @@
     overflow: visible;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
+    align-items: flex-start;
     flex: 1;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -178,7 +173,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       flex: 1;
     }
   }
@@ -186,7 +181,6 @@
   /* Ensure calendar grid has consistent dimensions */
   table {
     width: 100%;
-    table-layout: fixed;
     height: 168px; /* 6 weeks * 28px = consistent height */
   }
 
@@ -389,18 +383,18 @@
 
 .dark-theme .slider-date-picker-group {
   border: 1px solid rgba(255, 255, 255, 0.3);
-  
+
   > legend {
     color: rgba(255, 255, 255, 0.6);
   }
-  
+
   &:hover {
     border: 1px solid #64b5f6;
   }
-  
+
   button {
     color: rgba(255, 255, 255, 0.7);
-    
+
     &:hover {
       color: rgba(255, 255, 255, 0.9);
     }
@@ -413,88 +407,88 @@
   background: var(--background-color);
   color: rgba(255, 255, 255, 0.87);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-  
+
   header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   }
-  
+
   [data-selectable="true"]:hover,
   [data-hovered="true"],
   td:not([data-outside-month="true"]) > div:hover {
     background-color: rgba(100, 181, 246, 0.2);
     color: #64b5f6;
   }
-  
+
   [data-outside-month="true"],
   [data-disabled="true"] {
     color: rgba(255, 255, 255, 0.3) !important;
   }
-  
+
   [data-outside-month="true"]:hover,
   [data-disabled="true"]:hover {
     background-color: transparent !important;
     color: rgba(255, 255, 255, 0.3) !important;
   }
-  
+
   button svg {
     color: #64b5f6;
   }
-  
+
   .calendar-settings-section {
     border-top: 1px solid rgba(255, 255, 255, 0.3);
     border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     background-color: #2a2a2a;
   }
-  
+
   .calendar-setting-label {
     color: rgba(255, 255, 255, 0.7);
   }
-  
+
   .calendar-timezone-toggle .MuiToggleButton-root {
     border: 1px solid rgba(255, 255, 255, 0.3);
     background: #2a2a2a;
     color: rgba(255, 255, 255, 0.7);
-    
+
     &:hover {
       background: #3a3a3a;
       border-color: #64b5f6;
     }
-    
+
     &.Mui-selected {
       background: #1976d2;
       color: white;
       border-color: #1976d2;
-      
+
       &:hover {
         background: #1565c0;
       }
     }
   }
-  
+
   .calendar-duration-toggle .MuiToggleButton-root {
     border: 1px solid rgba(255, 255, 255, 0.3);
     background: #2a2a2a;
     color: rgba(255, 255, 255, 0.7);
-    
+
     &:hover {
       background: #3a3a3a;
       border-color: #64b5f6;
     }
-    
+
     &.Mui-selected {
       background: #1976d2;
       color: white;
       border-color: #1976d2;
-      
+
       &:hover {
         background: #1565c0;
       }
     }
   }
-  
+
   .default-date {
     border-top: 1px solid rgba(255, 255, 255, 0.3);
-    
+
     svg {
       color: #64b5f6;
     }
@@ -512,88 +506,88 @@ body.time-range-slider-dark-theme .slider-date-picker,
   background: var(--background-color) !important;
   color: rgba(255, 255, 255, 0.87) !important;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
-  
+
   header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
   }
-  
+
   [data-selectable="true"]:hover,
   [data-hovered="true"],
   td:not([data-outside-month="true"]) > div:hover {
     background-color: rgba(100, 181, 246, 0.2) !important;
     color: #64b5f6 !important;
   }
-  
+
   [data-outside-month="true"],
   [data-disabled="true"] {
     color: rgba(255, 255, 255, 0.3) !important;
   }
-  
+
   [data-outside-month="true"]:hover,
   [data-disabled="true"]:hover {
     background-color: transparent !important;
     color: rgba(255, 255, 255, 0.3) !important;
   }
-  
+
   button svg {
     color: #64b5f6 !important;
   }
-  
+
   .calendar-settings-section {
     border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
     background-color: #2a2a2a !important;
   }
-  
+
   .calendar-setting-label {
     color: rgba(255, 255, 255, 0.7) !important;
   }
-  
+
   .calendar-timezone-toggle .MuiToggleButton-root {
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
     background: #2a2a2a !important;
     color: rgba(255, 255, 255, 0.7) !important;
-    
+
     &:hover {
       background: #3a3a3a !important;
       border-color: #64b5f6 !important;
     }
-    
+
     &.Mui-selected {
       background: #1976d2 !important;
       color: white !important;
       border-color: #1976d2 !important;
-      
+
       &:hover {
         background: #1565c0 !important;
       }
     }
   }
-  
+
   .calendar-duration-toggle .MuiToggleButton-root {
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
     background: #2a2a2a !important;
     color: rgba(255, 255, 255, 0.7) !important;
-    
+
     &:hover {
       background: #3a3a3a !important;
       border-color: #64b5f6 !important;
     }
-    
+
     &.Mui-selected {
       background: #1976d2 !important;
       color: white !important;
       border-color: #1976d2 !important;
-      
+
       &:hover {
         background: #1565c0 !important;
       }
     }
   }
-  
+
   .default-date {
     border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
-    
+
     svg {
       color: #64b5f6 !important;
     }

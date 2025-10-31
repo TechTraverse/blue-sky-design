@@ -1,6 +1,8 @@
 import "./dateAndRangeSelect.css";
 import { DateTime } from "effect";
-import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Popover, Text } from 'react-aria-components';
+import Popover from '@mui/material/Popover';
+import PopupState, { bindTrigger, bindPopover } from 'material-ui-popup-state';
+import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo } from "react-icons/fa";
 import { TimeDuration } from "./timeSliderTypes";
@@ -78,66 +80,82 @@ const SliderDatePicker = <T extends DateValue>(
         <DateInput className={"slider-date-picker-input"}>
           {(segment) => <DateSegment segment={segment} aria-label={segment.type} />}
         </DateInput>
-        <CalendarButton aria-label="Open calendar">
-          <FaCalendarAlt />
-        </CalendarButton>
+        <PopupState variant="popover" popupId="demo-popup-popover">
+          {(popupState) => (
+            <div>
+              <CalendarButton aria-label="Open calendar" {...bindTrigger(popupState)}>
+                <FaCalendarAlt />
+              </CalendarButton>
+              <Popover
+
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'center',
+                }}
+                transformOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'center',
+                }}
+                {...bindPopover(popupState)}
+                className="slider-date-picker">
+                <Dialog aria-label="Date picker">
+                  <Calendar firstDayOfWeek={firstDayOfWeek} aria-label="Select date">
+                    <header>
+                      <CalendarButton slot="previous" aria-label="Previous month">
+                        <MdOutlineKeyboardArrowLeft />
+                      </CalendarButton>
+                      <Heading />
+                      <CalendarButton slot="next" aria-label="Next month">
+                        <MdOutlineKeyboardArrowRight />
+                      </CalendarButton>
+                    </header>
+                    <CalendarGrid aria-label="Calendar">
+                      {(date) => <CalendarCell date={date} />}
+                    </CalendarGrid>
+                  </Calendar>
+
+                  {/* Settings section in calendar popup */}
+                  <div className="calendar-settings-section">
+                    {/* Timezone Setting */}
+                    <div className="calendar-setting-item">
+                      <span className="calendar-setting-label">Timezone:</span>
+                      <TimeZoneToggle />
+                    </div>
+
+                    {/* Step Duration Setting */}
+                    {setRange && (
+                      <div className="calendar-setting-item">
+                        <span className="calendar-setting-label">Step Duration:</span>
+                        <ToggleButtonGroup
+                          value={rangeValue}
+                          exclusive
+                          onChange={(_, newRange) => newRange && setRange(newRange)}
+                          size="small"
+                          className="calendar-duration-toggle"
+                        >
+                          <ToggleButton value={TimeDuration['1m']} aria-label="1 minute">
+                            1m
+                          </ToggleButton>
+                          <ToggleButton value={TimeDuration['5m']} aria-label="5 minutes">
+                            5m
+                          </ToggleButton>
+                          <ToggleButton value={TimeDuration['10m']} aria-label="10 minutes">
+                            10m
+                          </ToggleButton>
+                          <ToggleButton value={TimeDuration['30m']} aria-label="30 minutes">
+                            30m
+                          </ToggleButton>
+                        </ToggleButtonGroup>
+                      </div>
+                    )}
+                  </div>
+                </Dialog>
+              </Popover>
+            </div>
+          )}
+        </PopupState>
       </FieldsetBox>
       {description && <Text slot="description">{description}</Text>}
-      <FieldError>{errorMessage}</FieldError>
-      <Popover className="slider-date-picker">
-        <Dialog aria-label="Date picker">
-          <Calendar firstDayOfWeek={firstDayOfWeek} aria-label="Select date">
-            <header>
-              <CalendarButton slot="previous" aria-label="Previous month">
-                <MdOutlineKeyboardArrowLeft />
-              </CalendarButton>
-              <Heading />
-              <CalendarButton slot="next" aria-label="Next month">
-                <MdOutlineKeyboardArrowRight />
-              </CalendarButton>
-            </header>
-            <CalendarGrid aria-label="Calendar">
-              {(date) => <CalendarCell date={date} />}
-            </CalendarGrid>
-          </Calendar>
-
-          {/* Settings section in calendar popup */}
-          <div className="calendar-settings-section">
-            {/* Timezone Setting */}
-            <div className="calendar-setting-item">
-              <span className="calendar-setting-label">Timezone:</span>
-              <TimeZoneToggle />
-            </div>
-
-            {/* Step Duration Setting */}
-            {setRange && (
-              <div className="calendar-setting-item">
-                <span className="calendar-setting-label">Step Duration:</span>
-                <ToggleButtonGroup
-                  value={rangeValue}
-                  exclusive
-                  onChange={(_, newRange) => newRange && setRange(newRange)}
-                  size="small"
-                  className="calendar-duration-toggle"
-                >
-                  <ToggleButton value={TimeDuration['1m']} aria-label="1 minute">
-                    1m
-                  </ToggleButton>
-                  <ToggleButton value={TimeDuration['5m']} aria-label="5 minutes">
-                    5m
-                  </ToggleButton>
-                  <ToggleButton value={TimeDuration['10m']} aria-label="10 minutes">
-                    10m
-                  </ToggleButton>
-                  <ToggleButton value={TimeDuration['30m']} aria-label="30 minutes">
-                    30m
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </div>
-            )}
-          </div>
-        </Dialog>
-      </Popover>
     </DatePicker>);
 }
 
