@@ -8,7 +8,8 @@ import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
-import { Divider } from '@mui/material';
+import { Divider, IconButton, Tooltip } from '@mui/material';
+import { MdMyLocation, MdFastForward } from 'react-icons/md';
 
 /**
  * Local types for state, actions, and props
@@ -826,6 +827,100 @@ export const TimeRangeSlider = ({
             s.viewStartDateTime, Duration.hours(1));
           d(SetViewStartDateTime({ viewStartDateTime: newStart }));
         }} />
+        
+        {/* Navigation buttons */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'row', 
+          gap: '4px',
+          marginLeft: '8px',
+          marginRight: '8px'
+        }}>
+          <Tooltip title="Jump to selected date">
+            <IconButton
+              size="small"
+              onClick={() => {
+                const optimalViewStart = calculateOptimalViewStart(
+                  s.viewStartDateTime,
+                  s.selectedStartDateTime,
+                  s.selectedDuration,
+                  s.viewStartDateTime,
+                  s.viewDuration
+                );
+                d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+              }}
+              sx={{
+                padding: '4px',
+                color: theme === AppTheme.Dark ? '#4a9eff' : '#0076d6',
+                '&:hover': {
+                  backgroundColor: theme === AppTheme.Dark ? 'rgba(74, 158, 255, 0.1)' : 'rgba(0, 118, 214, 0.1)',
+                }
+              }}
+            >
+              <MdMyLocation size={18} />
+            </IconButton>
+          </Tooltip>
+          
+          {dateRangeForReset && (
+            <Tooltip title="Jump to latest available date">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  const latestDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+                  
+                  if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+                    // In animation mode: position animation range to end at latest date
+                    // and move primary range to start of animation range
+                    const newAnimationStart = DateTime.subtractDuration(latestDateTime, s.animationDuration);
+                    d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
+                    d(SetSelectedStartDateTime({
+                      selectedStartDateTime: newAnimationStart,
+                      updateSource: UpdateSource.UserInteraction
+                    }));
+                    
+                    // Update view to show the animation range
+                    const optimalViewStart = calculateOptimalViewStart(
+                      s.viewStartDateTime,
+                      newAnimationStart,
+                      s.animationDuration,
+                      s.viewStartDateTime,
+                      s.viewDuration
+                    );
+                    d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                  } else {
+                    // In step mode: move selected range to latest date
+                    // Calculate the start time so the range ends at latest date
+                    const newSelectedStart = DateTime.subtractDuration(latestDateTime, s.selectedDuration);
+                    d(SetSelectedStartDateTime({
+                      selectedStartDateTime: newSelectedStart,
+                      updateSource: UpdateSource.UserInteraction
+                    }));
+                    
+                    // Update view to show the selected range
+                    const optimalViewStart = calculateOptimalViewStart(
+                      s.viewStartDateTime,
+                      newSelectedStart,
+                      s.selectedDuration,
+                      s.viewStartDateTime,
+                      s.viewDuration
+                    );
+                    d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                  }
+                }}
+                sx={{
+                  padding: '4px',
+                  color: theme === AppTheme.Dark ? '#4a9eff' : '#0076d6',
+                  '&:hover': {
+                    backgroundColor: theme === AppTheme.Dark ? 'rgba(74, 158, 255, 0.1)' : 'rgba(0, 118, 214, 0.1)',
+                  }
+                }}
+              >
+                <MdFastForward size={18} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </div>
+        
         <DateAndRangeSelect
           startDateTime={s.selectedStartDateTime}
           setStartDateTime={(date: DateTime.DateTime) => {

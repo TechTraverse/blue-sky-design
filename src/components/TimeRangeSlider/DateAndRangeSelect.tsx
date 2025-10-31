@@ -36,7 +36,7 @@ function FieldsetBox({
 }
 
 const SliderDatePicker = <T extends DateValue>(
-  { label, description, errorMessage, firstDayOfWeek, returnToDefaultDateTime,
+  { label, description, errorMessage, firstDayOfWeek,
     rangeValue, setRange, dateRangeForReset, ...props }:
     LocalDatePickerProps<T>
 ) => {
@@ -136,13 +136,6 @@ const SliderDatePicker = <T extends DateValue>(
               </div>
             )}
           </div>
-
-          <Button onClick={returnToDefaultDateTime}>
-            <div className="default-date">
-              <FaUndo />
-              <span>Latest</span>
-            </div>
-          </Button>
         </Dialog>
       </Popover>
     </DatePicker>);
@@ -151,14 +144,12 @@ const SliderDatePicker = <T extends DateValue>(
 export const DateAndRangeSelect = ({
   startDateTime,
   setStartDateTime,
-  returnToDefaultDateTime,
   rangeValue,
   setRange,
   dateRangeForReset,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
-  returnToDefaultDateTime?: () => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
   dateRangeForReset?: RangeValue<Date>,
@@ -227,7 +218,6 @@ export const DateAndRangeSelect = ({
         value={calendarDateTime}
         onChange={handleDateChange}
         firstDayOfWeek={"sun"}
-        returnToDefaultDateTime={returnToDefaultDateTime}
         rangeValue={rangeValue}
         setRange={setRange}
         dateRangeForReset={dateRangeForReset}
