@@ -393,7 +393,7 @@ export const HorizontalCalendar = ({
               <div style={{
                 width: '3px',
                 height: '100%',
-                backgroundColor: '#ff6b6b',
+                backgroundColor: colors.activity,
                 opacity: draggingBoundary === 'start' ? 1 : 
                          hoveringBoundary === 'start' ? 0.8 : 0.6,
                 borderRadius: '2px',
@@ -428,7 +428,7 @@ export const HorizontalCalendar = ({
               <div style={{
                 width: '3px',
                 height: '100%',
-                backgroundColor: '#ff6b6b',
+                backgroundColor: colors.activity,
                 opacity: draggingBoundary === 'end' ? 1 : 
                          hoveringBoundary === 'end' ? 0.8 : 0.6,
                 borderRadius: '2px',
