@@ -754,12 +754,35 @@ export const TimeRangeSlider = ({
           start?: DateTime.DateTime;
           end?: DateTime.DateTime;
         }) => {
+          // Enforce latestValidDateTime constraint
+          const maxAllowedDateTime = dateRangeForReset 
+            ? DateTime.unsafeFromDate(dateRangeForReset.start)
+            : undefined;
+
           if (r.start) {
-            d(SetAnimationStartDateTime({ animationStartDateTime: r.start }));
+            let newStart = r.start;
+            
+            // If setting start would push end past limit, constrain it
+            if (maxAllowedDateTime) {
+              const proposedEnd = DateTime.addDuration(newStart, s.animationDuration);
+              if (DateTime.greaterThan(proposedEnd, maxAllowedDateTime)) {
+                newStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+              }
+            }
+            
+            d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
           }
+          
           if (r.end) {
             const start = r.start || s.animationStartDateTime;
-            const newDuration = DateTime.distanceDuration(start, r.end);
+            let newEnd = r.end;
+            
+            // Constrain end to not exceed limit
+            if (maxAllowedDateTime && DateTime.greaterThan(newEnd, maxAllowedDateTime)) {
+              newEnd = maxAllowedDateTime;
+            }
+            
+            const newDuration = DateTime.distanceDuration(start, newEnd);
             d(SetAnimationDuration({ animationDuration: newDuration }));
           }
         },
@@ -767,7 +790,7 @@ export const TimeRangeSlider = ({
       };
     }
     return undefined;
-  }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration]);
+  }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration, dateRangeForReset]);
 
   const viewRangeHC = useMemo(() => ({
     start: s.viewStartDateTime,

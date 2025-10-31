@@ -281,7 +281,13 @@ export const HorizontalCalendar = ({
 
       // Round to increment
       const incrementMs = increment || 5 * 60 * 1000;
-      const roundedMs = Math.round(newMs / incrementMs) * incrementMs;
+      let roundedMs = Math.round(newMs / incrementMs) * incrementMs;
+
+      // Enforce latestValidDateTime constraint
+      if (displayLatestValidDateTime) {
+        const maxMs = DateTime.toEpochMillis(displayLatestValidDateTime);
+        roundedMs = Math.min(roundedMs, maxMs);
+      }
 
       if (draggingBoundary === 'start') {
         const newStart = pipe(
@@ -311,7 +317,7 @@ export const HorizontalCalendar = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay]);
+  }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay, displayLatestValidDateTime]);
 
   return (
     <div className={`horizontal-calendar-grid`}>
