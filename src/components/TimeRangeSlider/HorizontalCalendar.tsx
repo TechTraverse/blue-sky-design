@@ -460,8 +460,75 @@ export const HorizontalCalendar = ({
                 () => [a, a + incrementMs])
               .otherwise(() => _newValue as [number, number]);
 
+            /**
+             * PRIORITY CHECK: Clicking outside limited range
+             * Handle this first before any other logic
+             */
+            if (displayLimitedRange && limitedRange && e.type !== 'mousemove') {
+              const clickPosition = activeThumb === 0 
+                ? (newValue as [number, number])[0]
+                : (newValue as [number, number])[1];
+              
+              const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
+              const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
+              
+              // Check if click is outside the limited range
+              if (clickPosition < limitStart || clickPosition > limitEnd) {
+                // Check if click is before latest valid date
+                const ldt = displayLatestValidDateTime
+                  ? DateTime.toEpochMillis(displayLatestValidDateTime)
+                  : Infinity;
+                
+                if (clickPosition <= ldt) {
+                  const limitedDuration = limitEnd - limitStart;
+                  const primaryDuration = primaryRangeMillis[1] - primaryRangeMillis[0];
+                  
+                  // Round to increment
+                  const baseTime = DateTime.toEpochMillis(displayViewRange.start);
+                  const offsetFromBase = clickPosition - baseTime;
+                  const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
+                  const roundedClickPosition = baseTime + roundedOffset;
+                  
+                  // Move limited range to start at click position
+                  const newLimitStart = roundedClickPosition;
+                  const newLimitEnd = Math.min(newLimitStart + limitedDuration, ldt);
+                  
+                  // Update limited range state
+                  const limitStartDateTime = pipe(
+                    newLimitStart,
+                    x => DateTime.unsafeFromDate(new Date(x)),
+                    fromDisplay
+                  );
+                  const limitEndDateTime = pipe(
+                    newLimitEnd,
+                    x => DateTime.unsafeFromDate(new Date(x)),
+                    fromDisplay
+                  );
+                  limitedRange.set({ start: limitStartDateTime, end: limitEndDateTime });
+                  
+                  // Move primary range to start of new limited range
+                  const newStart = newLimitStart;
+                  const newEnd = Math.min(newStart + primaryDuration, newLimitEnd);
+                  
+                  // Convert to UTC and update primary range
+                  const start = pipe(
+                    newStart,
+                    x => DateTime.unsafeFromDate(new Date(x)),
+                    fromDisplay
+                  );
+                  const end = pipe(
+                    newEnd,
+                    x => DateTime.unsafeFromDate(new Date(x)),
+                    fromDisplay
+                  );
+                  primaryRange.set({ start, end });
+                  return; // Exit early - we're done
+                }
+              }
+            }
 
             /**
+             * ORIGINAL LOGIC: Handle normal clicks and drags
              * Set up conditions that determine if this is mousemove
              * continuation or if it's within current range click
              */
