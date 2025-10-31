@@ -27,7 +27,7 @@ export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
       // Always normalize to UTC first
       const utc = DateTime.isZoned(dt) ? DateTime.toUtc(dt) : dt as DateTime.Utc;
 
-      if (mode === TimeZone.UTC) {
+      if (mode === "utc") {
         return utc;
       } else {
         const localZone = DateTime.zoneMakeLocal();
