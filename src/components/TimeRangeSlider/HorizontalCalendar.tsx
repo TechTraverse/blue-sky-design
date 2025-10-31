@@ -245,6 +245,7 @@ export const HorizontalCalendar = ({
   const sliderRef = useRef<HTMLDivElement>(null);
   const lastEvtTypeRef = useRef<string>('');
   const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
+  const [hoveringBoundary, setHoveringBoundary] = useState<'start' | 'end' | null>(null);
 
   // Calculate limited range position for visual indicators
   const limitedRangePosition = useMemo(() => {
@@ -339,15 +340,42 @@ export const HorizontalCalendar = ({
         {/* Limited range visual indicators */}
         {limitedRangePosition && limitedRange && (
           <>
-            {/* Start boundary */}
+            {/* Dim overlay for areas OUTSIDE the animation range */}
+            {/* Left dim area */}
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              width: `${limitedRangePosition.left}%`,
+              top: 0,
+              bottom: 0,
+              backgroundColor: colors.compBg,
+              opacity: 0.7,
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+            
+            {/* Right dim area */}
+            <div style={{
+              position: 'absolute',
+              right: 0,
+              width: `${limitedRangePosition.right}%`,
+              top: 0,
+              bottom: 0,
+              backgroundColor: colors.compBg,
+              opacity: 0.7,
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+
+            {/* Start boundary - simple and subtle */}
             <div 
               style={{
                 position: 'absolute',
                 left: `${limitedRangePosition.left}%`,
                 top: 0,
                 bottom: 0,
-                width: '12px',
-                marginLeft: '-6px',
+                width: '16px',
+                marginLeft: '-8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -359,25 +387,30 @@ export const HorizontalCalendar = ({
                 e.stopPropagation();
                 setDraggingBoundary('start');
               }}
+              onMouseEnter={() => setHoveringBoundary('start')}
+              onMouseLeave={() => setHoveringBoundary(null)}
             >
               <div style={{
                 width: '3px',
                 height: '100%',
                 backgroundColor: '#ff6b6b',
-                opacity: draggingBoundary === 'start' ? 1 : 0.7,
-                pointerEvents: 'none'
+                opacity: draggingBoundary === 'start' ? 1 : 
+                         hoveringBoundary === 'start' ? 0.8 : 0.6,
+                borderRadius: '2px',
+                pointerEvents: 'none',
+                transition: 'opacity 0.2s ease',
               }} />
             </div>
 
-            {/* End boundary */}
+            {/* End boundary - simple and subtle */}
             <div 
               style={{
                 position: 'absolute',
                 right: `${limitedRangePosition.right}%`,
                 top: 0,
                 bottom: 0,
-                width: '12px',
-                marginRight: '-6px',
+                width: '16px',
+                marginRight: '-8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -389,27 +422,20 @@ export const HorizontalCalendar = ({
                 e.stopPropagation();
                 setDraggingBoundary('end');
               }}
+              onMouseEnter={() => setHoveringBoundary('end')}
+              onMouseLeave={() => setHoveringBoundary(null)}
             >
               <div style={{
                 width: '3px',
                 height: '100%',
                 backgroundColor: '#ff6b6b',
-                opacity: draggingBoundary === 'end' ? 1 : 0.7,
-                pointerEvents: 'none'
+                opacity: draggingBoundary === 'end' ? 1 : 
+                         hoveringBoundary === 'end' ? 0.8 : 0.6,
+                borderRadius: '2px',
+                pointerEvents: 'none',
+                transition: 'opacity 0.2s ease',
               }} />
             </div>
-
-            {/* Background highlight for animation range */}
-            <div style={{
-              position: 'absolute',
-              left: `${limitedRangePosition.left}%`,
-              right: `${limitedRangePosition.right}%`,
-              top: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(255, 107, 107, 0.05)',
-              pointerEvents: 'none',
-              zIndex: 0,
-            }} />
           </>
         )}
         <Slider
