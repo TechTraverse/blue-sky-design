@@ -35,13 +35,13 @@ type Step = {
 const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime, latestValidDateTime?: DateTime.DateTime): Step[] => {
   const steps: Step[] = [];
   const latestValidMillis = latestValidDateTime ? DateTime.toEpochMillis(latestValidDateTime) : undefined;
-  
+
   for (let i = start; i <= end; i += step) {
     const dt = DateTime.unsafeFromDate(new Date(i));
     const displayDt = toDisplay(dt);
     const minutes = DateTime.getPart(displayDt, "minutes");
     const isDisabled = latestValidMillis !== undefined && i > latestValidMillis;
-    
+
     const label = minutes === 0
       ? <div className={`hour-marks ${isDisabled ? 'disabled-marks' : ''}`}>{DateTime.getPart(displayDt, "hours").toString()}</div>
       : minutes % 10 === 0
@@ -301,8 +301,8 @@ export const HorizontalCalendar = ({
             /**
              * Maintain a minimum distance between thumbs
              */
-            let [a, b] = _newValue as [number, number];
-            let newValue = match(activeThumb)
+            const [a, b] = _newValue as [number, number];
+            const newValue = match(activeThumb)
               .with(0, () => (b - a) <= incrementMs,
                 () => [b - incrementMs, b] as [number, number])
               .with(1, () => (b - a) <= incrementMs,
