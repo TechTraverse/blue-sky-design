@@ -247,7 +247,7 @@ export const HorizontalCalendar = ({
   const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
   const [hoveringBoundary, setHoveringBoundary] = useState<'start' | 'end' | null>(null);
 
-  // Calculate limited range position for visual indicators
+  // Calculate limited range position for visual indicators using pattern matching
   const limitedRangePosition = useMemo(() => {
     if (!displayLimitedRange) return null;
     
@@ -257,12 +257,65 @@ export const HorizontalCalendar = ({
     const viewEnd = viewRangeAndStep.end;
     const viewDuration = viewEnd - viewStart;
     
-    return {
-      left: ((limitStart - viewStart) / viewDuration) * 100,
-      right: ((viewEnd - limitEnd) / viewDuration) * 100,
-      startMs: limitStart,
-      endMs: limitEnd,
-    };
+    // Pattern match different overlap scenarios between limited range and view range
+    return match({
+      limitStart,
+      limitEnd,
+      viewStart,
+      viewEnd,
+      limitExtendsBeforeView: limitStart < viewStart,
+      limitExtendsAfterView: limitEnd > viewEnd,
+      limitFullyBeforeView: limitEnd <= viewStart,
+      limitFullyAfterView: limitStart >= viewEnd
+    })
+      // Limited range is completely before view - show full fade
+      .with({ limitFullyBeforeView: true }, () => ({
+        left: 0,
+        right: 0,
+        startMs: limitStart,
+        endMs: limitEnd,
+        showFullFade: true
+      }))
+      // Limited range is completely after view - show full fade  
+      .with({ limitFullyAfterView: true }, () => ({
+        left: 0,
+        right: 0,
+        startMs: limitStart,
+        endMs: limitEnd,
+        showFullFade: true
+      }))
+      // Limited range extends before view start but ends within view
+      .with({ limitExtendsBeforeView: true, limitExtendsAfterView: false }, () => ({
+        left: 0, // No left fade since limited range starts before view
+        right: Math.max(0, ((viewEnd - limitEnd) / viewDuration) * 100),
+        startMs: limitStart,
+        endMs: limitEnd,
+        showFullFade: false
+      }))
+      // Limited range starts within view but extends after view end
+      .with({ limitExtendsBeforeView: false, limitExtendsAfterView: true }, () => ({
+        left: Math.max(0, ((limitStart - viewStart) / viewDuration) * 100),
+        right: 0, // No right fade since limited range extends beyond view
+        startMs: limitStart,
+        endMs: limitEnd,
+        showFullFade: false
+      }))
+      // Limited range extends both before and after view - show no fade
+      .with({ limitExtendsBeforeView: true, limitExtendsAfterView: true }, () => ({
+        left: 0,
+        right: 0,
+        startMs: limitStart,
+        endMs: limitEnd,
+        showFullFade: false
+      }))
+      // Limited range is fully contained within view - normal calculation
+      .otherwise(() => ({
+        left: Math.max(0, ((limitStart - viewStart) / viewDuration) * 100),
+        right: Math.max(0, ((viewEnd - limitEnd) / viewDuration) * 100),
+        startMs: limitStart,
+        endMs: limitEnd,
+        showFullFade: false
+      }));
   }, [displayLimitedRange, viewRangeAndStep]);
 
   // Handle dragging limited range boundaries
@@ -341,31 +394,52 @@ export const HorizontalCalendar = ({
         {limitedRangePosition && limitedRange && (
           <>
             {/* Dim overlay for areas OUTSIDE the animation range */}
-            {/* Left dim area */}
-            <div style={{
-              position: 'absolute',
-              left: 0,
-              width: `${limitedRangePosition.left}%`,
-              top: 0,
-              bottom: 0,
-              backgroundColor: colors.compBg,
-              opacity: 0.7,
-              pointerEvents: 'none',
-              zIndex: 1,
-            }} />
-            
-            {/* Right dim area */}
-            <div style={{
-              position: 'absolute',
-              right: 0,
-              width: `${limitedRangePosition.right}%`,
-              top: 0,
-              bottom: 0,
-              backgroundColor: colors.compBg,
-              opacity: 0.7,
-              pointerEvents: 'none',
-              zIndex: 1,
-            }} />
+            {limitedRangePosition.showFullFade ? (
+              // Full fade when limited range is completely outside view
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                backgroundColor: colors.compBg,
+                opacity: 0.7,
+                pointerEvents: 'none',
+                zIndex: 1,
+              }} />
+            ) : (
+              <>
+                {/* Left dim area - only show if limited range starts within view */}
+                {limitedRangePosition.left > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    width: `${limitedRangePosition.left}%`,
+                    top: 0,
+                    bottom: 0,
+                    backgroundColor: colors.compBg,
+                    opacity: 0.7,
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                )}
+                
+                {/* Right dim area - only show if limited range ends within view */}
+                {limitedRangePosition.right > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    width: `${limitedRangePosition.right}%`,
+                    top: 0,
+                    bottom: 0,
+                    backgroundColor: colors.compBg,
+                    opacity: 0.7,
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                )}
+              </>
+            )}
 
             {/* Start boundary - simple and subtle */}
             <div 
