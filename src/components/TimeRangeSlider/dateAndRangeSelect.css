@@ -263,7 +263,7 @@
 
   /* Calendar settings section */
   .calendar-settings-section {
-    padding: 12px 16px;
+    padding: 12px 0 12px 5px;
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
     background-color: #fafafa;
@@ -271,11 +271,14 @@
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
+    justify-content: space-evenly;
+    width: 100%;
   }
 
   .calendar-setting-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-direction: column;
     justify-content: space-between;
     gap: 8px;
   }
@@ -592,4 +595,29 @@ body.time-range-slider-dark-theme .slider-date-picker,
       color: #64b5f6 !important;
     }
   }
+}
+
+/* MUI Popover dark theme overrides */
+.dark-theme .MuiPopover-paper,
+.time-range-slider-theme-wrapper.dark-theme ~ * .MuiPopover-paper,
+.time-range-slider-theme-wrapper.dark-theme + * .MuiPopover-paper,
+body:has(.time-range-slider-theme-wrapper.dark-theme) .MuiPopover-paper,
+body.time-range-slider-dark-theme .MuiPopover-paper {
+  background-color: #1e1e1e !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Ensure the slider-date-picker inside MUI Popover gets dark theme */
+.dark-theme .MuiPopover-paper .slider-date-picker,
+.time-range-slider-theme-wrapper.dark-theme ~ * .MuiPopover-paper .slider-date-picker,
+.time-range-slider-theme-wrapper.dark-theme + * .MuiPopover-paper .slider-date-picker,
+body:has(.time-range-slider-theme-wrapper.dark-theme) .MuiPopover-paper .slider-date-picker,
+body.time-range-slider-dark-theme .MuiPopover-paper .slider-date-picker {
+  --background-color: #1e1e1e !important;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+  box-shadow: none !important;
 }

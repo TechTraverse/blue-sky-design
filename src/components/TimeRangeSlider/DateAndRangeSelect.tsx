@@ -87,7 +87,6 @@ const SliderDatePicker = <T extends DateValue>(
                 <FaCalendarAlt />
               </CalendarButton>
               <Popover
-
                 anchorOrigin={{
                   vertical: 'top',
                   horizontal: 'center',
