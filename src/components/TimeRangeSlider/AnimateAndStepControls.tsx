@@ -95,14 +95,14 @@ export const AnimateAndStepControls = ({
           <div className={`playback-button-container ${animationEnabled ? 'animation-mode' : 'step-mode'}`}>
             <Button
               variant="contained"
-              onClick={() => animationEnabled ? decrementAnimationSpeed?.() : decrementStartDateTime?.()}
+              onClick={() => decrementStartDateTime?.()}
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
                 flex: '0 0 auto'
               }}
             >
-              {animationEnabled ? <MdFirstPage /> : <TbPlayerSkipBack />}
+              <MdFirstPage />
             </Button>
 
             {/* Always reserve space for center button */}
@@ -135,14 +135,14 @@ export const AnimateAndStepControls = ({
 
             <Button
               variant="contained"
-              onClick={() => animationEnabled ? incrementAnimationSpeed?.() : incrementStartDateTime?.()}
+              onClick={() => incrementStartDateTime?.()}
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
                 flex: '0 0 auto'
               }}
             >
-              {animationEnabled ? <MdLastPage /> : <TbPlayerSkipForward />}
+              <MdLastPage />
             </Button>
           </div>
 
