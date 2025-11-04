@@ -1,5 +1,5 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef, useMemo } from 'react';
+import { useEffect, useReducer, useRef, useMemo, useCallback } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
@@ -585,10 +585,26 @@ export const TimeRangeSlider = ({
   }, []);
 
   /**
-   * Ensure limited range (animation range) is always centered in view
+   * Ensure limited range (animation range) is initially centered in view
+   * Debounced to prevent excessive centering during rapid state changes
    */
+  const lastCenteringRef = useRef<number>(0);
+  const centeringTimeoutRef = useRef<NodeJS.Timeout>();
+  
   useEffect(() => {
-    if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+    if (s.animationOrStepMode !== AnimationOrStepMode.Animation) return;
+    
+    // Clear any pending centering
+    if (centeringTimeoutRef.current) {
+      clearTimeout(centeringTimeoutRef.current);
+    }
+    
+    // Debounce centering operations to reduce excessive calls
+    centeringTimeoutRef.current = setTimeout(() => {
+      // Throttle to prevent rapid-fire centering
+      const now = Date.now();
+      if (now - lastCenteringRef.current < 100) return;
+      
       // Calculate center of animation range
       const animationMidpoint = DateTime.addDuration(
         s.animationStartDateTime,
@@ -616,9 +632,16 @@ export const TimeRangeSlider = ({
       
       // Update view if animation range is not centered (tolerance: 1 minute)
       if (distanceFromCenter > 60000) {
+        lastCenteringRef.current = now;
         d(SetViewStartDateTime({ viewStartDateTime: roundedViewStart }));
       }
-    }
+    }, 50); // 50ms debounce
+    
+    return () => {
+      if (centeringTimeoutRef.current) {
+        clearTimeout(centeringTimeoutRef.current);
+      }
+    };
   }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration, s.viewDuration]);
 
   /**
@@ -627,11 +650,15 @@ export const TimeRangeSlider = ({
 
   // Update selectedStartDateTime
   useEffect(() => {
-    match(dateRange?.start)
+    if (!dateRange?.start) return;
+    
+    match(dateRange.start)
       .with(P.instanceOf(Date),
         (x) => {
           const dtStart = DateTime.unsafeFromDate(x);
-          return DateTime.distance(dtStart, s.selectedStartDateTime) !== 0
+          const hasChanged = DateTime.distance(dtStart, s.selectedStartDateTime) !== 0;
+          if (!hasChanged) return false;
+          return hasChanged;
         }, (x) => {
           d(ExtSetSelectedStartDateTime({
             selectedStartDateTime: DateTime.unsafeFromDate(x),
@@ -643,13 +670,17 @@ export const TimeRangeSlider = ({
 
   // Update selectedDuration
   useEffect(() => {
+    if (!dateRange?.start || !dateRange?.end) return;
+    
     match(dateRange)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
         ({ start, end }) => {
           const dtStart = DateTime.unsafeFromDate(start);
           const dtEnd = DateTime.unsafeFromDate(end);
           const newDuration = DateTime.distanceDuration(dtStart, dtEnd);
-          return newDuration !== s.selectedDuration
+          const hasChanged = Duration.toMillis(newDuration) !== Duration.toMillis(s.selectedDuration);
+          if (!hasChanged) return false;
+          return hasChanged;
         }, (x) => {
           d(ExtSetSelectedDuration({
             selectedDuration: DateTime.distanceDuration(
@@ -663,11 +694,15 @@ export const TimeRangeSlider = ({
 
   // The same thing but for the reset time and duration
   useEffect(() => {
-    match(dateRangeForReset?.start)
+    if (!dateRangeForReset?.start) return;
+    
+    match(dateRangeForReset.start)
       .with(P.instanceOf(Date),
         (x) => {
           const dtStart = DateTime.unsafeFromDate(x);
-          return DateTime.distance(dtStart, s.resetStartDateTime) !== 0
+          const hasChanged = DateTime.distance(dtStart, s.resetStartDateTime) !== 0;
+          if (!hasChanged) return false;
+          return hasChanged;
         }, (x) => {
           d(SetResetStartDateTime({ resetStartDateTime: DateTime.unsafeFromDate(x) }));
         })
@@ -675,13 +710,17 @@ export const TimeRangeSlider = ({
   }, [dateRangeForReset?.start]);
 
   useEffect(() => {
+    if (!dateRangeForReset?.start || !dateRangeForReset?.end) return;
+    
     match(dateRangeForReset)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
         ({ start, end }) => {
           const dtStart = DateTime.unsafeFromDate(start);
           const dtEnd = DateTime.unsafeFromDate(end);
           const newDuration = DateTime.distanceDuration(dtStart, dtEnd);
-          return newDuration !== s.resetDuration
+          const hasChanged = Duration.toMillis(newDuration) !== Duration.toMillis(s.resetDuration);
+          if (!hasChanged) return false;
+          return hasChanged;
         }, (x) => {
           d(SetResetDuration({
             resetDuration: DateTime.distanceDuration(
@@ -764,72 +803,76 @@ export const TimeRangeSlider = ({
    * primaryRange ALWAYS represents the current selection (selectedStartDateTime/selectedDuration)
    * limitedRange (optional) provides animation bounds that constrain primaryRange
    */
+  const primaryRangeSetCallback = useCallback((r: {
+    start?: DateTime.DateTime;
+    end?: DateTime.DateTime;
+  }) => {
+    if (r.start) {
+      d(SetSelectedStartDateTime(
+        { selectedStartDateTime: r.start, updateSource: UpdateSource.UserInteraction }));
+    }
+    if (r.end) {
+      const start = r.start || s.selectedStartDateTime;
+      const newDuration = DateTime.distanceDuration(start, r.end);
+      d(SetSelectedDuration({ selectedDuration: newDuration, updateSource: UpdateSource.UserInteraction }));
+    }
+  }, [s.selectedStartDateTime]);
+
   const primaryRangeHC = useMemo(() => ({
     start: s.selectedStartDateTime,
     end: DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration),
-    set: (r: {
-      start?: DateTime.DateTime;
-      end?: DateTime.DateTime;
-    }) => {
-      if (r.start) {
-        d(SetSelectedStartDateTime(
-          { selectedStartDateTime: r.start, updateSource: UpdateSource.UserInteraction }));
-      }
-      if (r.end) {
-        const start = r.start || s.selectedStartDateTime;
-        const newDuration = DateTime.distanceDuration(start, r.end);
-        d(SetSelectedDuration({ selectedDuration: newDuration, updateSource: UpdateSource.UserInteraction }));
-      }
-    },
+    set: primaryRangeSetCallback,
     duration: s.selectedDuration
-  }), [s.selectedStartDateTime, s.selectedDuration]);
+  }), [s.selectedStartDateTime, s.selectedDuration, primaryRangeSetCallback]);
+
+  const limitedRangeSetCallback = useCallback((r: {
+    start?: DateTime.DateTime;
+    end?: DateTime.DateTime;
+  }) => {
+    // Enforce latestValidDateTime constraint
+    const maxAllowedDateTime = dateRangeForReset 
+      ? DateTime.unsafeFromDate(dateRangeForReset.start)
+      : undefined;
+
+    if (r.start) {
+      let newStart = r.start;
+      
+      // If setting start would push end past limit, constrain it
+      if (maxAllowedDateTime) {
+        const proposedEnd = DateTime.addDuration(newStart, s.animationDuration);
+        if (DateTime.greaterThan(proposedEnd, maxAllowedDateTime)) {
+          newStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+        }
+      }
+      
+      d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
+    }
+    
+    if (r.end) {
+      const start = r.start || s.animationStartDateTime;
+      let newEnd = r.end;
+      
+      // Constrain end to not exceed limit
+      if (maxAllowedDateTime && DateTime.greaterThan(newEnd, maxAllowedDateTime)) {
+        newEnd = maxAllowedDateTime;
+      }
+      
+      const newDuration = DateTime.distanceDuration(start, newEnd);
+      d(SetAnimationDuration({ animationDuration: newDuration }));
+    }
+  }, [s.animationDuration, s.animationStartDateTime, dateRangeForReset]);
 
   const limitedRangeHC = useMemo(() => {
     if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
       return {
         start: s.animationStartDateTime,
         end: DateTime.addDuration(s.animationStartDateTime, s.animationDuration),
-        set: (r: {
-          start?: DateTime.DateTime;
-          end?: DateTime.DateTime;
-        }) => {
-          // Enforce latestValidDateTime constraint
-          const maxAllowedDateTime = dateRangeForReset 
-            ? DateTime.unsafeFromDate(dateRangeForReset.start)
-            : undefined;
-
-          if (r.start) {
-            let newStart = r.start;
-            
-            // If setting start would push end past limit, constrain it
-            if (maxAllowedDateTime) {
-              const proposedEnd = DateTime.addDuration(newStart, s.animationDuration);
-              if (DateTime.greaterThan(proposedEnd, maxAllowedDateTime)) {
-                newStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
-              }
-            }
-            
-            d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
-          }
-          
-          if (r.end) {
-            const start = r.start || s.animationStartDateTime;
-            let newEnd = r.end;
-            
-            // Constrain end to not exceed limit
-            if (maxAllowedDateTime && DateTime.greaterThan(newEnd, maxAllowedDateTime)) {
-              newEnd = maxAllowedDateTime;
-            }
-            
-            const newDuration = DateTime.distanceDuration(start, newEnd);
-            d(SetAnimationDuration({ animationDuration: newDuration }));
-          }
-        },
+        set: limitedRangeSetCallback,
         duration: s.animationDuration
       };
     }
     return undefined;
-  }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration, dateRangeForReset]);
+  }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration, limitedRangeSetCallback]);
 
   const viewRangeHC = useMemo(() => ({
     start: s.viewStartDateTime,
