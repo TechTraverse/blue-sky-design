@@ -42,3 +42,7 @@ export type {
 // Advanced exports for effect-ts integration
 export { MapService, MapServiceLayer, MapServiceAdapter, createMapServiceEffect } from './components/MapComponent';
 export type { MapServiceEffect, LayerType } from './components/MapComponent';
+
+// LayerControl exports
+export { LayerControl, LayerList, LayerItem } from './components/LayerControl';
+export type { LayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
