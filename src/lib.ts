@@ -44,5 +44,5 @@ export { MapService, MapServiceLayer, MapServiceAdapter, createMapServiceEffect 
 export type { MapServiceEffect, LayerType } from './components/MapComponent';
 
 // LayerControl exports
-export { LayerControl, LayerList, LayerItem } from './components/LayerControl';
-export type { LayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
+export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './components/LayerControl';
+export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
