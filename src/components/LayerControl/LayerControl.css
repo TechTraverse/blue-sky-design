@@ -3,6 +3,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  color: var(--text, #333);
 }
 
 .currentlyActiveLayers {
@@ -17,10 +18,18 @@
   overflow-y: auto;
 }
 
+/* Use wlfs-client color scheme when CSS variables are available */
+.currentlyActiveLayers .MuiList-root {
+  background-color: var(--comp-bg, #f1f3f6);
+}
+
 .layerWrapper {
   display: flex;
   align-items: center;
   margin: 2px 0;
+  background-color: var(--page-bg, white);
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
 }
 
 .dragHandle {
@@ -74,6 +83,7 @@
 .layerCardElements {
   flex: 1;
   text-align: left;
+  color: var(--text, #333);
 }
 
 .layerButtons {
@@ -85,6 +95,26 @@
 .CheckItem {
   height: 20px;
   width: 20px;
+}
+
+/* Additional Material-UI component resets */
+.layer-control .MuiListSubheader-root {
+  background-color: var(--comp-bg, #f1f3f6);
+  color: var(--comp-text, #333);
+}
+
+.layer-control .MuiAccordion-root {
+  background-color: transparent;
+  color: var(--text, #333);
+}
+
+.layer-control .MuiAccordionSummary-root {
+  background-color: var(--comp-bg, #f1f3f6);
+  color: var(--comp-text, #333);
+}
+
+.layer-control .MuiTypography-root {
+  color: var(--comp-text, #333);
 }
 
 
