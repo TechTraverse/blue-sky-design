@@ -71,3 +71,23 @@ export const HiddenAnimationToggle: Story = {
     hideAnimationToggle: true
   }
 };
+
+export const WithAsyncLatestDateCallback: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    getLatestDateRange: async () => {
+      console.log('Fetching latest date...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const latestDate = new Date(1752991200000 + (2 * 60 * 60 * 1000));
+      console.log('Latest date fetched:', latestDate);
+      return latestDate;
+    },
+    theme: Theme.Dark
+  }
+};
