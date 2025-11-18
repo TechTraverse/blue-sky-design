@@ -20,6 +20,7 @@ export interface TimeRangeSliderProps {
   dateRange?: RangeValue<Date>;
   dateRangeForReset?: RangeValue<Date>;
   onDateRangeSelect: (rv: RangeValue<Date>) => void;
+  getLatestDateRange?: () => Promise<Date>;
   animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
   theme?: AppTheme;
@@ -409,6 +410,7 @@ export const TimeRangeSlider = ({
   dateRange,
   dateRangeForReset,
   onDateRangeSelect,
+  getLatestDateRange,
   animationRequestFrequency = AnimationRequestFrequency['1 fps'],
   className = "",
   theme = AppTheme.Light,
@@ -943,12 +945,29 @@ export const TimeRangeSlider = ({
               </IconButton>
             </Tooltip>
             
-            {dateRangeForReset && (
+            {(dateRangeForReset || getLatestDateRange) && (
               <Tooltip title="Jump to latest available date">
                 <IconButton
                   size="small"
-                  onClick={() => {
-                    const latestDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+                  onClick={async () => {
+                    const latestDateTime = await match({ getLatestDateRange, dateRangeForReset })
+                      .with({ getLatestDateRange: P.not(P.nullish) }, async ({ getLatestDateRange }) => {
+                        try {
+                          const latestDate = await getLatestDateRange();
+                          return DateTime.unsafeFromDate(latestDate);
+                        } catch (error) {
+                          console.error('Failed to get latest date range:', error);
+                          return match(dateRangeForReset)
+                            .with(P.not(P.nullish), (dateRange) => DateTime.unsafeFromDate(dateRange.start))
+                            .otherwise(() => null);
+                        }
+                      })
+                      .with({ dateRangeForReset: P.not(P.nullish) }, ({ dateRangeForReset }) => 
+                        Promise.resolve(DateTime.unsafeFromDate(dateRangeForReset.start))
+                      )
+                      .otherwise(() => Promise.resolve(null));
+                    
+                    if (!latestDateTime) return;
                     
                     if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
                       // In animation mode: position animation range to end at latest date
