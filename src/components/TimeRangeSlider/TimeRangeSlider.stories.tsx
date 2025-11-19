@@ -113,3 +113,23 @@ export const WithAsyncLatestDateCallbackAndFallback: Story = {
     theme: Theme.Light
   }
 };
+
+export const WithSlowAsyncCallback: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    getLatestDateRange: async () => {
+      console.log('Fetching latest date (slow)...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      const latestDate = new Date();
+      console.log('Latest date fetched after delay:', latestDate);
+      return latestDate;
+    },
+    theme: Theme.Dark
+  }
+};
