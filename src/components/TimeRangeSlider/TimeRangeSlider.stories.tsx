@@ -91,3 +91,25 @@ export const WithAsyncLatestDateCallback: Story = {
     theme: Theme.Dark
   }
 };
+
+export const WithAsyncLatestDateCallbackAndFallback: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000),
+      end: new Date(1752991500000)
+    },
+    dateRangeForReset: {
+      start: new Date(1752991200000 + (1 * 60 * 60 * 1000)),
+      end: new Date(1752991500000 + (1 * 60 * 60 * 1000))
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    getLatestDateRange: async () => {
+      console.log('Attempting to fetch latest date...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      throw new Error('Simulated network error');
+    },
+    theme: Theme.Light
+  }
+};
