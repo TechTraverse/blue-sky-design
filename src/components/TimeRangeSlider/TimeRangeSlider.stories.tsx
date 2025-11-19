@@ -125,6 +125,7 @@ export const WithSlowAsyncCallback: Story = {
     },
     getLatestDateRange: async () => {
       console.log('Fetching latest date (slow)...');
+      // Simulate a slow network request  
       await new Promise(resolve => setTimeout(resolve, 3000));
       const latestDate = new Date();
       console.log('Latest date fetched after delay:', latestDate);
