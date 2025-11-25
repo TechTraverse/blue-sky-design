@@ -1,4 +1,4 @@
-import { DateTime } from "effect";
+import { DateTime, Option as O } from "effect";
 import { createContext, useContext, useState, useMemo, ReactNode } from "react";
 import { TimeZone } from "../components/TimeRangeSlider/timeSliderTypes";
 
@@ -17,6 +17,21 @@ interface TimeZoneDisplayContextValue {
 
 const TimeZoneDisplayContext = createContext<TimeZoneDisplayContextValue | null>(null);
 
+// Create a more reliable timezone detection function using Intl API
+const getReliableLocalTimezone = (): DateTime.TimeZone => {
+  // Use Intl.DateTimeFormat to get the timezone identifier  
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  // Try to create the timezone using Effect's zoneMakeNamed
+  return DateTime.zoneMakeNamed(timezone).pipe(
+    O.getOrElse(() => {
+      // Fallback to DateTime.zoneMakeLocal() if zoneMakeNamed fails
+      console.warn(`Failed to create timezone from "${timezone}", falling back to system detection`);
+      return DateTime.zoneMakeLocal();
+    })
+  );
+};
+
 export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<TimeZoneDisplayMode>("local");
 
@@ -30,7 +45,7 @@ export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
       if (mode === "utc") {
         return utc;
       } else {
-        const localZone = DateTime.zoneMakeLocal();
+        const localZone = getReliableLocalTimezone();
         return DateTime.setZone(utc, localZone);
       }
     },
@@ -38,7 +53,12 @@ export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
       return DateTime.isZoned(dt) ? DateTime.toUtc(dt) : dt as DateTime.Utc;
     },
     getDisplayZone: () => {
-      return mode === "utc" ? "UTC" : DateTime.zoneToString(DateTime.zoneMakeLocal());
+      if (mode === "utc") {
+        return "UTC";
+      } else {
+        const localZone = getReliableLocalTimezone();
+        return DateTime.zoneToString(localZone);
+      }
     }
   }), [mode]);
 
