@@ -1,5 +1,4 @@
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import React from "react";
 import "./newArrowButtons.css";
 
 export const PrevDateButton = ({ onClick }: { onClick: () => void }) => {

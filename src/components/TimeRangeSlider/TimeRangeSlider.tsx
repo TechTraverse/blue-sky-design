@@ -592,53 +592,53 @@ export const TimeRangeSlider = ({
    */
   const lastCenteringRef = useRef<number>(0);
   const centeringTimeoutRef = useRef<NodeJS.Timeout>();
-  
+
   useEffect(() => {
     if (s.animationOrStepMode !== AnimationOrStepMode.Animation) return;
-    
+
     // Clear any pending centering
     if (centeringTimeoutRef.current) {
       clearTimeout(centeringTimeoutRef.current);
     }
-    
+
     // Debounce centering operations to reduce excessive calls
     centeringTimeoutRef.current = setTimeout(() => {
       // Throttle to prevent rapid-fire centering
       const now = Date.now();
       if (now - lastCenteringRef.current < 100) return;
-      
+
       // Calculate center of animation range
       const animationMidpoint = DateTime.addDuration(
         s.animationStartDateTime,
         Duration.millis(Duration.toMillis(s.animationDuration) / 2)
       );
-      
+
       // Calculate ideal view start to center the animation range
       const idealViewStart = DateTime.subtractDuration(
         animationMidpoint,
         Duration.millis(Duration.toMillis(s.viewDuration) / 2)
       );
-      
+
       // Round to increment
       const roundedViewStart = roundDateTimeDownToNearestIncrement(idealViewStart);
-      
+
       // Only update if significantly different (more than 1 minute difference)
       const currentViewCenter = DateTime.addDuration(
         s.viewStartDateTime,
         Duration.millis(Duration.toMillis(s.viewDuration) / 2)
       );
-      
+
       const distanceFromCenter = Math.abs(
         DateTime.toEpochMillis(animationMidpoint) - DateTime.toEpochMillis(currentViewCenter)
       );
-      
+
       // Update view if animation range is not centered (tolerance: 1 minute)
       if (distanceFromCenter > 60000) {
         lastCenteringRef.current = now;
         d(SetViewStartDateTime({ viewStartDateTime: roundedViewStart }));
       }
     }, 50); // 50ms debounce
-    
+
     return () => {
       if (centeringTimeoutRef.current) {
         clearTimeout(centeringTimeoutRef.current);
@@ -653,7 +653,7 @@ export const TimeRangeSlider = ({
   // Update selectedStartDateTime
   useEffect(() => {
     if (!dateRange?.start) return;
-    
+
     match(dateRange.start)
       .with(P.instanceOf(Date),
         (x) => {
@@ -673,7 +673,7 @@ export const TimeRangeSlider = ({
   // Update selectedDuration
   useEffect(() => {
     if (!dateRange?.start || !dateRange?.end) return;
-    
+
     match(dateRange)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
         ({ start, end }) => {
@@ -697,7 +697,7 @@ export const TimeRangeSlider = ({
   // The same thing but for the reset time and duration
   useEffect(() => {
     if (!dateRangeForReset?.start) return;
-    
+
     match(dateRangeForReset.start)
       .with(P.instanceOf(Date),
         (x) => {
@@ -713,7 +713,7 @@ export const TimeRangeSlider = ({
 
   useEffect(() => {
     if (!dateRangeForReset?.start || !dateRangeForReset?.end) return;
-    
+
     match(dateRangeForReset)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
         ({ start, end }) => {
@@ -754,8 +754,8 @@ export const TimeRangeSlider = ({
    * Automatically advances the selection when in Animation mode and playing
    */
   useEffect(() => {
-    if (s.animationOrStepMode !== AnimationOrStepMode.Animation || 
-        s.animationPlayMode !== PlayMode.Play) {
+    if (s.animationOrStepMode !== AnimationOrStepMode.Animation ||
+      s.animationPlayMode !== PlayMode.Play) {
       return;
     }
 
@@ -794,14 +794,14 @@ export const TimeRangeSlider = ({
     }, frameMs);
 
     return () => clearInterval(intervalId);
-  }, [s.animationOrStepMode, s.animationPlayMode, s.animationSpeed, 
-      animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
+  }, [s.animationOrStepMode, s.animationPlayMode, s.animationSpeed,
+    animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
   /**
    * Render horizontal calendar with appropriate ranges
-   * 
+   *
    * primaryRange ALWAYS represents the current selection (selectedStartDateTime/selectedDuration)
    * limitedRange (optional) provides animation bounds that constrain primaryRange
    */
@@ -832,13 +832,13 @@ export const TimeRangeSlider = ({
     end?: DateTime.DateTime;
   }) => {
     // Enforce latestValidDateTime constraint
-    const maxAllowedDateTime = dateRangeForReset 
+    const maxAllowedDateTime = dateRangeForReset
       ? DateTime.unsafeFromDate(dateRangeForReset.start)
       : undefined;
 
     if (r.start) {
       let newStart = r.start;
-      
+
       // If setting start would push end past limit, constrain it
       if (maxAllowedDateTime) {
         const proposedEnd = DateTime.addDuration(newStart, s.animationDuration);
@@ -846,19 +846,19 @@ export const TimeRangeSlider = ({
           newStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
         }
       }
-      
+
       d(SetAnimationStartDateTime({ animationStartDateTime: newStart }));
     }
-    
+
     if (r.end) {
       const start = r.start || s.animationStartDateTime;
       let newEnd = r.end;
-      
+
       // Constrain end to not exceed limit
       if (maxAllowedDateTime && DateTime.greaterThan(newEnd, maxAllowedDateTime)) {
         newEnd = maxAllowedDateTime;
       }
-      
+
       const newDuration = DateTime.distanceDuration(start, newEnd);
       d(SetAnimationDuration({ animationDuration: newDuration }));
     }
@@ -888,7 +888,7 @@ export const TimeRangeSlider = ({
         <div className={`${className} time-range-slider`}>
           <PrevDateButton onClick={() => {
             const newStart = DateTime.subtractDuration(
-              s.viewStartDateTime, Duration.hours(1));
+              s.viewStartDateTime, Duration.minutes(35));
             d(SetViewStartDateTime({ viewStartDateTime: newStart }));
           }} />
           <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
@@ -908,14 +908,14 @@ export const TimeRangeSlider = ({
           </div>
           <NextDateButton onClick={() => {
             const newStart = DateTime.addDuration(
-              s.viewStartDateTime, Duration.hours(1));
+              s.viewStartDateTime, Duration.minutes(35));
             d(SetViewStartDateTime({ viewStartDateTime: newStart }));
           }} />
-          
+
           {/* Navigation buttons */}
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'row', 
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
             gap: '4px',
             marginLeft: '8px',
             marginRight: '8px'
@@ -944,7 +944,7 @@ export const TimeRangeSlider = ({
                 <MdMyLocation size={18} />
               </IconButton>
             </Tooltip>
-            
+
             {(dateRangeForReset || getLatestDateRange) && (
               <Tooltip title="Jump to latest available date">
                 <IconButton
@@ -962,13 +962,13 @@ export const TimeRangeSlider = ({
                             .otherwise(() => null);
                         }
                       })
-                      .with({ dateRangeForReset: P.not(P.nullish) }, ({ dateRangeForReset }) => 
+                      .with({ dateRangeForReset: P.not(P.nullish) }, ({ dateRangeForReset }) =>
                         Promise.resolve(DateTime.unsafeFromDate(dateRangeForReset.start))
                       )
                       .otherwise(() => Promise.resolve(null));
-                    
+
                     if (!latestDateTime) return;
-                    
+
                     if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
                       // In animation mode: position animation range to end at latest date
                       // and move primary range to start of animation range
@@ -978,7 +978,7 @@ export const TimeRangeSlider = ({
                         selectedStartDateTime: newAnimationStart,
                         updateSource: UpdateSource.UserInteraction
                       }));
-                      
+
                       // Update view to show the animation range
                       const optimalViewStart = calculateOptimalViewStart(
                         s.viewStartDateTime,
@@ -996,7 +996,7 @@ export const TimeRangeSlider = ({
                         selectedStartDateTime: newSelectedStart,
                         updateSource: UpdateSource.UserInteraction
                       }));
-                      
+
                       // Update view to show the selected range
                       const optimalViewStart = calculateOptimalViewStart(
                         s.viewStartDateTime,
@@ -1021,7 +1021,7 @@ export const TimeRangeSlider = ({
               </Tooltip>
             )}
           </div>
-          
+
           <DateAndRangeSelect
             startDateTime={s.selectedStartDateTime}
             setStartDateTime={(date: DateTime.DateTime) => {
