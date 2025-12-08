@@ -228,19 +228,21 @@ export const HorizontalCalendar = ({
     });
   }, [theme, colors.select, colors.primary, colors.text]);
 
-  const viewInMinIncrements = [];
-  for (let date = displayViewRange.start;
-    DateTime.lessThanOrEqualTo(date, displayViewRange.end);
-    date = DateTime.add(date, { minutes: 10 })) {
-    viewInMinIncrements.push(date);
-  }
+  const headerGridLocation = useMemo(() => {
+    const viewInMinIncrements = [];
+    for (let date = displayViewRange.start;
+      DateTime.lessThanOrEqualTo(date, displayViewRange.end);
+      date = DateTime.add(date, { minutes: 5 })) {
+      viewInMinIncrements.push(date);
+    }
 
-  const dayDividerIndex = viewInMinIncrements.findIndex(
-    (d: DateTime.DateTime) => DateTime.getPart(d, "hours") === 0 &&
-      DateTime.getPart(d, "minutes") === 10);
-  const headerGridLocation = dayDividerIndex === -1
-    ? "10px"
-    : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
+    const dayDividerIndex = viewInMinIncrements.findIndex(
+      (d: DateTime.DateTime) => DateTime.getPart(d, "hours") === 0 &&
+        DateTime.getPart(d, "minutes") === 10);
+    return dayDividerIndex === -1
+      ? "10px"
+      : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
+  }, [displayViewRange.end, displayViewRange.start]);
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const lastEvtTypeRef = useRef<string>('');
@@ -250,13 +252,13 @@ export const HorizontalCalendar = ({
   // Calculate limited range position for visual indicators using pattern matching
   const limitedRangePosition = useMemo(() => {
     if (!displayLimitedRange) return null;
-    
+
     const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
     const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
     const viewStart = viewRangeAndStep.start;
     const viewEnd = viewRangeAndStep.end;
     const viewDuration = viewEnd - viewStart;
-    
+
     // Pattern match different overlap scenarios between limited range and view range
     return match({
       limitStart,
@@ -276,7 +278,7 @@ export const HorizontalCalendar = ({
         endMs: limitEnd,
         showFullFade: true
       }))
-      // Limited range is completely after view - show full fade  
+      // Limited range is completely after view - show full fade
       .with({ limitFullyAfterView: true }, () => ({
         left: 0,
         right: 0,
@@ -423,7 +425,7 @@ export const HorizontalCalendar = ({
                     zIndex: 1,
                   }} />
                 )}
-                
+
                 {/* Right dim area - only show if limited range ends within view */}
                 {limitedRangePosition.right > 0 && (
                   <div style={{
@@ -442,7 +444,7 @@ export const HorizontalCalendar = ({
             )}
 
             {/* Start boundary - simple and subtle */}
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 left: `${limitedRangePosition.left}%`,
@@ -468,8 +470,8 @@ export const HorizontalCalendar = ({
                 width: '3px',
                 height: '100%',
                 backgroundColor: colors.activity,
-                opacity: draggingBoundary === 'start' ? 1 : 
-                         hoveringBoundary === 'start' ? 0.8 : 0.6,
+                opacity: draggingBoundary === 'start' ? 1 :
+                  hoveringBoundary === 'start' ? 0.8 : 0.6,
                 borderRadius: '2px',
                 pointerEvents: 'none',
                 transition: 'opacity 0.2s ease',
@@ -477,7 +479,7 @@ export const HorizontalCalendar = ({
             </div>
 
             {/* End boundary - simple and subtle */}
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 right: `${limitedRangePosition.right}%`,
@@ -503,8 +505,8 @@ export const HorizontalCalendar = ({
                 width: '3px',
                 height: '100%',
                 backgroundColor: colors.activity,
-                opacity: draggingBoundary === 'end' ? 1 : 
-                         hoveringBoundary === 'end' ? 0.8 : 0.6,
+                opacity: draggingBoundary === 'end' ? 1 :
+                  hoveringBoundary === 'end' ? 0.8 : 0.6,
                 borderRadius: '2px',
                 pointerEvents: 'none',
                 transition: 'opacity 0.2s ease',
@@ -539,34 +541,34 @@ export const HorizontalCalendar = ({
              * Handle this first before any other logic
              */
             if (displayLimitedRange && limitedRange && e.type !== 'mousemove') {
-              const clickPosition = activeThumb === 0 
+              const clickPosition = activeThumb === 0
                 ? (newValue as [number, number])[0]
                 : (newValue as [number, number])[1];
-              
+
               const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
               const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
-              
+
               // Check if click is outside the limited range
               if (clickPosition < limitStart || clickPosition > limitEnd) {
                 // Check if click is before latest valid date
                 const ldt = displayLatestValidDateTime
                   ? DateTime.toEpochMillis(displayLatestValidDateTime)
                   : Infinity;
-                
+
                 if (clickPosition <= ldt) {
                   const limitedDuration = limitEnd - limitStart;
                   const primaryDuration = primaryRangeMillis[1] - primaryRangeMillis[0];
-                  
+
                   // Round to increment
                   const baseTime = DateTime.toEpochMillis(displayViewRange.start);
                   const offsetFromBase = clickPosition - baseTime;
                   const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
                   const roundedClickPosition = baseTime + roundedOffset;
-                  
+
                   // Move limited range to start at click position
                   const newLimitStart = roundedClickPosition;
                   const newLimitEnd = Math.min(newLimitStart + limitedDuration, ldt);
-                  
+
                   // Update limited range state
                   const limitStartDateTime = pipe(
                     newLimitStart,
@@ -579,11 +581,11 @@ export const HorizontalCalendar = ({
                     fromDisplay
                   );
                   limitedRange.set({ start: limitStartDateTime, end: limitEndDateTime });
-                  
+
                   // Move primary range to start of new limited range
                   const newStart = newLimitStart;
                   const newEnd = Math.min(newStart + primaryDuration, newLimitEnd);
-                  
+
                   // Convert to UTC and update primary range
                   const start = pipe(
                     newStart,
@@ -643,7 +645,7 @@ export const HorizontalCalendar = ({
             if (displayLimitedRange) {
               const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
               const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
-              
+
               // If the range extends beyond the limit, constrain it
               if (newStart < limitStart) {
                 const duration = newEnd - newStart;
@@ -655,7 +657,7 @@ export const HorizontalCalendar = ({
                 newEnd = limitEnd;
                 newStart = newEnd - duration;
               }
-              
+
               // Final check to ensure we're within bounds
               newStart = Math.max(newStart, limitStart);
               newEnd = Math.min(newEnd, limitEnd);
@@ -709,7 +711,7 @@ export const HorizontalCalendar = ({
           min={viewRangeAndStep.start}
           max={viewRangeAndStep.end}
           slotProps={{
-            thumb: (ownerState, thumbProps) => {
+            thumb: (__, thumbProps) => {
               const dataIndex = thumbProps?.['data-index'];
 
               return {
