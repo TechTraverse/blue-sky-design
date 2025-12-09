@@ -250,6 +250,7 @@ export const HorizontalCalendar = ({
   const lastEvtTypeRef = useRef<string>('');
   const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
   const [hoveringBoundary, setHoveringBoundary] = useState<'start' | 'end' | null>(null);
+  const [hoveringDisabledRegion, setHoveringDisabledRegion] = useState(false);
 
   // Calculate latestValidDateTime position for visual indicator
   const latestValidPosition = useMemo(() => {
@@ -539,17 +540,21 @@ export const HorizontalCalendar = ({
         {latestValidPosition && (
           <>
             {/* Dim overlay for disabled area (beyond latestValidDateTime) - offset to keep last valid time visible */}
-            <div style={{
-              position: 'absolute',
-              left: `calc(${latestValidPosition.percent}% + 12px)`,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              backgroundColor: colors.compBg,
-              opacity: 0.7,
-              pointerEvents: 'none',
-              zIndex: 1,
-            }} />
+            <div
+              style={{
+                position: 'absolute',
+                left: `calc(${latestValidPosition.percent}% + 12px)`,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                backgroundColor: colors.compBg,
+                opacity: 0.7,
+                cursor: 'not-allowed',
+                zIndex: 1,
+              }}
+              onMouseEnter={() => setHoveringDisabledRegion(true)}
+              onMouseLeave={() => setHoveringDisabledRegion(false)}
+            />
             {/* Boundary line at cutoff point - offset slightly right so last valid time is visible */}
             <div style={{
               position: 'absolute',
@@ -564,6 +569,25 @@ export const HorizontalCalendar = ({
               zIndex: 2,
               borderRadius: '1px',
             }} />
+            {/* Tooltip for disabled region */}
+            {hoveringDisabledRegion && (
+              <div style={{
+                position: 'absolute',
+                left: `calc(${latestValidPosition.percent}% + 16px)`,
+                top: '-28px',
+                backgroundColor: theme === AppTheme.Dark ? '#374151' : '#1f2937',
+                color: '#fff',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 10,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              }}>
+                No data available
+              </div>
+            )}
           </>
         )}
         <Slider
