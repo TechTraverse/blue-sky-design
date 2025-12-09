@@ -122,6 +122,7 @@ export const HorizontalCalendar = ({
         inactiveBg: '#374151',     // inactive background
         inactiveText: '#9ca3af',   // muted text
         text: '#f9fafb',           // main text
+        boundary: '#6b7280',       // gray boundary for disabled cutoff
       };
     } else {
       return {
@@ -132,6 +133,7 @@ export const HorizontalCalendar = ({
         inactiveBg: '#e6e6e6',     // inactive background
         inactiveText: '#adadad',   // muted text
         text: '#3d4551',           // main text
+        boundary: '#9ca3af',       // gray boundary for disabled cutoff
       };
     }
   };
@@ -248,6 +250,25 @@ export const HorizontalCalendar = ({
   const lastEvtTypeRef = useRef<string>('');
   const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
   const [hoveringBoundary, setHoveringBoundary] = useState<'start' | 'end' | null>(null);
+
+  // Calculate latestValidDateTime position for visual indicator
+  const latestValidPosition = useMemo(() => {
+    if (!displayLatestValidDateTime) return null;
+
+    const latestValidMs = DateTime.toEpochMillis(displayLatestValidDateTime);
+    const viewStart = viewRangeAndStep.start;
+    const viewEnd = viewRangeAndStep.end;
+    const viewDuration = viewEnd - viewStart;
+
+    // Only show if latestValidDateTime falls within the visible view
+    if (latestValidMs <= viewStart || latestValidMs >= viewEnd) return null;
+
+    const positionPercent = ((latestValidMs - viewStart) / viewDuration) * 100;
+    return {
+      percent: positionPercent,
+      rightPercent: 100 - positionPercent,
+    };
+  }, [displayLatestValidDateTime, viewRangeAndStep]);
 
   // Calculate limited range position for visual indicators using pattern matching
   const limitedRangePosition = useMemo(() => {
@@ -512,6 +533,37 @@ export const HorizontalCalendar = ({
                 transition: 'opacity 0.2s ease',
               }} />
             </div>
+          </>
+        )}
+        {/* Latest valid date time visual indicator - shows disabled region */}
+        {latestValidPosition && (
+          <>
+            {/* Dim overlay for disabled area (beyond latestValidDateTime) - offset to keep last valid time visible */}
+            <div style={{
+              position: 'absolute',
+              left: `calc(${latestValidPosition.percent}% + 12px)`,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              backgroundColor: colors.compBg,
+              opacity: 0.7,
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+            {/* Boundary line at cutoff point - offset slightly right so last valid time is visible */}
+            <div style={{
+              position: 'absolute',
+              left: `${latestValidPosition.percent}%`,
+              top: 0,
+              bottom: 0,
+              width: '3px',
+              marginLeft: '8px',
+              backgroundColor: colors.boundary,
+              opacity: 0.8,
+              pointerEvents: 'none',
+              zIndex: 2,
+              borderRadius: '1px',
+            }} />
           </>
         )}
         <Slider
