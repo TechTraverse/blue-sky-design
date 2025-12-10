@@ -261,13 +261,24 @@ export const HorizontalCalendar = ({
     const viewEnd = viewRangeAndStep.end;
     const viewDuration = viewEnd - viewStart;
 
-    // Only show if latestValidDateTime falls within the visible view
-    if (latestValidMs <= viewStart || latestValidMs >= viewEnd) return null;
+    // If latestValidDateTime is after view end, no disabled region visible
+    if (latestValidMs >= viewEnd) return null;
 
+    // If latestValidDateTime is before view start, entire view is disabled
+    if (latestValidMs <= viewStart) {
+      return {
+        percent: 0,
+        rightPercent: 100,
+        fullyCovered: true,
+      };
+    }
+
+    // latestValidDateTime falls within the visible view
     const positionPercent = ((latestValidMs - viewStart) / viewDuration) * 100;
     return {
       percent: positionPercent,
       rightPercent: 100 - positionPercent,
+      fullyCovered: false,
     };
   }, [displayLatestValidDateTime, viewRangeAndStep]);
 
@@ -539,11 +550,11 @@ export const HorizontalCalendar = ({
         {/* Latest valid date time visual indicator - shows disabled region */}
         {latestValidPosition && (
           <>
-            {/* Dim overlay for disabled area (beyond latestValidDateTime) - offset to keep last valid time visible */}
+            {/* Dim overlay for disabled area (beyond latestValidDateTime) */}
             <div
               style={{
                 position: 'absolute',
-                left: `calc(${latestValidPosition.percent}% + 12px)`,
+                left: latestValidPosition.fullyCovered ? 0 : `calc(${latestValidPosition.percent}% + 12px)`,
                 right: 0,
                 top: 0,
                 bottom: 0,
@@ -555,25 +566,28 @@ export const HorizontalCalendar = ({
               onMouseEnter={() => setHoveringDisabledRegion(true)}
               onMouseLeave={() => setHoveringDisabledRegion(false)}
             />
-            {/* Boundary line at cutoff point - offset slightly right so last valid time is visible */}
-            <div style={{
-              position: 'absolute',
-              left: `${latestValidPosition.percent}%`,
-              top: 0,
-              bottom: 0,
-              width: '3px',
-              marginLeft: '8px',
-              backgroundColor: colors.boundary,
-              opacity: 0.8,
-              pointerEvents: 'none',
-              zIndex: 2,
-              borderRadius: '1px',
-            }} />
+            {/* Boundary line at cutoff point - only show when cutoff is visible */}
+            {!latestValidPosition.fullyCovered && (
+              <div style={{
+                position: 'absolute',
+                left: `${latestValidPosition.percent}%`,
+                top: 0,
+                bottom: 0,
+                width: '3px',
+                marginLeft: '8px',
+                backgroundColor: colors.boundary,
+                opacity: 0.8,
+                pointerEvents: 'none',
+                zIndex: 2,
+                borderRadius: '1px',
+              }} />
+            )}
             {/* Tooltip for disabled region */}
             {hoveringDisabledRegion && (
               <div style={{
                 position: 'absolute',
-                left: `calc(${latestValidPosition.percent}% + 16px)`,
+                left: latestValidPosition.fullyCovered ? '50%' : `calc(${latestValidPosition.percent}% + 16px)`,
+                transform: latestValidPosition.fullyCovered ? 'translateX(-50%)' : 'none',
                 top: '-28px',
                 backgroundColor: theme === AppTheme.Dark ? '#374151' : '#1f2937',
                 color: '#fff',
