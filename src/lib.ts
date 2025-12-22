@@ -1,3 +1,6 @@
+export { Banner } from './components/Banner';
+export type { BannerProps } from './components/Banner';
+
 export { Button } from './components/Button';
 export type { ButtonProps } from './components/Button';
 
