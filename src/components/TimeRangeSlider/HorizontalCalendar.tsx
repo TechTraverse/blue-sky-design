@@ -226,6 +226,15 @@ export const HorizontalCalendar = ({
       '& .MuiSlider-markLabel': {
         color: `${colors.text} !important`,
         opacity: '1 !important',
+      },
+      '& .MuiSlider-thumb': {
+        backgroundColor: theme === AppTheme.Dark ? '#4a9eff' : '#005ea2',
+        '&:hover': {
+          boxShadow: theme === AppTheme.Dark ? '0 0 0 8px rgba(74, 158, 255, 0.16)' : '0 0 0 8px rgba(0, 94, 162, 0.16)',
+        },
+        '&.Mui-active': {
+          boxShadow: theme === AppTheme.Dark ? '0 0 0 14px rgba(74, 158, 255, 0.16)' : '0 0 0 14px rgba(0, 94, 162, 0.16)',
+        },
       }
     });
   }, [theme, colors.select, colors.primary, colors.text]);
@@ -810,7 +819,7 @@ export const HorizontalCalendar = ({
                   width: '12px',
                   height: '24px',
                   borderRadius: '2px',
-                  backgroundColor: colors.activity,
+                  backgroundColor: theme === AppTheme.Dark ? '#4a9eff' : '#005ea2',
                   border: '2px solid white',
                   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
                   cursor: 'ew-resize',
