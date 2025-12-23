@@ -75,6 +75,10 @@ type Action = D.TaggedEnum<{
 
   SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
   SetViewDuration: { viewDuration: Duration.Duration; };
+  HandleResize: {
+    newViewDuration: Duration.Duration;
+    shouldCenter: boolean;
+  };
 
   SetResetStartDateTime:
   { resetStartDateTime: DateTime.DateTime; };
@@ -123,6 +127,7 @@ const {
   ExtSetIncrement,
   SetViewStartDateTime,
   SetViewDuration,
+  HandleResize,
 
   SetResetStartDateTime,
   SetResetDuration,
@@ -193,6 +198,24 @@ const calculateOptimalViewStart = (
 
   // Selection is within view, keep current view
   return cViewStart;
+};
+
+const calculateCenteredViewStart = (
+  selectedStart: DateTime.DateTime,
+  selectedDuration: Duration.Duration,
+  viewDuration: Duration.Duration,
+  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime
+): DateTime.DateTime => {
+  // Always center the selection in the view
+  const selectionMidpoint = DateTime.addDuration(
+    selectedStart,
+    Duration.millis(Duration.toMillis(selectedDuration) / 2)
+  );
+  const unroundedViewStart = DateTime.subtractDuration(
+    selectionMidpoint,
+    Duration.millis(Duration.toMillis(viewDuration) / 2)
+  );
+  return roundingFn(unroundedViewStart);
 };
 
 /**
@@ -302,6 +325,27 @@ const reducer = (state: State, action: Action, roundingFn?: (dateTime: DateTime.
       ...state,
       viewDuration: x.viewDuration,
     }),
+    HandleResize: (x) => {
+      const newState = {
+        ...state,
+        viewDuration: x.newViewDuration,
+      };
+
+      if (x.shouldCenter) {
+        const centeredViewStart = calculateCenteredViewStart(
+          state.selectedStartDateTime,
+          state.selectedDuration,
+          x.newViewDuration,
+          actualRoundingFn
+        );
+        return {
+          ...newState,
+          viewStartDateTime: centeredViewStart,
+        };
+      }
+
+      return newState;
+    },
 
     SetResetStartDateTime: (x) => ({
       ...state,
@@ -437,6 +481,37 @@ export const TimeRangeSlider = ({
       });
   };
 
+  const isSelectedTimeInView = (
+    selectedStart: DateTime.DateTime,
+    selectedDuration: Duration.Duration,
+    viewStart: DateTime.DateTime,
+    viewDuration: Duration.Duration
+  ): boolean => {
+    const selectedEnd = DateTime.addDuration(selectedStart, selectedDuration);
+    const viewEnd = DateTime.addDuration(viewStart, viewDuration);
+
+    // Check for ANY overlap between selected range and viewport
+    return DateTime.lessThan(selectedStart, viewEnd) &&
+           DateTime.greaterThan(selectedEnd, viewStart);
+  };
+
+  const calculateCenteredViewStart = (
+    selectedStart: DateTime.DateTime,
+    selectedDuration: Duration.Duration,
+    viewDuration: Duration.Duration
+  ): DateTime.DateTime => {
+    // Always center the selection in the view
+    const selectionMidpoint = DateTime.addDuration(
+      selectedStart,
+      Duration.millis(Duration.toMillis(selectedDuration) / 2)
+    );
+    const unroundedViewStart = DateTime.subtractDuration(
+      selectionMidpoint,
+      Duration.millis(Duration.toMillis(viewDuration) / 2)
+    );
+    return roundDateTimeDownToNearestIncrement(unroundedViewStart);
+  };
+
   const calculateOptimalViewStart = (
     _pStart: DateTime.DateTime,
     nStart: DateTime.DateTime,
@@ -562,16 +637,81 @@ export const TimeRangeSlider = ({
   stateRef.current = s;
 
   const sliderRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Center selected time on first load
+   */
+  const hasInitialCenteredRef = useRef(false);
+  useEffect(() => {
+    // Only run once on first mount, after initial render
+    if (hasInitialCenteredRef.current || !sliderRef.current) return;
+
+    // Calculate centered view position (always center on first load)
+    const centeredViewStart = calculateCenteredViewStart(
+      s.selectedStartDateTime,
+      s.selectedDuration,
+      s.viewDuration
+    );
+
+    // Only update if it would actually change the view
+    const needsUpdate = DateTime.toEpochMillis(centeredViewStart) !==
+                        DateTime.toEpochMillis(s.viewStartDateTime);
+
+    if (needsUpdate) {
+      d(SetViewStartDateTime({ viewStartDateTime: centeredViewStart }));
+    }
+
+    hasInitialCenteredRef.current = true;
+  }, []); // Empty deps - runs once after mount
+
+  /**
+   * ResizeObserver with conditional centering
+   */
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   useEffect(() => {
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        const viewDuration = widthToDuration(width);
+        const newViewDuration = widthToDuration(width);
 
-        // Only dispatch if duration actually changed
-        if (Duration.toMillis(viewDuration) !== Duration.toMillis(stateRef.current.viewDuration)) {
-          d(SetViewDuration({ viewDuration }));
+        // Only process if duration actually changed
+        if (Duration.toMillis(newViewDuration) === Duration.toMillis(stateRef.current.viewDuration)) {
+          continue;
         }
+
+        // Clear any pending resize handling
+        if (resizeTimeoutRef.current) {
+          clearTimeout(resizeTimeoutRef.current);
+        }
+
+        // Debounce the resize handling (50ms)
+        resizeTimeoutRef.current = setTimeout(() => {
+          // Skip if in animation mode (handled by existing animation centering logic)
+          if (stateRef.current.animationOrStepMode === AnimationOrStepMode.Animation) {
+            d(SetViewDuration({ viewDuration: newViewDuration }));
+            return;
+          }
+
+          // Capture current state before resize
+          const currentViewStart = stateRef.current.viewStartDateTime;
+          const currentViewDuration = stateRef.current.viewDuration;
+          const selectedStart = stateRef.current.selectedStartDateTime;
+          const selectedDuration = stateRef.current.selectedDuration;
+
+          // Check if selected time has ANY overlap with current viewport
+          const wasVisible = isSelectedTimeInView(
+            selectedStart,
+            selectedDuration,
+            currentViewStart,
+            currentViewDuration
+          );
+
+          // Dispatch combined resize action with conditional centering
+          d(HandleResize({
+            newViewDuration,
+            shouldCenter: wasVisible
+          }));
+        }, 50);
       }
     });
 
@@ -580,6 +720,9 @@ export const TimeRangeSlider = ({
     }
 
     return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
       if (sliderRef.current) {
         resizeObserver.unobserve(sliderRef.current);
       }
@@ -591,7 +734,7 @@ export const TimeRangeSlider = ({
    * Debounced to prevent excessive centering during rapid state changes
    */
   const lastCenteringRef = useRef<number>(0);
-  const centeringTimeoutRef = useRef<NodeJS.Timeout>();
+  const centeringTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     if (s.animationOrStepMode !== AnimationOrStepMode.Animation) return;
