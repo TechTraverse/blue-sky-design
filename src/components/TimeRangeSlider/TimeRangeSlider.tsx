@@ -26,6 +26,7 @@ export interface TimeRangeSliderProps {
   theme?: AppTheme;
   timeZone?: TimeZone;
   onTimeZoneChange?: (timeZone: TimeZone) => void;
+  onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void;
   increment?: TimeDuration;
   hideAnimationToggle?: boolean;
 }
@@ -415,7 +416,8 @@ function withMiddleware(
   reducer: (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime) => State,
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
   roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
-  onTimeZoneChange?: (timeZone: TimeZone) => void
+  onTimeZoneChange?: (timeZone: TimeZone) => void,
+  onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
 
@@ -441,6 +443,9 @@ function withMiddleware(
       .with("SetTimeZone", () => (newState.timeZone !== oldState.timeZone),
         () => onTimeZoneChange?.(newState.timeZone)
       )
+      .with("SetAnimationOrStepMode", () => (newState.animationOrStepMode !== oldState.animationOrStepMode),
+        () => onAnimationOrStepModeChange?.(newState.animationOrStepMode)
+      )
     return newState;
   };
 }
@@ -460,6 +465,7 @@ export const TimeRangeSlider = ({
   theme = AppTheme.Light,
   timeZone = TimeZone.Local,
   onTimeZoneChange,
+  onAnimationOrStepModeChange,
   increment = TimeDuration["5m"],
   hideAnimationToggle = false,
 }: TimeRangeSliderProps) => {
@@ -626,7 +632,7 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, roundDateTimeDownToNearestIncrement, onTimeZoneChange), null, () => initialValues);
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, roundDateTimeDownToNearestIncrement, onTimeZoneChange, onAnimationOrStepModeChange), null, () => initialValues);
 
 
   /**
