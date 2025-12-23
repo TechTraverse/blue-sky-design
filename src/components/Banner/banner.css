@@ -151,6 +151,12 @@
   color: #565c65;
 }
 
+/* Full width variant - removes max-width constraint */
+.gov-banner--full-width .gov-banner__header-content,
+.gov-banner--full-width .gov-banner__content {
+  max-width: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .gov-banner__header {

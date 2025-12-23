@@ -131,3 +131,17 @@ export const DataDisclaimer: Story = {
     message: 'The data provided through this portal is for informational purposes only. While we strive for accuracy, no warranty is provided. Users assume all risks associated with the use of this data for decision-making purposes.',
   },
 };
+
+/**
+ * Full width banner - content spans the entire viewport width.
+ * Useful when you want the content to fill the available space.
+ */
+export const FullWidth: Story = {
+  args: {
+    variant: 'info',
+    title: 'Full Width Banner Example',
+    message: 'This banner has the fullWidth prop set to true, so its content spans the entire viewport width instead of being constrained to 1200px.',
+    collapsible: false,
+    fullWidth: true,
+  },
+};

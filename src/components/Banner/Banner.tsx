@@ -15,6 +15,8 @@ export interface BannerProps {
   collapsible?: boolean;
   /** Initial collapsed state (only applicable if collapsible is true) */
   defaultCollapsed?: boolean;
+  /** Whether to remove the max-width constraint and allow content to span full width */
+  fullWidth?: boolean;
   /** Optional className for additional styling */
   className?: string;
 }
@@ -30,12 +32,14 @@ export const Banner = ({
   children,
   collapsible = false,
   defaultCollapsed = true,
+  fullWidth = false,
   className = '',
 }: BannerProps) => {
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
 
   const variantClass = `gov-banner--${variant}`;
   const expandedClass = isExpanded ? 'gov-banner--expanded' : '';
+  const fullWidthClass = fullWidth ? 'gov-banner--full-width' : '';
 
   const toggleExpanded = () => {
     if (collapsible) {
@@ -57,7 +61,7 @@ export const Banner = ({
   };
 
   return (
-    <div className={`gov-banner ${variantClass} ${className}`} role="region" aria-label="Government banner">
+    <div className={`gov-banner ${variantClass} ${fullWidthClass} ${className}`} role="region" aria-label="Government banner">
       <div className="gov-banner__header">
         <div className="gov-banner__header-content">
           {getIcon()}
