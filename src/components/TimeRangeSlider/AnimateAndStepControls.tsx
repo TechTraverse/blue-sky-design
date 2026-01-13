@@ -20,6 +20,7 @@ export const AnimateAndStepControls = ({
   incrementAnimationSpeed,
   decrementAnimationSpeed,
   hideAnimationToggle = false,
+  disabledAnimationTooltip,
 }: {
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
@@ -34,6 +35,8 @@ export const AnimateAndStepControls = ({
   incrementAnimationSpeed?: () => void,
   decrementAnimationSpeed?: () => void,
   hideAnimationToggle?: boolean,
+  /** When provided, shows the animation toggle in a disabled state with this tooltip message */
+  disabledAnimationTooltip?: string,
 }) => {
 
   const handleCenterButtonClick = () => {
@@ -56,19 +59,19 @@ export const AnimateAndStepControls = ({
     <>
       <div className={`playback-section ${animationEnabled ? "animate" : "step"} playback-section-relative`}>
         <div className={`unified-control-panel${hideAnimationToggle ? ' compressed' : ''}`}>
-          {/* Mode Section - Hidden when hideAnimationToggle is true */}
-          {!hideAnimationToggle && (
+          {/* Mode Section - Hidden when hideAnimationToggle is true (unless disabledAnimationTooltip is provided) */}
+          {(!hideAnimationToggle || disabledAnimationTooltip) && (
             <div className="control-section mode-section">
               <div className="playback-toggle-container">
                 <Tooltip
-                  title={`${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
+                  title={disabledAnimationTooltip ?? `${animationEnabled ? 'Animation' : 'Step'} mode active - Click to switch to ${animationEnabled ? 'Step' : 'Animation'}`}
                   PopperProps={{
                     sx: { zIndex: 10003 }
                   }}
                 >
                   <div
-                    onClick={handleModeToggle}
-                    className="playback-toggle-switch"
+                    onClick={disabledAnimationTooltip ? undefined : handleModeToggle}
+                    className={`playback-toggle-switch${disabledAnimationTooltip ? ' disabled' : ''}`}
                   >
                     {/* Step Mode */}
                     <div
@@ -80,7 +83,7 @@ export const AnimateAndStepControls = ({
 
                     {/* Animation Mode */}
                     <div
-                      className={`playback-toggle-animate${animationEnabled ? ' active' : ''}`}
+                      className={`playback-toggle-animate${animationEnabled ? ' active' : ''}${disabledAnimationTooltip ? ' disabled' : ''}`}
                       title="Animation Mode"
                     >
                       A

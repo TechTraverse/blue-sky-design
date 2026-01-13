@@ -29,6 +29,8 @@ export interface TimeRangeSliderProps {
   onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void;
   increment?: TimeDuration;
   hideAnimationToggle?: boolean;
+  /** When provided, shows the animation toggle in a disabled state with this tooltip message */
+  disabledAnimationTooltip?: string;
 }
 
 enum UpdateSource {
@@ -468,6 +470,7 @@ export const TimeRangeSlider = ({
   onAnimationOrStepModeChange,
   increment = TimeDuration["5m"],
   hideAnimationToggle = false,
+  disabledAnimationTooltip,
 }: TimeRangeSliderProps) => {
 
   const viewIncrement = increment;
@@ -1236,6 +1239,7 @@ export const TimeRangeSlider = ({
 
             /* Feature toggle */
             hideAnimationToggle={hideAnimationToggle}
+            disabledAnimationTooltip={disabledAnimationTooltip}
 
             /* Animation toggle */
             animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}

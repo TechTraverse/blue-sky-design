@@ -67,6 +67,16 @@
   box-shadow: 0 0 0 2px transparent;
 }
 
+/* Disabled state for animation toggle */
+.playback-toggle-switch.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.playback-toggle-animate.disabled {
+  opacity: 0.5;
+}
+
 .playback-button-container {
   display: flex;
   gap: 7px;
@@ -441,6 +451,10 @@
   background-color: var(--accent-color, #4caf50);
   color: white;
   box-shadow: 0 0 0 2px var(--accent-color, #4caf50);
+}
+
+.dark-theme .playback-toggle-switch.disabled {
+  opacity: 0.5;
 }
 
 .dark-theme .unified-control-panel {
