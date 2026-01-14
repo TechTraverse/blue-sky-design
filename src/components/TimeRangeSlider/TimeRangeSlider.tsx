@@ -1177,6 +1177,41 @@ export const TimeRangeSlider = ({
           <DateAndRangeSelect
             startDateTime={s.selectedStartDateTime}
             setStartDateTime={(date: DateTime.DateTime) => {
+              // In animation mode, adjust animation range if new date falls outside it
+              if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+                const selectedEnd = DateTime.addDuration(date, s.selectedDuration);
+                const animationEnd = DateTime.addDuration(s.animationStartDateTime, s.animationDuration);
+
+                // Check if selected range falls outside animation bounds
+                const startsBeforeAnimation = DateTime.lessThan(date, s.animationStartDateTime);
+                const endsAfterAnimation = DateTime.greaterThan(selectedEnd, animationEnd);
+
+                if (startsBeforeAnimation || endsAfterAnimation) {
+                  // Expand animation range to include the new selection
+                  let newAnimationStart = s.animationStartDateTime;
+                  let newAnimationEnd = animationEnd;
+
+                  if (startsBeforeAnimation) {
+                    newAnimationStart = date;
+                  }
+                  if (endsAfterAnimation) {
+                    newAnimationEnd = selectedEnd;
+                  }
+
+                  // Enforce dateRangeForReset constraint on the end
+                  if (dateRangeForReset) {
+                    const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+                    if (DateTime.greaterThan(newAnimationEnd, maxAllowedDateTime)) {
+                      newAnimationEnd = maxAllowedDateTime;
+                    }
+                  }
+
+                  const newAnimationDuration = DateTime.distanceDuration(newAnimationStart, newAnimationEnd);
+                  d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
+                  d(SetAnimationDuration({ animationDuration: newAnimationDuration }));
+                }
+              }
+
               d(SetSelectedStartDateTime({
                 selectedStartDateTime: date,
                 updateSource: UpdateSource.UserInteraction
