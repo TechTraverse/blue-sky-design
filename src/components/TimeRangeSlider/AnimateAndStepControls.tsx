@@ -58,7 +58,7 @@ export const AnimateAndStepControls = ({
   return (
     <>
       <div className={`playback-section ${animationEnabled ? "animate" : "step"} playback-section-relative`}>
-        <div className={`unified-control-panel${hideAnimationToggle ? ' compressed' : ''}`}>
+        <div className={`unified-control-panel${hideAnimationToggle && !disabledAnimationTooltip ? ' compressed' : ''}`}>
           {/* Mode Section - Hidden when hideAnimationToggle is true (unless disabledAnimationTooltip is provided) */}
           {(!hideAnimationToggle || disabledAnimationTooltip) && (
             <div className="control-section mode-section">
