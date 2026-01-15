@@ -1,5 +1,5 @@
 import './timeRangeSlider.css';
-import { useEffect, useReducer, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useReducer, useRef, useMemo, useCallback, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
@@ -501,7 +501,7 @@ export const TimeRangeSlider = ({
 
     // Check for ANY overlap between selected range and viewport
     return DateTime.lessThan(selectedStart, viewEnd) &&
-           DateTime.greaterThan(selectedEnd, viewStart);
+      DateTime.greaterThan(selectedEnd, viewStart);
   };
 
   const calculateCenteredViewStart = (
@@ -646,6 +646,8 @@ export const TimeRangeSlider = ({
   stateRef.current = s;
 
   const sliderRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isSliderHidden, setIsSliderHidden] = useState(false);
 
   /**
    * Center selected time on first load
@@ -664,7 +666,7 @@ export const TimeRangeSlider = ({
 
     // Only update if it would actually change the view
     const needsUpdate = DateTime.toEpochMillis(centeredViewStart) !==
-                        DateTime.toEpochMillis(s.viewStartDateTime);
+      DateTime.toEpochMillis(s.viewStartDateTime);
 
     if (needsUpdate) {
       d(SetViewStartDateTime({ viewStartDateTime: centeredViewStart }));
@@ -734,6 +736,30 @@ export const TimeRangeSlider = ({
       }
       if (sliderRef.current) {
         resizeObserver.unobserve(sliderRef.current);
+      }
+    };
+  }, []);
+
+  /**
+   * ResizeObserver for container to determine mobile/compact view
+   * Watches the parent container to decide whether to hide the slider
+   */
+  useEffect(() => {
+    const containerResizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        // Hide slider when container is too narrow for usable interaction
+        setIsSliderHidden(width < 820);
+      }
+    });
+
+    if (containerRef.current) {
+      containerResizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      if (containerRef.current) {
+        containerResizeObserver.unobserve(containerRef.current);
       }
     };
   }, []);
@@ -1037,13 +1063,15 @@ export const TimeRangeSlider = ({
   return (
     <TimeZoneDisplayProvider>
       <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
-        <div className={`${className} time-range-slider`}>
-          <PrevDateButton onClick={() => {
-            const newStart = DateTime.subtractDuration(
-              s.viewStartDateTime, Duration.minutes(35));
-            d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-          }} />
-          <div ref={sliderRef} className={"horizontal-calendar-grid-body"} >
+        <div ref={containerRef} className={`${className} time-range-slider${isSliderHidden ? ' slider-hidden' : ''}`}>
+          {!isSliderHidden && (
+            <PrevDateButton onClick={() => {
+              const newStart = DateTime.subtractDuration(
+                s.viewStartDateTime, Duration.minutes(35));
+              d(SetViewStartDateTime({ viewStartDateTime: newStart }));
+            }} />
+          )}
+          <div ref={sliderRef} className={"horizontal-calendar-grid-body"} style={isSliderHidden ? { display: 'none' } : undefined}>
             <HorizontalCalendar
               primaryRange={primaryRangeHC}
               limitedRange={limitedRangeHC}
@@ -1058,107 +1086,35 @@ export const TimeRangeSlider = ({
               theme={theme}
             />
           </div>
-          <NextDateButton onClick={() => {
-            const newStart = DateTime.addDuration(
-              s.viewStartDateTime, Duration.minutes(35));
-            d(SetViewStartDateTime({ viewStartDateTime: newStart }));
-          }} />
+          {!isSliderHidden && (
+            <NextDateButton onClick={() => {
+              const newStart = DateTime.addDuration(
+                s.viewStartDateTime, Duration.minutes(35));
+              d(SetViewStartDateTime({ viewStartDateTime: newStart }));
+            }} />
+          )}
 
-          {/* Navigation buttons */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            gap: '4px',
-            marginLeft: '8px',
-            marginRight: '8px'
-          }}>
-            <Tooltip title="Jump to selected date">
-              <IconButton
-                size="small"
-                onClick={() => {
-                  const optimalViewStart = calculateOptimalViewStart(
-                    s.viewStartDateTime,
-                    s.selectedStartDateTime,
-                    s.selectedDuration,
-                    s.viewStartDateTime,
-                    s.viewDuration
-                  );
-                  d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
-                }}
-                sx={{
-                  padding: '4px',
-                  color: theme === AppTheme.Dark ? '#4a9eff' : '#0076d6',
-                  '&:hover': {
-                    backgroundColor: theme === AppTheme.Dark ? 'rgba(74, 158, 255, 0.1)' : 'rgba(0, 118, 214, 0.1)',
-                  }
-                }}
-              >
-                <MdMyLocation size={18} />
-              </IconButton>
-            </Tooltip>
-
-            {(dateRangeForReset || getLatestDateRange) && (
-              <Tooltip title="Jump to latest available date">
+          {/* Navigation buttons - only shown when slider is visible */}
+          {!isSliderHidden && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '4px',
+              marginLeft: '8px',
+              marginRight: '8px'
+            }}>
+              <Tooltip title="Jump to selected date">
                 <IconButton
                   size="small"
-                  onClick={async () => {
-                    const latestDateTime = await match({ getLatestDateRange, dateRangeForReset })
-                      .with({ getLatestDateRange: P.not(P.nullish) }, async ({ getLatestDateRange }) => {
-                        try {
-                          const latestDate = await getLatestDateRange();
-                          return DateTime.unsafeFromDate(latestDate);
-                        } catch (error) {
-                          console.error('Failed to get latest date range:', error);
-                          return match(dateRangeForReset)
-                            .with(P.not(P.nullish), (dateRange) => DateTime.unsafeFromDate(dateRange.start))
-                            .otherwise(() => null);
-                        }
-                      })
-                      .with({ dateRangeForReset: P.not(P.nullish) }, ({ dateRangeForReset }) =>
-                        Promise.resolve(DateTime.unsafeFromDate(dateRangeForReset.start))
-                      )
-                      .otherwise(() => Promise.resolve(null));
-
-                    if (!latestDateTime) return;
-
-                    if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
-                      // In animation mode: position animation range to end at latest date
-                      // and move primary range to start of animation range
-                      const newAnimationStart = DateTime.subtractDuration(latestDateTime, s.animationDuration);
-                      d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
-                      d(SetSelectedStartDateTime({
-                        selectedStartDateTime: newAnimationStart,
-                        updateSource: UpdateSource.UserInteraction
-                      }));
-
-                      // Update view to show the animation range
-                      const optimalViewStart = calculateOptimalViewStart(
-                        s.viewStartDateTime,
-                        newAnimationStart,
-                        s.animationDuration,
-                        s.viewStartDateTime,
-                        s.viewDuration
-                      );
-                      d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
-                    } else {
-                      // In step mode: move selected range to latest date
-                      // Calculate the start time so the range ends at latest date
-                      const newSelectedStart = DateTime.subtractDuration(latestDateTime, s.selectedDuration);
-                      d(SetSelectedStartDateTime({
-                        selectedStartDateTime: newSelectedStart,
-                        updateSource: UpdateSource.UserInteraction
-                      }));
-
-                      // Update view to show the selected range
-                      const optimalViewStart = calculateOptimalViewStart(
-                        s.viewStartDateTime,
-                        newSelectedStart,
-                        s.selectedDuration,
-                        s.viewStartDateTime,
-                        s.viewDuration
-                      );
-                      d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
-                    }
+                  onClick={() => {
+                    const optimalViewStart = calculateOptimalViewStart(
+                      s.viewStartDateTime,
+                      s.selectedStartDateTime,
+                      s.selectedDuration,
+                      s.viewStartDateTime,
+                      s.viewDuration
+                    );
+                    d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
                   }}
                   sx={{
                     padding: '4px',
@@ -1168,11 +1124,87 @@ export const TimeRangeSlider = ({
                     }
                   }}
                 >
-                  <MdFastForward size={18} />
+                  <MdMyLocation size={18} />
                 </IconButton>
               </Tooltip>
-            )}
-          </div>
+
+              {(dateRangeForReset || getLatestDateRange) && (
+                <Tooltip title="Jump to latest available date">
+                  <IconButton
+                    size="small"
+                    onClick={async () => {
+                      const latestDateTime = await match({ getLatestDateRange, dateRangeForReset })
+                        .with({ getLatestDateRange: P.not(P.nullish) }, async ({ getLatestDateRange }) => {
+                          try {
+                            const latestDate = await getLatestDateRange();
+                            return DateTime.unsafeFromDate(latestDate);
+                          } catch (error) {
+                            console.error('Failed to get latest date range:', error);
+                            return match(dateRangeForReset)
+                              .with(P.not(P.nullish), (dateRange) => DateTime.unsafeFromDate(dateRange.start))
+                              .otherwise(() => null);
+                          }
+                        })
+                        .with({ dateRangeForReset: P.not(P.nullish) }, ({ dateRangeForReset }) =>
+                          Promise.resolve(DateTime.unsafeFromDate(dateRangeForReset.start))
+                        )
+                        .otherwise(() => Promise.resolve(null));
+
+                      if (!latestDateTime) return;
+
+                      if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+                        // In animation mode: position animation range to end at latest date
+                        // and move primary range to start of animation range
+                        const newAnimationStart = DateTime.subtractDuration(latestDateTime, s.animationDuration);
+                        d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
+                        d(SetSelectedStartDateTime({
+                          selectedStartDateTime: newAnimationStart,
+                          updateSource: UpdateSource.UserInteraction
+                        }));
+
+                        // Update view to show the animation range
+                        const optimalViewStart = calculateOptimalViewStart(
+                          s.viewStartDateTime,
+                          newAnimationStart,
+                          s.animationDuration,
+                          s.viewStartDateTime,
+                          s.viewDuration
+                        );
+                        d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                      } else {
+                        // In step mode: move selected range to latest date
+                        // Calculate the start time so the range ends at latest date
+                        const newSelectedStart = DateTime.subtractDuration(latestDateTime, s.selectedDuration);
+                        d(SetSelectedStartDateTime({
+                          selectedStartDateTime: newSelectedStart,
+                          updateSource: UpdateSource.UserInteraction
+                        }));
+
+                        // Update view to show the selected range
+                        const optimalViewStart = calculateOptimalViewStart(
+                          s.viewStartDateTime,
+                          newSelectedStart,
+                          s.selectedDuration,
+                          s.viewStartDateTime,
+                          s.viewDuration
+                        );
+                        d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                      }
+                    }}
+                    sx={{
+                      padding: '4px',
+                      color: theme === AppTheme.Dark ? '#4a9eff' : '#0076d6',
+                      '&:hover': {
+                        backgroundColor: theme === AppTheme.Dark ? 'rgba(74, 158, 255, 0.1)' : 'rgba(0, 118, 214, 0.1)',
+                      }
+                    }}
+                  >
+                    <MdFastForward size={18} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </div>
+          )}
 
           <DateAndRangeSelect
             startDateTime={s.selectedStartDateTime}
