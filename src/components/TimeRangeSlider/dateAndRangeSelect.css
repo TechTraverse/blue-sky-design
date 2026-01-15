@@ -623,3 +623,23 @@ body.time-range-slider-dark-theme .MuiPopover-paper .slider-date-picker {
   color: rgba(255, 255, 255, 0.87) !important;
   box-shadow: none !important;
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 820px) {
+  .date-and-query-range-container {
+    min-width: auto;
+    max-width: none;
+    flex-shrink: 1;
+    gap: 6px;
+    margin: 0 4px;
+  }
+
+  .slider-date-picker-group {
+    height: 44px;
+    margin-left: 4px;
+
+    > legend {
+      font-size: 11px;
+    }
+  }
+}
