@@ -643,3 +643,22 @@ body.time-range-slider-dark-theme .MuiPopover-paper .slider-date-picker {
     }
   }
 }
+
+/* Narrow mobile layout (< 480px) */
+@media (max-width: 480px) {
+  .date-and-query-range-container {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    padding: 4px 0;
+  }
+
+  .slider-date-picker-group {
+    margin-left: 0;
+  }
+
+  .query-range-select {
+    width: 80px;
+  }
+}

@@ -123,3 +123,22 @@
     justify-content: space-between;
   }
 }
+
+/* Narrow mobile layout (< 480px) - stack controls vertically */
+@media (max-width: 480px) {
+  .time-range-slider {
+    flex-direction: column;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .time-range-slider > div {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Hide the MUI Divider on very narrow screens */
+  .time-range-slider .MuiDivider-root {
+    display: none;
+  }
+}
