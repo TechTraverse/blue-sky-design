@@ -362,15 +362,15 @@ export const HorizontalCalendar = ({
       }));
   }, [displayLimitedRange, viewRangeAndStep]);
 
-  // Handle dragging limited range boundaries
+  // Handle dragging limited range boundaries (supports both mouse and touch)
   useEffect(() => {
     if (!draggingBoundary || !sliderRef.current || !limitedRange) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (clientX: number) => {
       const rect = sliderRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      const x = e.clientX - rect.left;
+      const x = clientX - rect.left;
       const percent = Math.max(0, Math.min(1, x / rect.width));
       const viewStart = viewRangeAndStep.start;
       const viewEnd = viewRangeAndStep.end;
@@ -404,16 +404,33 @@ export const HorizontalCalendar = ({
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseMove = (e: MouseEvent) => {
+      handlePointerMove(e.clientX);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        e.preventDefault(); // Prevent scrolling while dragging
+        handlePointerMove(e.touches[0].clientX);
+      }
+    };
+
+    const handlePointerEnd = () => {
       setDraggingBoundary(null);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mouseup', handlePointerEnd);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handlePointerEnd);
+    document.addEventListener('touchcancel', handlePointerEnd);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mouseup', handlePointerEnd);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handlePointerEnd);
+      document.removeEventListener('touchcancel', handlePointerEnd);
     };
   }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay, displayLatestValidDateTime]);
 
@@ -492,15 +509,21 @@ export const HorizontalCalendar = ({
                 left: `${limitedRangePosition.left}%`,
                 top: 0,
                 bottom: 0,
-                width: '16px',
-                marginLeft: '-8px',
+                width: '24px',
+                marginLeft: '-12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'ew-resize',
                 zIndex: 2,
+                touchAction: 'none',
               }}
               onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDraggingBoundary('start');
+              }}
+              onTouchStart={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setDraggingBoundary('start');
@@ -527,15 +550,21 @@ export const HorizontalCalendar = ({
                 right: `${limitedRangePosition.right}%`,
                 top: 0,
                 bottom: 0,
-                width: '16px',
-                marginRight: '-8px',
+                width: '24px',
+                marginRight: '-12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'ew-resize',
                 zIndex: 2,
+                touchAction: 'none',
               }}
               onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDraggingBoundary('end');
+              }}
+              onTouchStart={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setDraggingBoundary('end');
