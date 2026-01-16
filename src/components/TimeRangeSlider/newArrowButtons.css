@@ -34,3 +34,28 @@
 .dark-theme .arrow-btn svg {
   color: #64b5f6;
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 640px) {
+  .arrow-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .arrow-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Touch-friendly active states */
+@media (hover: none) and (pointer: coarse) {
+  .arrow-btn:active {
+    background: var(--surface-color-alt, #e0e0e0);
+    transform: scale(0.95);
+  }
+
+  .dark-theme .arrow-btn:active {
+    background: #4a4a4a;
+  }
+}
