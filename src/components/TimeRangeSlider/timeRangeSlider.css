@@ -103,7 +103,7 @@
 }
 
 /* Mobile Responsive Styles */
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .time-range-slider {
     padding: 6px 8px;
     gap: 8px;

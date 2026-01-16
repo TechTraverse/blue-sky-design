@@ -19,10 +19,18 @@ export interface BannerProps {
   fullWidth?: boolean;
   /** Optional className for additional styling */
   className?: string;
+  /** Optional logo image URL to display instead of/alongside icon */
+  logoSrc?: string;
+  /** Optional alt text for logo image */
+  logoAlt?: string;
+  /** Optional actions/content to show on the right side of the header */
+  headerActions?: React.ReactNode;
+  /** Whether to hide title/message text on mobile (keeps logo visible) */
+  hideTextOnMobile?: boolean;
 }
 
 /**
- * Government Banner component for displaying official notices, warnings, and informational messages.
+ * Banner component for displaying official notices, warnings, and informational messages.
  * Inspired by USWDS design patterns but flexible for various use cases.
  */
 export const Banner = ({
@@ -34,12 +42,16 @@ export const Banner = ({
   defaultCollapsed = true,
   fullWidth = false,
   className = '',
+  logoSrc,
+  logoAlt = 'Logo',
+  headerActions,
+  hideTextOnMobile = false,
 }: BannerProps) => {
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
 
-  const variantClass = `gov-banner--${variant}`;
-  const expandedClass = isExpanded ? 'gov-banner--expanded' : '';
-  const fullWidthClass = fullWidth ? 'gov-banner--full-width' : '';
+  const expandedClass = isExpanded ? 'expanded' : '';
+  const fullWidthClass = fullWidth ? 'fullWidth' : '';
+  const hideTextMobileClass = hideTextOnMobile ? 'hideTextMobile' : '';
 
   const toggleExpanded = () => {
     if (collapsible) {
@@ -48,7 +60,7 @@ export const Banner = ({
   };
 
   const getIcon = () => {
-    const iconProps = { className: 'gov-banner__icon', 'aria-hidden': true };
+    const iconProps = { className: 'bannerIcon', 'aria-hidden': true };
 
     switch (variant) {
       case 'warning':
@@ -61,45 +73,54 @@ export const Banner = ({
   };
 
   return (
-    <div className={`gov-banner ${variantClass} ${fullWidthClass} ${className}`} role="region" aria-label="Government banner">
-      <div className="gov-banner__header">
-        <div className="gov-banner__header-content">
-          {getIcon()}
-          <div className="gov-banner__header-text">
-            {!collapsible && title && <div className="gov-banner__title">{title}</div>}
-            {!collapsible && message && <div className="gov-banner__message">{message}</div>}
+    <div className={`banner ${variant} ${fullWidthClass} ${hideTextMobileClass} ${className}`} role="region" aria-label="Banner">
+      <div className="bannerHeader">
+        <div className="bannerHeaderContent">
+          {logoSrc ? (
+            <img src={logoSrc} alt={logoAlt} className="bannerLogo" />
+          ) : (
+            getIcon()
+          )}
+          <div className="bannerHeaderText">
+            {!collapsible && title && <div className="bannerTitle">{title}</div>}
+            {!collapsible && message && <div className="bannerMessage">{message}</div>}
             {collapsible && (
               <button
-                className="gov-banner__toggle"
+                className="bannerToggle"
                 onClick={toggleExpanded}
                 aria-expanded={isExpanded}
-                aria-controls="gov-banner-content"
+                aria-controls="banner-content"
               >
-                <span className="gov-banner__toggle-text">
+                <span className="bannerToggleText">
                   {title || 'Important information'}
                 </span>
                 <MdExpandMore
-                  className={`gov-banner__toggle-icon ${expandedClass}`}
+                  className={`bannerToggleIcon ${expandedClass}`}
                   aria-hidden="true"
                 />
               </button>
             )}
           </div>
+          {headerActions && (
+            <div className="bannerHeaderActions">
+              {headerActions}
+            </div>
+          )}
         </div>
       </div>
 
       {(collapsible && isExpanded) && (
         <div
-          id="gov-banner-content"
-          className="gov-banner__content"
+          id="banner-content"
+          className="bannerContent"
         >
-          {message && <p className="gov-banner__message">{message}</p>}
+          {message && <p className="bannerMessage">{message}</p>}
           {children}
         </div>
       )}
 
       {!collapsible && children && (
-        <div className="gov-banner__content">
+        <div className="bannerContent">
           {children}
         </div>
       )}

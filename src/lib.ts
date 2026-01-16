@@ -49,3 +49,7 @@ export type { MapServiceEffect, LayerType } from './components/MapComponent';
 // LayerControl exports
 export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './components/LayerControl';
 export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
+
+// SidePanel exports
+export { SidePanel } from './components/SidePanel';
+export type { SidePanelProps } from './components/SidePanel';

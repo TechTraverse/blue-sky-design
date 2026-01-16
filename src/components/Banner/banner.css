@@ -1,14 +1,14 @@
-.gov-banner {
+.banner {
   width: 100%;
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   border-bottom: 1px solid #ddd;
 }
 
-.gov-banner__header {
+.bannerHeader {
   padding: 0.75rem 1rem;
 }
 
-.gov-banner__header-content {
+.bannerHeaderContent {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -16,33 +16,33 @@
   margin: 0 auto;
 }
 
-.gov-banner__icon {
+.bannerIcon {
   width: 1.5rem;
   height: 1.5rem;
   flex-shrink: 0;
   margin-top: 0.125rem;
 }
 
-.gov-banner__header-text {
+.bannerHeaderText {
   flex: 1;
   min-width: 0;
 }
 
-.gov-banner__title {
+.bannerTitle {
   font-weight: 700;
   font-size: 0.875rem;
   margin-bottom: 0.25rem;
   line-height: 1.4;
 }
 
-.gov-banner__message {
+.bannerMessage {
   font-size: 0.875rem;
   line-height: 1.6;
   margin: 0;
   color: #444;
 }
 
-.gov-banner__toggle {
+.bannerToggle {
   background: none;
   border: none;
   padding: 0;
@@ -58,127 +58,166 @@
   text-decoration: underline;
 }
 
-.gov-banner__toggle:hover {
+.bannerToggle:hover {
   text-decoration: none;
 }
 
-.gov-banner__toggle:focus {
+.bannerToggle:focus {
   outline: 2px solid #2491ff;
   outline-offset: 2px;
 }
 
-.gov-banner__toggle-text {
+.bannerToggleText {
   flex: 1;
   font-weight: 700;
 }
 
-.gov-banner__toggle-icon {
+.bannerToggleIcon {
   width: 1.25rem;
   height: 1.25rem;
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
 
-.gov-banner__toggle-icon.gov-banner--expanded {
+.bannerToggleIcon.expanded {
   transform: rotate(180deg);
 }
 
-.gov-banner__content {
+.bannerContent {
   padding: 0 1rem 1rem 3.25rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.gov-banner__content p:first-child {
+.bannerContent p:first-child {
   margin-top: 0;
 }
 
-.gov-banner__content p:last-child {
+.bannerContent p:last-child {
   margin-bottom: 0;
 }
 
 /* Info variant (default - blue tones) */
-.gov-banner--info {
+.banner.info {
   background-color: #e7f3ff;
   border-bottom-color: #73b3e7;
 }
 
-.gov-banner--info .gov-banner__icon {
+.banner.info .bannerIcon {
   color: #005ea2;
 }
 
-.gov-banner--info .gov-banner__title {
+.banner.info .bannerTitle {
   color: #1a4480;
 }
 
-.gov-banner--info .gov-banner__toggle {
+.banner.info .bannerToggle {
   color: #005ea2;
 }
 
 /* Warning variant (yellow/amber tones) */
-.gov-banner--warning {
+.banner.warning {
   background-color: #fef0cd;
   border-bottom-color: #ffbe2e;
 }
 
-.gov-banner--warning .gov-banner__icon {
+.banner.warning .bannerIcon {
   color: #936f38;
 }
 
-.gov-banner--warning .gov-banner__title {
+.banner.warning .bannerTitle {
   color: #5c4809;
 }
 
-.gov-banner--warning .gov-banner__toggle {
+.banner.warning .bannerToggle {
   color: #936f38;
 }
 
 /* Official variant (neutral government tones) */
-.gov-banner--official {
+.banner.official {
   background-color: #f0f0f0;
   border-bottom-color: #a9aeb1;
 }
 
-.gov-banner--official .gov-banner__icon {
+.banner.official .bannerIcon {
   color: #565c65;
 }
 
-.gov-banner--official .gov-banner__title {
+.banner.official .bannerTitle {
   color: #1b1b1b;
 }
 
-.gov-banner--official .gov-banner__toggle {
+.banner.official .bannerToggle {
   color: #565c65;
 }
 
 /* Full width variant - removes max-width constraint */
-.gov-banner--full-width .gov-banner__header-content,
-.gov-banner--full-width .gov-banner__content {
+.banner.fullWidth .bannerHeaderContent,
+.banner.fullWidth .bannerContent {
   max-width: none;
+}
+
+/* Logo styles */
+.bannerLogo {
+  height: 2rem;
+  width: auto;
+  flex-shrink: 0;
+}
+
+/* Header actions slot */
+.bannerHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
-  .gov-banner__header {
+  .bannerHeader {
     padding: 0.625rem 0.75rem;
   }
 
-  .gov-banner__content {
+  .bannerContent {
     padding: 0 0.75rem 0.75rem 2.5rem;
   }
 
-  .gov-banner__header-content {
+  .bannerHeaderContent {
     gap: 0.5rem;
   }
 
-  .gov-banner__icon {
+  .bannerIcon {
     width: 1.25rem;
     height: 1.25rem;
   }
 
-  .gov-banner__title,
-  .gov-banner__message,
-  .gov-banner__toggle {
+  .bannerTitle,
+  .bannerMessage,
+  .bannerToggle {
     font-size: 0.8125rem;
+  }
+}
+
+/* Hide text on mobile variant */
+@media (max-width: 768px) {
+  .banner.hideTextMobile .bannerHeaderText {
+    display: none;
+  }
+
+  .banner.hideTextMobile .bannerContent {
+    display: none;
+  }
+
+  .banner.hideTextMobile .bannerHeaderContent {
+    justify-content: space-between;
+  }
+
+  .banner.hideTextMobile .bannerHeader {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .banner.hideTextMobile .bannerLogo {
+    height: 1.75rem;
   }
 }
