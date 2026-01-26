@@ -141,11 +141,12 @@ const simplifiedMeta: Meta<typeof SimplifiedLayerControl> = {
     layout: 'centered',
     docs: {
       description: {
-        component: 'A simplified layer control for single active layer scenarios. Shows only one active layer without toggle or reorder functionality.'
+        component: 'A simplified layer control that shows active layers with toggle and download functionality, but without drag-and-drop reordering.'
       }
     }
   },
   argTypes: {
+    onLayerToggle: { action: 'layer toggled' },
     onLayerDownload: { action: 'layer downloaded' },
   },
   decorators: [
@@ -355,19 +356,31 @@ export const CustomStyling: Story = {
 export const SimplifiedDefault: StoryObj<typeof SimplifiedLayerControl> = {
   render: (args) => <SimplifiedLayerControl {...args} />,
   args: {
-    activeLayer: {
-      id: 'active-layer-1',
-      name: 'Current Temperature Map',
-      enabled: true,
-      downloadable: true,
-      tags: new Set(['weather', 'temperature'])
-    },
+    activeLayers: [
+      {
+        id: 'active-layer-1',
+        name: 'Current Temperature Map',
+        enabled: true,
+        downloadable: true,
+        tags: new Set(['weather', 'temperature'])
+      },
+      {
+        id: 'active-layer-2',
+        name: 'Precipitation Data',
+        enabled: true,
+        downloadable: true,
+        tags: new Set(['weather', 'precipitation'])
+      }
+    ],
     renderLayerIcon: (layer) => <MockLayerIcon layer={layer} />
+  },
+  argTypes: {
+    onLayerToggle: { action: 'layer toggled' }
   },
   parameters: {
     docs: {
       description: {
-        story: 'Basic simplified layer control showing a single active layer with download functionality.'
+        story: 'Simplified layer control showing active layers with toggle and download functionality, but no drag-and-drop reordering.'
       }
     }
   }
@@ -376,15 +389,20 @@ export const SimplifiedDefault: StoryObj<typeof SimplifiedLayerControl> = {
 export const SimplifiedWithoutDownload: StoryObj<typeof SimplifiedLayerControl> = {
   render: (args) => <SimplifiedLayerControl {...args} />,
   args: {
-    activeLayer: {
-      id: 'active-layer-2',
-      name: 'Road Network (View Only)',
-      enabled: true,
-      downloadable: false,
-      tags: new Set(['infrastructure'])
-    },
+    activeLayers: [
+      {
+        id: 'active-layer-3',
+        name: 'Road Network (View Only)',
+        enabled: true,
+        downloadable: false,
+        tags: new Set(['infrastructure'])
+      }
+    ],
     renderLayerIcon: (layer) => <MockLayerIcon layer={layer} />,
     onLayerDownload: undefined
+  },
+  argTypes: {
+    onLayerToggle: { action: 'layer toggled' }
   },
   parameters: {
     docs: {
