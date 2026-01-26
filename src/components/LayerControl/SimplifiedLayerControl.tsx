@@ -4,32 +4,30 @@ import { LayerItem } from "./types";
 import "./LayerControl.css";
 
 export interface SimplifiedLayerControlProps {
-  activeLayer: LayerItem;
+  activeLayers: LayerItem[];
+  onLayerToggle: (layerId: string, enabled: boolean) => void;
   onLayerDownload?: (layer: LayerItem) => void;
   renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
   className?: string;
 }
 
 export function SimplifiedLayerControl({
-  activeLayer,
+  activeLayers,
+  onLayerToggle,
   onLayerDownload,
   renderLayerIcon,
   className = ""
 }: SimplifiedLayerControlProps) {
-  const handleLayerToggle = () => {
-    // No-op since there's only one active layer
-  };
-
   return (
     <div className={`layer-control ${className}`}>
       <List
         className="currentlyActiveLayers"
-        subheader={<ListSubheader>Active Layer</ListSubheader>}
+        subheader={<ListSubheader>Active Layers</ListSubheader>}
       >
-        <LayerList 
-          layers={[activeLayer]} 
+        <LayerList
+          layers={activeLayers}
           dragCapable={false}
-          onLayerToggle={handleLayerToggle}
+          onLayerToggle={onLayerToggle}
           onLayerDownload={onLayerDownload}
           renderLayerIcon={renderLayerIcon}
         />
