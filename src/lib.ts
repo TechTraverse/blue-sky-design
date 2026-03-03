@@ -43,8 +43,50 @@ export type {
 } from './components/MapComponent';
 
 // Advanced exports for effect-ts integration
-export { MapService, MapServiceLayer, MapServiceAdapter, createMapServiceEffect } from './components/MapComponent';
-export type { MapServiceEffect, LayerType } from './components/MapComponent';
+export {
+  MapService,
+  MapServiceLayer,
+  MapClassWrapper,
+  MapServiceAdapter,
+  createMapServiceEffect,
+  BASEMAP_PREFIX,
+  LABELS_PREFIX,
+  getParamaterizedUrl,
+  // Tagged enum constructors
+  VectorTiles,
+  RasterTiles,
+  GeoJsonData,
+  LayerVisible,
+  LayerHidden,
+  LayerDimmed,
+  LayerSelectable,
+  LayerUnselectable,
+  LayerEnabled,
+  LayerDisabled,
+  Basemap,
+  Labels,
+  LargeScaleVector,
+  SmallScaleVector,
+  LargeScaleImagery,
+  SmallScaleImagery,
+  CustomOrder,
+} from './components/MapComponent';
+
+export type {
+  MapServiceEffect,
+  LayerType,
+  MapServiceSettings,
+  MapControlsConfig,
+  SourcePropsType,
+  SourceProps,
+  LayerVisibility,
+  LayerSelectability,
+  LayerEnabledOptions,
+  LayerDisabledOptions,
+  LayerEnabledState,
+  LayerResourceDescriptor,
+  ExtStyle,
+} from './components/MapComponent';
 
 // LayerControl exports
 export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './components/LayerControl';
