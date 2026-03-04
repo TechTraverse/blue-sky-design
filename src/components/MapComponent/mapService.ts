@@ -230,28 +230,36 @@ export class MapClassWrapper {
     let basemapUrl: string;
 
     if (typeof basemapConfig === 'string') {
-      // Simple tile URL
       basemapUrl = basemapConfig;
-      style = {
-        version: 8,
-        sources: {
-          'raster-tiles': {
-            type: 'raster',
-            tiles: [basemapUrl],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'simple-tiles',
-            type: 'raster',
-            source: 'raster-tiles',
-            minzoom: 0,
-            maxzoom: 22
-          }
-        ]
-      };
+      // Check if this is a tile URL template (contains {z}/{x}/{y}) or a style JSON URL
+      const isTileUrlTemplate = basemapConfig.includes('{z}') && basemapConfig.includes('{x}') && basemapConfig.includes('{y}');
+
+      if (isTileUrlTemplate) {
+        // Raster tile URL template
+        style = {
+          version: 8,
+          sources: {
+            'raster-tiles': {
+              type: 'raster',
+              tiles: [basemapUrl],
+              tileSize: 256,
+              attribution: '© OpenStreetMap contributors'
+            }
+          },
+          layers: [
+            {
+              id: 'simple-tiles',
+              type: 'raster',
+              source: 'raster-tiles',
+              minzoom: 0,
+              maxzoom: 22
+            }
+          ]
+        };
+      } else {
+        // Style JSON URL (e.g., ESRI basemap styles) - use directly
+        style = basemapUrl;
+      }
     } else if (basemapConfig.style) {
       // Full MapLibre style specification
       style = basemapConfig.style;
