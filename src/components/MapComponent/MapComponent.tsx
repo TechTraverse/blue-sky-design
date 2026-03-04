@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
-import { Effect as E, Runtime } from 'effect';
+import { Effect as E } from 'effect';
 import { MapService, MapServiceLayer } from './mapService';
 import { MapServiceAdapter } from './mapServiceInterface';
-import { MapComponentCoreProps, MapComponentCallbacks, MapOperations } from './types';
+import type { MapComponentCoreProps, MapComponentCallbacks, MapOperations } from './types';
 
 // Core MapComponent props - React-only API
 export interface MapComponentProps extends MapComponentCoreProps, MapComponentCallbacks {
@@ -24,13 +24,8 @@ export interface MapComponentRef extends MapOperations {
 function useMapService() {
   const [mapService, setMapService] = useState<MapServiceAdapter | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const runtimeRef = useRef<any>(null);
 
   useEffect(() => {
-    // Create effect-ts runtime
-    const runtime = Runtime.defaultRuntime;
-    runtimeRef.current = runtime;
-
     // Initialize MapService
     const initializeMapService = async () => {
       try {
@@ -41,8 +36,8 @@ function useMapService() {
 
         const providedProgram = E.provide(program, MapServiceLayer);
         const service = await E.runPromise(providedProgram);
-        
-        const adapter = new MapServiceAdapter(service, runtime);
+
+        const adapter = new MapServiceAdapter(service);
         setMapService(adapter);
         setIsReady(true);
       } catch (error) {
@@ -71,7 +66,7 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   initialZoom = 4,
   initialBasemap = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   initialLayers = [],
-  controls = {
+  controls: _controls = {
     navigation: true,
     fullscreen: true,
     geolocate: true,
@@ -87,7 +82,6 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   children,
 }, ref) => {
   const { mapService, isReady } = useMapService();
-  const [isInitialized, setIsInitialized] = useState(false);
   const cleanupFunctionsRef = useRef<Array<() => void>>([]);
 
   // Setup event handlers and initialization
@@ -121,8 +115,9 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
         }
 
         // Initialize with basemap
+        const basemapUrl = typeof initialBasemap === 'string' ? initialBasemap : (initialBasemap.tileUrl || 'custom');
         await mapService.setBasemap(initialBasemap);
-        onBasemapChange?.(initialBasemap);
+        onBasemapChange?.(basemapUrl);
 
         // Add initial layers
         for (const layer of initialLayers) {
@@ -135,7 +130,6 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
           onLayerAdd?.(layerConfig);
         }
 
-        setIsInitialized(true);
         onMapReady?.();
       } catch (error) {
         console.error('Error setting up map:', error);
@@ -172,7 +166,8 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
     setBasemap: async (basemapUrl) => {
       if (!mapService) throw new Error('MapService not ready');
       await mapService.setBasemap(basemapUrl);
-      onBasemapChange?.(basemapUrl);
+      const url = typeof basemapUrl === 'string' ? basemapUrl : (basemapUrl.tileUrl || 'custom');
+      onBasemapChange?.(url);
     },
     zoomTo: async (bounds) => {
       if (!mapService) throw new Error('MapService not ready');

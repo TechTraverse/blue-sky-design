@@ -1,30 +1,32 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { Effect as E, Runtime, Layer } from 'effect';
-import { MapService, MapServiceLayer, LayerType } from './mapService';
-import { createMapServiceEffect, MapServiceEffect } from './mapServiceInterface';
-import { MapComponentCoreProps } from './types';
+import { MapService, MapServiceLayer } from './mapService';
+import type { MapServiceImpl } from './mapService';
+import { createMapServiceEffect } from './mapServiceInterface';
+import type { MapServiceEffect } from './mapServiceInterface';
+import type { MapComponentCoreProps } from './types';
 
 // Enhanced props for effect-ts integration
 export interface MapComponentEffectProps extends MapComponentCoreProps {
   // Optional external MapServiceLayer for dependency injection
   mapServiceLayer?: Layer.Layer<MapService, never, never>;
-  
+
   // Effect-based event handlers
   onMapServiceReady?: (mapServiceEffect: MapServiceEffect) => void;
   onEffectError?: (error: unknown) => void;
-  
+
   // Initial setup effects
-  initializationEffect?: (mapService: MapService) => E.Effect<void, Error, void>;
+  initializationEffect?: (mapService: MapServiceImpl) => E.Effect<void, Error, never>;
 }
 
 // Enhanced ref interface with effect-ts capabilities
 export interface MapComponentEffectRef {
   // Direct access to effect-ts service
   getMapServiceEffect: () => MapServiceEffect | null;
-  
+
   // Execute effects with the service
-  runEffect: <A, E, R>(effect: E.Effect<A, E, R>) => Promise<A>;
-  
+  runEffect: <A, Err>(effect: E.Effect<A, Err, never>) => Promise<A>;
+
   // Standard operations
   getMapInstance: () => any;
 }
@@ -32,25 +34,23 @@ export interface MapComponentEffectRef {
 // Hook for managing effect-ts runtime with optional external layer
 function useMapServiceEffect(
   externalLayer?: Layer.Layer<MapService, never, never>,
-  initializationEffect?: (mapService: MapService) => E.Effect<void, Error, void>
+  initializationEffect?: (mapService: MapServiceImpl) => E.Effect<void, Error, never>
 ) {
   const [mapServiceEffect, setMapServiceEffect] = useState<MapServiceEffect | null>(null);
   const [isReady, setIsReady] = useState(false);
   const runtimeRef = useRef<Runtime.Runtime<never>>(Runtime.defaultRuntime);
 
   useEffect(() => {
-    const runtime = runtimeRef.current;
-
     const initializeMapService = async () => {
       try {
         const program = E.gen(function* () {
           const service = yield* MapService;
-          
+
           // Run initialization effect if provided
           if (initializationEffect) {
             yield* initializationEffect(service);
           }
-          
+
           return service;
         });
 
@@ -58,7 +58,7 @@ function useMapServiceEffect(
         const serviceLayer = externalLayer || MapServiceLayer;
         const providedProgram = E.provide(program, serviceLayer);
         const service = await E.runPromise(providedProgram);
-        
+
         const effectService = createMapServiceEffect(service);
         setMapServiceEffect(effectService);
         setIsReady(true);
@@ -94,7 +94,6 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
   children,
 }, ref) => {
   const { mapServiceEffect, isReady, runtime } = useMapServiceEffect(mapServiceLayer, initializationEffect);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Setup effect-ts based initialization
   useEffect(() => {
@@ -104,9 +103,9 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
       try {
         // Set initial map position
         const mapInstance = mapServiceEffect.getMapInstance();
-        mapInstance.flyTo({ 
-          center: initialCenter, 
-          zoom: initialZoom 
+        mapInstance.flyTo({
+          center: initialCenter,
+          zoom: initialZoom
         });
 
         // Register event handlers using effect-ts
@@ -132,7 +131,6 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
           await E.runPromise(effect);
         }
 
-        setIsInitialized(true);
         onMapServiceReady?.(mapServiceEffect);
       } catch (error) {
         console.error('Error setting up effect-ts map:', error);
@@ -146,7 +144,7 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
   // Expose enhanced imperative API through ref
   useImperativeHandle(ref, () => ({
     getMapServiceEffect: () => mapServiceEffect,
-    runEffect: async <A, E, R>(effect: E.Effect<A, E, R>) => {
+    runEffect: async <A, Err>(effect: E.Effect<A, Err, never>) => {
       if (!mapServiceEffect) throw new Error('MapService not ready');
       return E.runPromise(effect);
     },
@@ -164,7 +162,7 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
   };
 
   return (
-    <div 
+    <div
       id={id}
       className={className}
       style={containerStyle}

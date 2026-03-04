@@ -184,7 +184,6 @@ export class MapClassWrapper {
           enableHighAccuracy: true
         },
         trackUserLocation: true,
-        showUserHeading: true
       }), 'bottom-right');
     }
     if (ctrlConfig.scale !== false) {
@@ -311,7 +310,7 @@ export class MapClassWrapper {
       // Center over USA
       center: [-98.583333, 39.833333],
       zoom: 4,
-      attributionControl: controls?.attribution !== false,
+      ...(controls?.attribution === false ? { attributionControl: false } : {}),
       ...(mapSettings ?? {}),
     });
 
@@ -399,7 +398,7 @@ export class MapClassWrapper {
           id: `${this.#labelsPrefix}${l.id}`
         })) as AddLayerObject[];
 
-        const n = {
+        return {
           ...nextStyle,
           sources: {
             ...previousStyle?.sources,
@@ -409,8 +408,7 @@ export class MapClassWrapper {
             ...(previousStyle?.layers ?? []),
             ...taggedNextLayers
           ]
-        };
-        return n;
+        } as maplibregl.StyleSpecification;
       }
     })
     return E.succeed(undefined);
@@ -532,12 +530,12 @@ export class MapClassWrapper {
               ...taggedNextLayers,
               ...nonBasemapLayers,
             ]
-          };
+          } as maplibregl.StyleSpecification;
 
           // Validate that all layers have their sources available
           const finalSources = new Set(Object.keys(finalStyle.sources));
           finalStyle.layers.filter(layer => {
-            const layerSource = 'source' in layer ? layer.source : undefined;
+            const layerSource = 'source' in layer ? (layer.source as string) : undefined;
             return layerSource && !finalSources.has(layerSource);
           });
 
@@ -625,7 +623,7 @@ export class MapClassWrapper {
       });
     } else {
       // Each layer will be inserted below the labels layer. Reverse the order
-      l.orderedLayerConfigs.toReversed().forEach(x => {
+      l.orderedLayerConfigs.slice().reverse().forEach(x => {
         this.#mapAddLayer(x)
       });
     }
@@ -798,13 +796,13 @@ export class MapClassWrapper {
           const layers = this.#map.getStyle().layers;
           const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
 
-          parameterizedLayer.orderedLayerConfigs.toReversed().forEach(layerConfig => {
+          parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
             const newLayerId = `${this.#commonLayersPrefix}${layerConfig.id}_${nextBuffer}`;
             this.#map.addLayer({
               ...layerConfig,
               id: newLayerId,
               source: nextSourceId
-            }, uFirstLabelsLayer?.id);
+            } as AddLayerObject, uFirstLabelsLayer?.id);
           });
 
           // Wait for tiles to load, then remove old buffer
@@ -864,13 +862,13 @@ export class MapClassWrapper {
           const layers = this.#map.getStyle().layers;
           const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
 
-          parameterizedLayer.orderedLayerConfigs.toReversed().forEach(layerConfig => {
+          parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
             const layerId = `${this.#commonLayersPrefix}${layerConfig.id}_A`;
             this.#map.addLayer({
               ...layerConfig,
               id: layerId,
               source: firstSourceId
-            }, uFirstLabelsLayer?.id);
+            } as AddLayerObject, uFirstLabelsLayer?.id);
           });
 
           this.#vectorTileBuffers.set(sourceConfig.id, 'A');
@@ -883,7 +881,7 @@ export class MapClassWrapper {
   updateSourceParams = (layers: LayerType[]) =>
     // Reversing because layers are sent in L to R = Top to Bottom order
     // Which is the opposite of how they need to be updated
-    E.mergeAll(layers.toReversed().map((layer) =>
+    E.mergeAll(layers.slice().reverse().map((layer) =>
       match(layer)
         .with({ _tag: P.union("Basemap", "Labels") }, () => E.fail(new Error("Basemap and Labels layers are not supported for updateSourceParams")))
         .with({ sourceConfig: { _tag: P.union("VectorTiles", "RasterTiles", "GeoJsonData") } }, x => this.#tileOrDataUpdate(x))
@@ -899,18 +897,21 @@ export class MapClassWrapper {
   getMapInstance = () => this.#map;
 }
 
+// Service implementation type (for use in adapters)
+export type MapServiceImpl = {
+  addLayer: (l: LayerType, uLayerAbove?: LayerType | undefined) => E.Effect<undefined, Error, void>
+  rmLayer: (l: LayerType) => E.Effect<void, Error, void>
+  moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, Error, never>
+  updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>
+  updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, Error, void>
+  registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription>
+  log: () => E.Effect<void>
+  getMapInstance: () => MapLibreMap
+  setOnSourceDataLoaded: (callback: (map: MapLibreMap) => void) => void
+}
+
 export class MapService extends Context.Tag("MapService")<
-  MapService, {
-    addLayer: (l: LayerType, uLayerAbove?: LayerType | undefined) => E.Effect<undefined, Error, void>
-    rmLayer: (l: LayerType) => E.Effect<void, Error, void>
-    moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, Error, never>
-    updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>
-    updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, Error, void>
-    registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription>
-    log: () => E.Effect<void>
-    getMapInstance: () => MapLibreMap
-    setOnSourceDataLoaded: (callback: (map: MapLibreMap) => void) => void
-  }
+  MapService, MapServiceImpl
 >() { }
 
 const MapServiceLive = Layer.effect(

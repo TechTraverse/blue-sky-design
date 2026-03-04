@@ -77,4 +77,5 @@ export type {
   LayerEnabledState,
   LayerResourceDescriptor,
   ExtStyle,
+  MapServiceImpl,
 } from './mapService';
