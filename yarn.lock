@@ -3389,10 +3389,10 @@ eastasianwidth@^0.2.0:
   resolved "https://registry.yarnpkg.com/eastasianwidth/-/eastasianwidth-0.2.0.tgz#696ce2ec0aa0e6ea93a397ffcf24aa7840c827cb"
   integrity sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==
 
-effect@^3.18.4:
-  version "3.19.14"
-  resolved "https://registry.yarnpkg.com/effect/-/effect-3.19.14.tgz#a11ef0ce0feddbddafa55155b21fd8827ae8037e"
-  integrity sha512-3vwdq0zlvQOxXzXNKRIPKTqZNMyGCdaFUBfMPqpsyzZDre67kgC1EEHDV4EoQTovJ4w5fmJW756f86kkuz7WFA==
+effect@^3.19.19:
+  version "3.19.19"
+  resolved "https://registry.yarnpkg.com/effect/-/effect-3.19.19.tgz#643a5a4b7445cc924a28270bc6cd1a5c8facd27e"
+  integrity sha512-Yc8U/SVXo2dHnaP7zNBlAo83h/nzSJpi7vph6Hzyl4ulgMBIgPmz3UzOjb9sBgpFE00gC0iETR244sfXDNLHRg==
   dependencies:
     "@standard-schema/spec" "^1.0.0"
     fast-check "^3.23.1"
@@ -5058,6 +5058,16 @@ supports-preserve-symlinks-flag@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/supports-preserve-symlinks-flag/-/supports-preserve-symlinks-flag-1.0.0.tgz#6eda4bd344a3c94aea376d4cc31bc77311039e09"
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
+
+terra-draw-maplibre-gl-adapter@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/terra-draw-maplibre-gl-adapter/-/terra-draw-maplibre-gl-adapter-1.3.0.tgz#2b92ebf5f86451199b304c479b70903e94786dee"
+  integrity sha512-Q0Kds+IxLIcMPv3xYAJ3TDXp1Ml1uGk2xFN8Xx5tKpVdU9AhlTkpGxJ7i+Is1v6PC4t+O7MfyGP4Tl+R+qdYeQ==
+
+terra-draw@^1.25.0:
+  version "1.25.0"
+  resolved "https://registry.yarnpkg.com/terra-draw/-/terra-draw-1.25.0.tgz#b168334708479d3a3812ddbc4094c571e0b2895f"
+  integrity sha512-SQFdY6ObBqln01NFcYjrsVLPoAxHgl3fJszqU0pkDkxNIbV7FZUM102BcC2v9xXQ5Tr8hhnBELf1qG4GaXcALQ==
 
 test-exclude@^7.0.1:
   version "7.0.1"

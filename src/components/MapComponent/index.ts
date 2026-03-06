@@ -79,3 +79,15 @@ export type {
   ExtStyle,
   MapServiceImpl,
 } from './mapService';
+
+// Draw service exports (terra-draw based)
+export {
+  DrawService,
+  createDrawServiceLayer,
+  DrawModes,
+} from './drawService';
+
+export type {
+  DrawServiceImpl,
+  DrawFinishEvent,
+} from './drawService';
