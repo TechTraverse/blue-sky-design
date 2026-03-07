@@ -93,11 +93,14 @@ export {
   DrawService,
   createDrawServiceLayer,
   DrawModes,
+  // Low-level factory for consumers managing their own Effect services
+  createTerraDraw,
 } from './components/MapComponent';
 
 export type {
   DrawServiceImpl,
   DrawFinishEvent,
+  TerraDrawWrapper,
 } from './components/MapComponent';
 
 // LayerControl exports

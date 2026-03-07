@@ -1,10 +1,9 @@
 import { Effect as E, Context, Layer } from "effect"
 import { TerraDraw, TerraDrawLineStringMode, TerraDrawPolygonMode, TerraDrawSelectMode } from "terra-draw";
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
-import maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { MapService } from "./mapService";
-import { Subscription } from "rxjs";
+import type { Subscription } from "rxjs";
 
 // Mode name mapping for backwards compatibility with mapbox-gl-draw
 const MODE_MAP: Record<string, string> = {
@@ -22,6 +21,118 @@ const MODE_MAP: Record<string, string> = {
  */
 export interface DrawFinishEvent {
   features: GeoJSON.Feature[];
+}
+
+/**
+ * Plain TerraDraw wrapper interface - no Effect dependency
+ * This is the low-level API for consumers who manage their own Effect services
+ */
+export interface TerraDrawWrapper {
+  /** The underlying TerraDraw instance */
+  instance: TerraDraw;
+  /** Set the drawing mode (supports both mapbox-gl-draw and terra-draw mode names) */
+  setMode: (mode: string) => void;
+  /** Clear all drawn shapes */
+  clear: () => void;
+  /** Add a shape to the map */
+  addShape: (feature: GeoJSON.Feature) => void;
+  /** Get all drawn features */
+  getFeatures: () => GeoJSON.Feature[];
+  /** Register callback for when drawing is finished */
+  onFinish: (callback: (e: DrawFinishEvent) => void) => () => void;
+  /** Stop the draw control and clean up */
+  stop: () => void;
+}
+
+/**
+ * Create a TerraDraw instance for the given map.
+ * This is the low-level factory function that bundles terra-draw.
+ * Consumers can use this to create their own Effect services without
+ * dealing with bundler issues.
+ */
+export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
+  const drawInstance = new TerraDraw({
+    adapter: new TerraDrawMapLibreGLAdapter({
+      map,
+    }),
+    modes: [
+      new TerraDrawLineStringMode(),
+      new TerraDrawPolygonMode(),
+      new TerraDrawSelectMode({
+        flags: {
+          polygon: {
+            feature: {
+              draggable: false,
+              coordinates: {
+                deletable: false,
+                midpoints: false,
+                draggable: false,
+              }
+            }
+          },
+          linestring: {
+            feature: {
+              draggable: false,
+              coordinates: {
+                deletable: false,
+                midpoints: false,
+                draggable: false,
+              }
+            }
+          }
+        }
+      }),
+    ],
+  });
+
+  drawInstance.start();
+
+  let finishCleanup: (() => void) | null = null;
+
+  return {
+    instance: drawInstance,
+
+    setMode: (mode: string) => {
+      const terraMode = MODE_MAP[mode] || mode;
+      drawInstance.setMode(terraMode);
+    },
+
+    clear: () => {
+      drawInstance.clear();
+    },
+
+    addShape: (feature: GeoJSON.Feature) => {
+      // Cast to any since terra-draw has stricter geometry types
+      drawInstance.addFeatures([feature as never]);
+    },
+
+    getFeatures: () => {
+      return drawInstance.getSnapshot();
+    },
+
+    onFinish: (callback: (e: DrawFinishEvent) => void) => {
+      const handler = (id: string | number, context: { action: string; mode: string }) => {
+        if (context.action === 'draw') {
+          const snapshot = drawInstance.getSnapshot();
+          const feature = snapshot.find(f => f.id === id);
+          if (feature) {
+            callback({ features: [feature] });
+          }
+        }
+      };
+      drawInstance.on('finish', handler);
+      finishCleanup = () => drawInstance.off('finish', handler as never);
+      return finishCleanup;
+    },
+
+    stop: () => {
+      if (finishCleanup) {
+        finishCleanup();
+        finishCleanup = null;
+      }
+      drawInstance.stop();
+    },
+  };
 }
 
 export interface DrawServiceImpl {
@@ -66,7 +177,6 @@ class DrawControlWrapper {
     const drawInstance = new TerraDraw({
       adapter: new TerraDrawMapLibreGLAdapter({
         map: mapInstance,
-        lib: maplibregl,
       }),
       modes: [
         new TerraDrawLineStringMode(),
@@ -104,7 +214,7 @@ class DrawControlWrapper {
     return drawInstance;
   }
 
-  static reset() {
+  static reset(): void {
     if (this.#instance) {
       this.#instance.stop();
       this.#instance = undefined;
@@ -115,11 +225,11 @@ class DrawControlWrapper {
     this.#eventCleanups.clear();
   }
 
-  static setSubscription(key: string, subscription: Subscription) {
+  static setSubscription(key: string, subscription: Subscription): void {
     this.#subscriptions.set(key, subscription);
   }
 
-  static unsubscribe(key: string) {
+  static unsubscribe(key: string): void {
     const subscription = this.#subscriptions.get(key);
     if (subscription) {
       subscription.unsubscribe();
@@ -127,7 +237,7 @@ class DrawControlWrapper {
     }
   }
 
-  static setEventCleanup(key: string, cleanup: () => void) {
+  static setEventCleanup(key: string, cleanup: () => void): void {
     // Clean up existing event first
     const existing = this.#eventCleanups.get(key);
     if (existing) {
@@ -136,7 +246,7 @@ class DrawControlWrapper {
     this.#eventCleanups.set(key, cleanup);
   }
 
-  static cleanupEvent(key: string) {
+  static cleanupEvent(key: string): void {
     const cleanup = this.#eventCleanups.get(key);
     if (cleanup) {
       cleanup();
@@ -175,7 +285,8 @@ export const createDrawServiceLayer = (MapServiceLayer: Layer.Layer<typeof MapSe
         }),
 
         addShape: (feature: GeoJSON.Feature) => E.sync(() => {
-          drawInstance.addFeatures([feature]);
+          // Cast to any since terra-draw has stricter geometry types
+          drawInstance.addFeatures([feature as never]);
         }),
 
         getFeatures: () => E.sync(() => {
@@ -184,7 +295,7 @@ export const createDrawServiceLayer = (MapServiceLayer: Layer.Layer<typeof MapSe
 
         onFinish: (callback: (e: DrawFinishEvent) => void) =>
           E.sync(() => {
-            const handler = (id: string, context: { action: string; mode: string }) => {
+            const handler = (id: string | number, context: { action: string; mode: string }) => {
               if (context.action === 'draw') {
                 const snapshot = drawInstance.getSnapshot();
                 const feature = snapshot.find(f => f.id === id);
@@ -195,7 +306,7 @@ export const createDrawServiceLayer = (MapServiceLayer: Layer.Layer<typeof MapSe
             };
             drawInstance.on('finish', handler);
             DrawControlWrapper.setEventCleanup('finish', () => {
-              drawInstance.off('finish', handler);
+              drawInstance.off('finish', handler as never);
             });
           }),
 

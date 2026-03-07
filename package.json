@@ -3,6 +3,19 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "./dist/blue-sky-design.js",
+  "module": "./dist/blue-sky-design.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/blue-sky-design.js",
+      "types": "./dist/lib.d.ts"
+    },
+    "./src/lib": {
+      "import": "./dist/blue-sky-design.js",
+      "types": "./dist/lib.d.ts"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --p ./tsconfig.lib.json && vite build",
