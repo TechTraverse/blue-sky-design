@@ -5,8 +5,11 @@ import PopupState, { bindTrigger, bindPopover } from 'material-ui-popup-state';
 import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt, FaUndo } from "react-icons/fa";
-import { TimeDuration } from "./timeSliderTypes";
-import type { DatePickerProps, DateValue, ValidationResult, RangeValue } from 'react-aria-components';
+import { TimeDuration, TimeZone } from "./timeSliderTypes";
+import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
+
+// RangeValue was removed from react-aria-components, define locally
+type RangeValue<T> = { start: T; end: T };
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
 import { Button, Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
@@ -61,7 +64,7 @@ const SliderDatePicker = <T extends DateValue>(
       parts.hours,
       parts.minutes,
       parts.seconds,
-      parts.milliseconds
+      (parts as { millis?: number }).millis ?? 0
     );
     return calendarDate;
   };
@@ -166,12 +169,18 @@ export const DateAndRangeSelect = ({
   rangeValue,
   setRange,
   dateRangeForReset,
+  returnToDefaultDateTime: _returnToDefaultDateTime,
+  timeZone: _timeZone,
+  onTimeZoneChange: _onTimeZoneChange,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
   dateRangeForReset?: RangeValue<Date>,
+  returnToDefaultDateTime?: () => void,
+  timeZone?: TimeZone,
+  onTimeZoneChange?: (tz: TimeZone) => void,
 }) => {
   const { toDisplay, fromDisplay, mode, getDisplayZone } = useTimeZoneDisplay();
 
@@ -189,7 +198,7 @@ export const DateAndRangeSelect = ({
       parts.hours,
       parts.minutes,
       parts.seconds,
-      parts.milliseconds
+      (parts as { millis?: number }).millis ?? 0
     );
   };
 

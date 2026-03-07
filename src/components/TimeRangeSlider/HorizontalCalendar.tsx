@@ -74,6 +74,7 @@ export const HorizontalCalendar = ({
   latestValidDateTime,
   increment,
   theme = AppTheme.Light,
+  timeZone: _timeZone,
 }: {
   primaryRange: PrimaryRange<DateTime.DateTime>,
   limitedRange?: LimitedRange<DateTime.DateTime>,
@@ -81,6 +82,7 @@ export const HorizontalCalendar = ({
   latestValidDateTime?: DateTime.DateTime,
   increment?: number,
   theme?: AppTheme,
+  timeZone?: unknown,
 }) => {
   const { toDisplay, fromDisplay, mode } = useTimeZoneDisplay();
 
@@ -240,7 +242,7 @@ export const HorizontalCalendar = ({
   }, [theme, colors.select, colors.primary, colors.text]);
 
   const headerGridLocation = useMemo(() => {
-    const viewInMinIncrements = [];
+    const viewInMinIncrements: DateTime.DateTime[] = [];
     for (let date = displayViewRange.start;
       DateTime.lessThanOrEqualTo(date, displayViewRange.end);
       date = DateTime.add(date, { minutes: 5 })) {
