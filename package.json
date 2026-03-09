@@ -19,7 +19,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --p ./tsconfig.lib.json && vite build",
-    "prepare": "yarn build",
     "lint": "eslint .",
     "preview": "vite preview",
     "storybook": "BROWSER=true; storybook dev -p 6006",
