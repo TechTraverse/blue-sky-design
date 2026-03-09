@@ -14,7 +14,8 @@
     "./src/lib": {
       "import": "./dist/blue-sky-design.js",
       "types": "./dist/lib.d.ts"
-    }
+    },
+    "./src/components/LayerControl/LayerControl.css": "./dist/lib.css"
   },
   "scripts": {
     "dev": "vite",
