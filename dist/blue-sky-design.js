@@ -43243,19 +43243,22 @@ const nM = {
 };
 function Lie(e) {
   const t = ["td-polygon", "td-linestring", "td-point", "td-select"];
-  for (const o of t)
-    if (e.getSource(o)) {
-      const i = e.getStyle()?.layers || [];
-      for (const a of i)
-        "source" in a && a.source === o && e.removeLayer(a.id);
-      e.removeSource(o);
+  for (const i of t)
+    if (e.getSource(i)) {
+      const a = e.getStyle()?.layers || [];
+      for (const s of a)
+        "source" in s && s.source === i && e.removeLayer(s.id);
+      e.removeSource(i);
     }
   const n = new X_({
     adapter: new Q_({
       map: e
     }),
     modes: [
-      new W_(),
+      new W_({
+        // Finish after 2 points (single segment) for distance measurement
+        finishOnNthCoordinate: 2
+      }),
       new H_(),
       new Z_({
         flags: {
@@ -43284,31 +43287,35 @@ function Lie(e) {
     ]
   });
   n.start();
-  let r = null;
+  const r = () => {
+    n.getMode() === "polygon" && n.setMode("select");
+  };
+  e.on("dblclick", r);
+  let o = null;
   return {
     instance: n,
-    setMode: (o) => {
-      const i = nM[o] || o;
-      n.setMode(i);
+    setMode: (i) => {
+      const a = nM[i] || i;
+      n.setMode(a);
     },
     clear: () => {
       n.clear();
     },
-    addShape: (o) => {
-      n.addFeatures([o]);
+    addShape: (i) => {
+      n.addFeatures([i]);
     },
     getFeatures: () => n.getSnapshot(),
-    onFinish: (o) => {
-      const i = (a, s) => {
-        if (s.action === "draw") {
-          const c = n.getSnapshot().find((d) => d.id === a);
-          c && o({ features: [c] });
+    onFinish: (i) => {
+      const a = (s, l) => {
+        if (l.action === "draw") {
+          const d = n.getSnapshot().find((f) => f.id === s);
+          d && i({ features: [d] });
         }
       };
-      return n.on("finish", i), r = () => n.off("finish", i), r;
+      return n.on("finish", a), o = () => n.off("finish", a), o;
     },
     stop: () => {
-      r && (r(), r = null), n.stop();
+      o && (o(), o = null), e.off("dblclick", r), n.stop();
     }
   };
 }

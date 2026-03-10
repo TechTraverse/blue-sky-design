@@ -71,7 +71,10 @@ export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
       map,
     }),
     modes: [
-      new TerraDrawLineStringMode(),
+      new TerraDrawLineStringMode({
+        // Finish after 2 points (single segment) for distance measurement
+        finishOnNthCoordinate: 2,
+      }),
       new TerraDrawPolygonMode(),
       new TerraDrawSelectMode({
         flags: {
@@ -101,6 +104,14 @@ export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
   });
 
   drawInstance.start();
+
+  // Handle double-click to finish polygon drawing
+  const handleDblClick = () => {
+    if (drawInstance.getMode() === 'polygon') {
+      drawInstance.setMode('select');
+    }
+  };
+  map.on('dblclick', handleDblClick);
 
   let finishCleanup: (() => void) | null = null;
 
@@ -145,6 +156,7 @@ export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
         finishCleanup();
         finishCleanup = null;
       }
+      map.off('dblclick', handleDblClick);
       drawInstance.stop();
     },
   };
