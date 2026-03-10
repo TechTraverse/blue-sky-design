@@ -43242,7 +43242,15 @@ const nM = {
   select: "select"
 };
 function Lie(e) {
-  const t = new X_({
+  const t = ["td-polygon", "td-linestring", "td-point", "td-select"];
+  for (const o of t)
+    if (e.getSource(o)) {
+      const i = e.getStyle()?.layers || [];
+      for (const a of i)
+        "source" in a && a.source === o && e.removeLayer(a.id);
+      e.removeSource(o);
+    }
+  const n = new X_({
     adapter: new Q_({
       map: e
     }),
@@ -43275,32 +43283,32 @@ function Lie(e) {
       })
     ]
   });
-  t.start();
-  let n = null;
+  n.start();
+  let r = null;
   return {
-    instance: t,
-    setMode: (r) => {
-      const o = nM[r] || r;
-      t.setMode(o);
+    instance: n,
+    setMode: (o) => {
+      const i = nM[o] || o;
+      n.setMode(i);
     },
     clear: () => {
-      t.clear();
+      n.clear();
     },
-    addShape: (r) => {
-      t.addFeatures([r]);
+    addShape: (o) => {
+      n.addFeatures([o]);
     },
-    getFeatures: () => t.getSnapshot(),
-    onFinish: (r) => {
-      const o = (i, a) => {
-        if (a.action === "draw") {
-          const l = t.getSnapshot().find((c) => c.id === i);
-          l && r({ features: [l] });
+    getFeatures: () => n.getSnapshot(),
+    onFinish: (o) => {
+      const i = (a, s) => {
+        if (s.action === "draw") {
+          const c = n.getSnapshot().find((d) => d.id === a);
+          c && o({ features: [c] });
         }
       };
-      return t.on("finish", o), n = () => t.off("finish", o), n;
+      return n.on("finish", i), r = () => n.off("finish", i), r;
     },
     stop: () => {
-      n && (n(), n = null), t.stop();
+      r && (r(), r = null), n.stop();
     }
   };
 }

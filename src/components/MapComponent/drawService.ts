@@ -51,6 +51,21 @@ export interface TerraDrawWrapper {
  * dealing with bundler issues.
  */
 export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
+  // Clean up any existing terra-draw sources (handles HMR/re-initialization)
+  const terraDrawSources = ['td-polygon', 'td-linestring', 'td-point', 'td-select'];
+  for (const sourceId of terraDrawSources) {
+    if (map.getSource(sourceId)) {
+      // Remove layers using this source first
+      const layers = map.getStyle()?.layers || [];
+      for (const layer of layers) {
+        if ('source' in layer && layer.source === sourceId) {
+          map.removeLayer(layer.id);
+        }
+      }
+      map.removeSource(sourceId);
+    }
+  }
+
   const drawInstance = new TerraDraw({
     adapter: new TerraDrawMapLibreGLAdapter({
       map,
