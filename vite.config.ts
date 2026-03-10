@@ -11,7 +11,11 @@ export default defineConfig({
     dts({ tsconfigPath: './tsconfig.lib.json' }),
     libInjectCss(),
   ],
+  esbuild: {
+    target: 'es2020',
+  },
   build: {
+    target: 'es2020',
     copyPublicDir: false,
     lib: {
       entry: resolve(__dirname, 'src/lib.ts'),
