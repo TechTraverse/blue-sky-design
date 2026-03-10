@@ -43288,7 +43288,15 @@ function Lie(e) {
   });
   n.start();
   const r = () => {
-    n.getMode() === "polygon" && n.setMode("select");
+    const i = n.getMode();
+    if (i === "polygon" || i === "linestring") {
+      const a = new KeyboardEvent("keyup", {
+        key: "Enter",
+        code: "Enter",
+        bubbles: !0
+      });
+      e.getCanvas().dispatchEvent(a);
+    }
   };
   e.on("dblclick", r);
   let o = null;
@@ -43299,7 +43307,8 @@ function Lie(e) {
       n.setMode(a);
     },
     clear: () => {
-      n.clear();
+      const i = n.getMode();
+      n.setMode("select"), n.clear(), i !== "select" && n.setMode(i);
     },
     addShape: (i) => {
       n.addFeatures([i]);

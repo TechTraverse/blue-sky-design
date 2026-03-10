@@ -105,10 +105,17 @@ export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
 
   drawInstance.start();
 
-  // Handle double-click to finish polygon drawing
+  // Handle double-click to finish polygon drawing by simulating Enter key
   const handleDblClick = () => {
-    if (drawInstance.getMode() === 'polygon') {
-      drawInstance.setMode('select');
+    const currentMode = drawInstance.getMode();
+    if (currentMode === 'polygon' || currentMode === 'linestring') {
+      // Simulate Enter keypress to finish the drawing
+      const event = new KeyboardEvent('keyup', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+      });
+      map.getCanvas().dispatchEvent(event);
     }
   };
   map.on('dblclick', handleDblClick);
@@ -124,7 +131,16 @@ export function createTerraDraw(map: MapLibreMap): TerraDrawWrapper {
     },
 
     clear: () => {
+      // Get current mode before clearing
+      const currentMode = drawInstance.getMode();
+      // Switch to select mode to cancel any in-progress drawing
+      drawInstance.setMode('select');
+      // Clear all completed features
       drawInstance.clear();
+      // Restore the original mode if it wasn't select
+      if (currentMode !== 'select') {
+        drawInstance.setMode(currentMode);
+      }
     },
 
     addShape: (feature: GeoJSON.Feature) => {
