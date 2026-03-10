@@ -7,7 +7,7 @@ export type { HeaderProps } from './components/Header';
 export { Page } from './components/Page';
 export { TimeRangeSlider } from './components/TimeRangeSlider/TimeRangeSlider';
 export type { TimeRangeSliderProps } from './components/TimeRangeSlider/TimeRangeSlider';
-export { TimeDuration, Theme, TimeZone } from './components/TimeRangeSlider/timeSliderTypes';
+export { TimeDuration, Theme, TimeZone, AnimationOrStepMode } from './components/TimeRangeSlider/timeSliderTypes';
 export { MapComponent, MapComponentEffect } from './components/MapComponent';
 export type { MapComponentProps, MapComponentRef, MapComponentEffectProps, MapComponentEffectRef, MapSettings, Layer, LayerConfig, SourceConfig, MapEvent, MapEventHandlers, MapControls, MapOperations, BasemapConfig, ExtendedLayer, VectorSourceConfig, RasterSourceConfig, GeoJSONSourceConfig, LayerTypes, TypedLayerConfig, MapTheme, MapStyleConfig, AnimationOptions, TransitionOptions, AdvancedMapOperations, } from './components/MapComponent';
 export { MapService, MapServiceLayer, MapClassWrapper, MapServiceAdapter, createMapServiceEffect, BASEMAP_PREFIX, LABELS_PREFIX, getParamaterizedUrl, VectorTiles, RasterTiles, GeoJsonData, LayerVisible, LayerHidden, LayerDimmed, LayerSelectable, LayerUnselectable, LayerEnabled, LayerDisabled, Basemap, Labels, LargeScaleVector, SmallScaleVector, LargeScaleImagery, SmallScaleImagery, CustomOrder, } from './components/MapComponent';
