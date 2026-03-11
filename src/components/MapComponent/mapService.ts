@@ -1,4 +1,4 @@
-import { Effect as E, Option as O, Context, Layer, Data as D } from "effect"
+import { Effect as E, Option as O, Context, Layer, Data as D, Duration } from "effect"
 import maplibregl from "maplibre-gl";
 import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
@@ -149,9 +149,6 @@ export class MapClassWrapper {
     "LargeScaleImagery",
     "CustomOrder");
 
-  // Track pending cleanup timeouts to cancel them if needed
-  #pendingCleanups: Map<string, number>;
-
   /**
    * Event handling
    */
@@ -163,7 +160,6 @@ export class MapClassWrapper {
   constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig) {
     this.#map = m;
     this.#loadedBasemapUrl = initialBasemapUrl;
-    this.#pendingCleanups = new Map();
 
     // Add controls based on configuration
     const ctrlConfig = controls ?? { navigation: true, fullscreen: true, geolocate: true, scale: true };
@@ -689,20 +685,13 @@ export class MapClassWrapper {
       .otherwise((l) => {
         this.#rmLayerConfigs(l);
 
-        // Remove all sources that start with this ID (handles buffered sources with _A/_B suffix)
+        // Remove all sources that start with this ID (handles random-suffix sources)
         const allSources = this.#map.getStyle().sources;
         Object.keys(allSources).forEach(sourceId => {
           if (sourceId.startsWith(l.sourceConfig.id)) {
             this.#map.removeSource(sourceId);
           }
         });
-
-        // Cancel any pending cleanup timeout for this source
-        const pendingTimeoutId = this.#pendingCleanups.get(l.sourceConfig.id);
-        if (pendingTimeoutId !== undefined) {
-          clearTimeout(pendingTimeoutId);
-          this.#pendingCleanups.delete(l.sourceConfig.id);
-        }
 
         return E.succeed(undefined);
       });
@@ -768,49 +757,63 @@ export class MapClassWrapper {
           _tag: "VectorTiles",
         })
       }, (sourceConfig, parameterizedLayer) => {
-        const randomSuffix = Math.random().toString(36).slice(2);
+        const randomSuffix = crypto.randomUUID();
         const newSourceId = `${sourceConfig.id}_${randomSuffix}`;
 
-        // Listen for source data load event
-        const onSourceData = (e: MapSourceDataEvent) => {
-          if (e.sourceId === newSourceId && e.isSourceLoaded) {
-            // Remove old layers
-              // = 
-            this.#rmLayerConfigs(sourceConfig, (l: maplibregl.LayerSpecification) => !l.id.endsWith(randomSuffix))
+        // Capture old sources BEFORE any changes
+        const oldSourceIds = Object.keys(this.#map.getStyle().sources)
+          .filter(id => id.startsWith(`${sourceConfig.id}_`));
 
-            const oldSourceId = <something>;
-
-            // Remove old source
-            if (this.#map.getSource(oldSourceId)) {
-              this.#map.removeSource(oldSourceId);
+        // E.async body runs synchronously - register listener, add source/layers, then wait
+        const waitForLoad = E.async<undefined, never>((cb) => {
+          const onSourceData = (e: MapSourceDataEvent) => {
+            if (e.sourceId === newSourceId && e.isSourceLoaded) {
+              this.#map.off('sourcedata', onSourceData);
+              cb(E.succeed(undefined));
             }
+          };
 
-            this.#map.off('sourcedata', onSourceData);
-          }
-        };
-        this.#map.on('sourcedata', onSourceData);
+          // 1. Register listener FIRST
+          this.#map.on('sourcedata', onSourceData);
 
+          // 2. Add new source
+          this.#map.addSource(newSourceId, this.#cleanSourceConfig({
+            ...sourceConfig,
+            id: newSourceId
+          }));
 
-        // Add new source with next buffer using parameterized tiles
-        this.#map.addSource(newSourceId, this.#cleanSourceConfig({
-          ...sourceConfig,
-          id: newSourceId
-        }));
+          // 3. Add new layers
+          const layers = this.#map.getStyle().layers;
+          const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
 
-        // Add new layers pointing to next buffer
-        const layers = this.#map.getStyle().layers;
-        const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
+          parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
+            const newLayerId = `${this.#commonLayersPrefix}${layerConfig.id}_${randomSuffix}`;
+            this.#map.addLayer({
+              ...layerConfig,
+              id: newLayerId,
+              source: newSourceId
+            } as AddLayerObject, uFirstLabelsLayer?.id);
+          });
 
-        parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
-          const newLayerId = `${this.#commonLayersPrefix}${layerConfig.id}_${newSourceId}`;
-          this.#map.addLayer({
-            ...layerConfig,
-            id: newLayerId,
-            source: newSourceId
-          } as AddLayerObject, uFirstLabelsLayer?.id);
+          // Cleanup on interrupt
+          return E.sync(() => this.#map.off('sourcedata', onSourceData));
         });
 
-        return E.succeed(undefined);
+        // Chain: wait (with timeout) → cleanup old stuff
+        return waitForLoad.pipe(
+          E.timeout(Duration.millis(500)),
+          E.catchAll(() => E.succeed(undefined)),  // timeout is OK, proceed to cleanup
+          E.tap(() => {
+            this.#rmLayerConfigs(parameterizedLayer, (l) =>
+              'source' in l && oldSourceIds.includes(l.source as string));
+            oldSourceIds.forEach(srcId => {
+              if (this.#map.getSource(srcId)) {
+                this.#map.removeSource(srcId);
+              }
+            });
+          }),
+          E.as(undefined)
+        );
       })
       .otherwise(() => E.fail(new Error("Unknown layer type")));
   }
