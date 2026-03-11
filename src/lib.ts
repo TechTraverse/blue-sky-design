@@ -88,21 +88,6 @@ export type {
   ExtStyle,
 } from './components/MapComponent';
 
-// Draw service exports (terra-draw based)
-export {
-  DrawService,
-  createDrawServiceLayer,
-  DrawModes,
-  // Low-level factory for consumers managing their own Effect services
-  createTerraDraw,
-} from './components/MapComponent';
-
-export type {
-  DrawServiceImpl,
-  DrawFinishEvent,
-  TerraDrawWrapper,
-} from './components/MapComponent';
-
 // LayerControl exports
 export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './components/LayerControl';
 export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
