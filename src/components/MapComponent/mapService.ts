@@ -1,8 +1,44 @@
 import { Effect as E, Option as O, Context, Layer, Data as D, Duration } from "effect"
 import maplibregl from "maplibre-gl";
-import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification } from "maplibre-gl";
+import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
 import { firstValueFrom, fromEvent, interval, raceWith, map, Observable, shareReplay, take, Subscription, takeUntil } from "rxjs";
+import type { BasemapConfig, BasemapFallbackOptions, BasemapFallbackInfo } from "./types";
+
+/**
+ * Creates a MapLibre style with a solid background color and no external dependencies.
+ * Used as the final fallback when basemap loading fails.
+ */
+export const createSolidColorStyle = (
+  backgroundColor: string = '#1a365d'
+): StyleSpecification => ({
+  version: 8,
+  name: 'solid-background',
+  sources: {},
+  layers: [{
+    id: 'background-solid',
+    type: 'background',
+    paint: {
+      'background-color': backgroundColor
+    }
+  }]
+});
+
+/**
+ * Extracts the domain from a basemap URL for error matching.
+ */
+const extractBasemapDomain = (basemapConfig: string | BasemapConfig): string | undefined => {
+  try {
+    const url = typeof basemapConfig === 'string'
+      ? basemapConfig
+      : basemapConfig.tileUrl;
+    if (!url) return undefined;
+    const parsed = new URL(url);
+    return parsed.hostname;
+  } catch {
+    return undefined;
+  }
+};
 
 // Service utilities
 const objectToParams = (x: { [k: string]: unknown }) => {
@@ -212,98 +248,48 @@ export class MapClassWrapper {
     basemapConfig: string | { style?: any; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number },
     mapSettings?: MapSettings,
     controls?: MapControlsConfig,
-    containerId: string = "map"
+    containerId: string = "map",
+    fallbackOptions?: BasemapFallbackOptions
   ) {
     if (this.#instance) {
       return this.#instance;
     }
 
-    // Handle different basemap configuration types
-    let style: any;
-    let basemapUrl: string;
+    const defaultUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-    if (typeof basemapConfig === 'string') {
-      basemapUrl = basemapConfig;
-      // Check if this is a tile URL template (contains {z}/{x}/{y}) or a style JSON URL
-      const isTileUrlTemplate = basemapConfig.includes('{z}') && basemapConfig.includes('{x}') && basemapConfig.includes('{y}');
+    const buildRasterStyle = (url: string, tileSize = 256, attribution = '© Map contributors', minZoom = 0, maxZoom = 22) => ({
+      version: 8,
+      sources: {
+        'raster-tiles': { type: 'raster' as const, tiles: [url], tileSize, attribution }
+      },
+      layers: [{ id: 'simple-tiles', type: 'raster' as const, source: 'raster-tiles', minzoom: minZoom, maxzoom: maxZoom }]
+    });
 
-      if (isTileUrlTemplate) {
-        // Raster tile URL template
-        style = {
-          version: 8,
-          sources: {
-            'raster-tiles': {
-              type: 'raster',
-              tiles: [basemapUrl],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors'
-            }
-          },
-          layers: [
-            {
-              id: 'simple-tiles',
-              type: 'raster',
-              source: 'raster-tiles',
-              minzoom: 0,
-              maxzoom: 22
-            }
-          ]
-        };
-      } else {
-        // Style JSON URL (e.g., ESRI basemap styles) - use directly
-        style = basemapUrl;
-      }
-    } else if (basemapConfig.style) {
-      // Full MapLibre style specification
-      style = basemapConfig.style;
-      basemapUrl = 'custom-style';
-    } else if (basemapConfig.tileUrl) {
-      // BasemapConfig with tileUrl
-      basemapUrl = basemapConfig.tileUrl;
-      style = {
-        version: 8,
-        sources: {
-          'raster-tiles': {
-            type: 'raster',
-            tiles: [basemapUrl],
-            tileSize: basemapConfig.tileSize || 256,
-            attribution: basemapConfig.attribution || '© Map contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'simple-tiles',
-            type: 'raster',
-            source: 'raster-tiles',
-            minzoom: basemapConfig.minZoom || 0,
-            maxzoom: basemapConfig.maxZoom || 22
-          }
-        ]
-      };
-    } else {
-      // Default to OSM
-      basemapUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-      style = {
-        version: 8,
-        sources: {
-          'raster-tiles': {
-            type: 'raster',
-            tiles: [basemapUrl],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'simple-tiles',
-            type: 'raster',
-            source: 'raster-tiles',
-            minzoom: 0,
-            maxzoom: 22
-          }
-        ]
-      };
-    }
+    const buildStyleFromConfig = (
+      config: string | { style?: any; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number }
+    ): { style: any; basemapUrl: string } =>
+      match(config)
+        // Tile URL template (contains {z} and either {x} or {y})
+        .with(P.string.regex(/{z}.*({x}|{y})/), (url) => ({
+          basemapUrl: url,
+          style: buildRasterStyle(url)
+        }))
+        // Style JSON URL (string but not a tile template)
+        .with(P.string, (url) => ({ basemapUrl: url, style: url }))
+        // Full style specification object
+        .with({ style: P.not(P.nullish) }, (c) => ({ basemapUrl: 'custom-style', style: c.style }))
+        // Config with tileUrl
+        .with({ tileUrl: P.string }, (c) => ({
+          basemapUrl: c.tileUrl,
+          style: buildRasterStyle(c.tileUrl, c.tileSize, c.attribution, c.minZoom, c.maxZoom)
+        }))
+        // Default fallback to OSM
+        .otherwise(() => ({
+          basemapUrl: defaultUrl,
+          style: buildRasterStyle(defaultUrl, 256, '© OpenStreetMap contributors')
+        }));
+
+    const { style, basemapUrl } = buildStyleFromConfig(basemapConfig);
 
     const m = new maplibregl.Map({
       container: containerId,
@@ -314,6 +300,48 @@ export class MapClassWrapper {
       ...(controls?.attribution === false ? { attributionControl: false } : {}),
       ...(mapSettings ?? {}),
     });
+
+    // Set up 401/403 error detection and fallback handling
+    if (fallbackOptions) {
+      const basemapDomain = extractBasemapDomain(basemapConfig);
+
+      const fallbackChain = [
+        fallbackOptions.fallbackBasemap && (() => {
+          const { style } = buildStyleFromConfig(fallbackOptions.fallbackBasemap!);
+          fallbackOptions.onBasemapFallback?.({
+            reason: { type: 'auth_error', status: 401, url: basemapUrl },
+            originalBasemap: basemapConfig,
+            fallbackBasemap: fallbackOptions.fallbackBasemap,
+            usingSolidColor: false
+          });
+          return style;
+        }),
+        () => {
+          fallbackOptions.onBasemapFallback?.({
+            reason: { type: 'auth_error', status: 401, url: basemapUrl },
+            originalBasemap: basemapConfig,
+            fallbackBasemap: fallbackOptions.fallbackBasemap,
+            usingSolidColor: true
+          });
+          return createSolidColorStyle(fallbackOptions.solidColorFallback);
+        }
+      ].filter(Boolean) as Array<() => any>;
+
+      m.on('error', (event: any) => {
+        const err = event?.error;
+        const status = err?.status as number | undefined;
+        const errorUrl = err?.url as string | undefined;
+
+        const isBasemapAuthError =
+          (status === 401 || status === 403) &&
+          (!basemapDomain || !errorUrl || errorUrl.includes(basemapDomain));
+
+        if (isBasemapAuthError) {
+          const nextFallback = fallbackChain.shift();
+          if (nextFallback) m.setStyle(nextFallback());
+        }
+      });
+    }
 
     const loadOrTimeout$ = fromEvent(m, "load").pipe(raceWith(interval(2000)))
     const loadedMap = await firstValueFrom(loadOrTimeout$.pipe(map(() => m)));

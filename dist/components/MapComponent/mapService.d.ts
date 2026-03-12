@@ -1,6 +1,12 @@
 import { Effect as E, Context, Layer, Data as D } from 'effect';
-import { default as maplibregl, AddLayerObject, Map as MapLibreMap, MapOptions, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification } from 'maplibre-gl';
+import { default as maplibregl, AddLayerObject, Map as MapLibreMap, MapOptions, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl';
 import { Subscription } from 'rxjs';
+import { BasemapFallbackOptions } from './types';
+/**
+ * Creates a MapLibre style with a solid background color and no external dependencies.
+ * Used as the final fallback when basemap loading fails.
+ */
+export declare const createSolidColorStyle: (backgroundColor?: string) => StyleSpecification;
 export declare const getParamaterizedUrl: (baseUrl: string, paramsObj?: {
     [k: string]: unknown;
 }) => string;
@@ -238,7 +244,7 @@ export declare class MapClassWrapper {
         attribution?: string;
         minZoom?: number;
         maxZoom?: number;
-    }, mapSettings?: MapSettings, controls?: MapControlsConfig, containerId?: string): Promise<MapClassWrapper>;
+    }, mapSettings?: MapSettings, controls?: MapControlsConfig, containerId?: string, fallbackOptions?: BasemapFallbackOptions): Promise<MapClassWrapper>;
     updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<undefined, never, never>;
     registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription, never, never>;
     addLayer: (l: LayerType, uLayerAbove?: LayerType | undefined) => E.Effect<undefined, Error, void>;

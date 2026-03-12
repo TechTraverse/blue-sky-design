@@ -97,6 +97,28 @@ export interface BasemapConfig {
   maxZoom?: number;
 }
 
+// Basemap fallback types (for 401/403 error handling)
+export type BasemapFallbackReason =
+  | { type: 'auth_error'; status: 401 | 403; url: string }
+  | { type: 'load_error'; error: Error; url: string }
+  | { type: 'timeout'; url: string };
+
+export interface BasemapFallbackInfo {
+  reason: BasemapFallbackReason;
+  originalBasemap: string | BasemapConfig;
+  fallbackBasemap?: string | BasemapConfig;
+  usingSolidColor: boolean;
+}
+
+export interface BasemapFallbackOptions {
+  // Fallback basemap to try if primary fails with 401/403
+  fallbackBasemap?: string | BasemapConfig;
+  // Callback when fallback is triggered
+  onBasemapFallback?: (info: BasemapFallbackInfo) => void;
+  // Solid color to use as final fallback (default: '#1a365d' dark blue)
+  solidColorFallback?: string;
+}
+
 // Promise-based operations (converted from effect-ts)
 export interface MapOperations {
   addLayer: (layer: Layer, above?: string) => Promise<void>;

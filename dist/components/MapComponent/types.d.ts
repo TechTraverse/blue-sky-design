@@ -84,6 +84,29 @@ export interface BasemapConfig {
     minZoom?: number;
     maxZoom?: number;
 }
+export type BasemapFallbackReason = {
+    type: 'auth_error';
+    status: 401 | 403;
+    url: string;
+} | {
+    type: 'load_error';
+    error: Error;
+    url: string;
+} | {
+    type: 'timeout';
+    url: string;
+};
+export interface BasemapFallbackInfo {
+    reason: BasemapFallbackReason;
+    originalBasemap: string | BasemapConfig;
+    fallbackBasemap?: string | BasemapConfig;
+    usingSolidColor: boolean;
+}
+export interface BasemapFallbackOptions {
+    fallbackBasemap?: string | BasemapConfig;
+    onBasemapFallback?: (info: BasemapFallbackInfo) => void;
+    solidColorFallback?: string;
+}
 export interface MapOperations {
     addLayer: (layer: Layer, above?: string) => Promise<void>;
     removeLayer: (layerId: string) => Promise<void>;
