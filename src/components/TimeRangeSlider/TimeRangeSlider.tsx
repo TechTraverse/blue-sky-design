@@ -1,7 +1,7 @@
 import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef, useMemo, useCallback, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
-import { DateTime, Data as D, Duration } from 'effect';
+import { DateTime, Data as D, Duration, Effect, Schedule, Fiber } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
@@ -31,11 +31,20 @@ export interface TimeRangeSliderProps {
   hideAnimationToggle?: boolean;
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string;
+  /** Polling interval in ms (default 60000). Set to 0 to disable polling. */
+  pollingInterval?: number;
+  /** Called when poll detects data newer than current selection */
+  onNewDataAvailable?: (latestDate: Date, currentSelectionEnd: Date) => void;
+  /** Called when tracking mode changes */
+  onTrackLatestChange?: (enabled: boolean) => void;
+  /** Initial tracking state (default false) */
+  initialTrackLatest?: boolean;
 }
 
 enum UpdateSource {
   ExternalProp,
-  UserInteraction
+  UserInteraction,
+  TrackLatestUpdate
 }
 
 type State = {
@@ -64,6 +73,10 @@ type State = {
   animationRequestFrequency: AnimationRequestFrequency;
   animationPlayMode: PlayMode;
   animationSpeed: AnimationSpeed;
+
+  // Track latest state
+  isTrackingLatest: boolean;
+  lastKnownLatestDate: DateTime.DateTime | null;
 };
 
 /**
@@ -118,6 +131,9 @@ type Action = D.TaggedEnum<{
   SetResetAnimationSpeed:
   { resetAnimationSpeed: AnimationSpeed; };
 
+  SetTrackingLatest: { isTrackingLatest: boolean; };
+  SetLastKnownLatestDate: { lastKnownLatestDate: DateTime.DateTime | null; };
+
   ResetAll: {};
 }>;
 
@@ -148,6 +164,8 @@ const {
   SetAnimationPlayMode,
   SetAnimationSpeed,
   SetResetAnimationSpeed,
+  SetTrackingLatest,
+  SetLastKnownLatestDate,
   ResetAll } = D.taggedEnum<Action>();
 
 
@@ -395,6 +413,15 @@ const reducer = (state: State, action: Action, roundingFn?: (dateTime: DateTime.
       resetAnimationSpeed: x.resetAnimationSpeed,
     }),
 
+    SetTrackingLatest: (x) => ({
+      ...state,
+      isTrackingLatest: x.isTrackingLatest,
+    }),
+    SetLastKnownLatestDate: (x) => ({
+      ...state,
+      lastKnownLatestDate: x.lastKnownLatestDate,
+    }),
+
     ResetAll: () => ({
       ...state,
       viewStartDateTime: state.resetStartDateTime,
@@ -405,6 +432,7 @@ const reducer = (state: State, action: Action, roundingFn?: (dateTime: DateTime.
       animationDuration: state.resetAnimationDuration,
       animationPlayMode: PlayMode.Pause,
       animationSpeed: state.resetAnimationSpeed,
+      isTrackingLatest: false,
     }),
   })(action);
 }
@@ -471,6 +499,10 @@ export const TimeRangeSlider = ({
   increment = TimeDuration["5m"],
   hideAnimationToggle = false,
   disabledAnimationTooltip,
+  pollingInterval = 60000,
+  onNewDataAvailable,
+  onTrackLatestChange,
+  initialTrackLatest = false,
 }: TimeRangeSliderProps) => {
 
   const viewIncrement = increment;
@@ -631,6 +663,9 @@ export const TimeRangeSlider = ({
       animationRequestFrequency,
       animationPlayMode,
       animationSpeed,
+
+      isTrackingLatest: initialTrackLatest,
+      lastKnownLatestDate: null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
