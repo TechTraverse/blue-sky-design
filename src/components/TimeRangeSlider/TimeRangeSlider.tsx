@@ -1010,6 +1010,81 @@ export const TimeRangeSlider = ({
   }, [s.animationOrStepMode, s.animationPlayMode, s.animationSpeed,
     animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
 
+  /**
+   * Track-latest polling logic using Effect Schedule
+   * Polls for latest available data and notifies/updates when new data is available
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pollingFiberRef = useRef<Fiber.RuntimeFiber<any, any> | null>(null);
+
+  useEffect(() => {
+    // Clean up any existing fiber
+    if (pollingFiberRef.current) {
+      Effect.runFork(Fiber.interrupt(pollingFiberRef.current));
+      pollingFiberRef.current = null;
+    }
+
+    if (!getLatestDateRange || pollingInterval <= 0) return;
+
+    const pollOnce = Effect.gen(function* () {
+      const latestDate = yield* Effect.tryPromise(() => getLatestDateRange());
+
+      const latestDateTime = DateTime.unsafeFromDate(latestDate);
+      const currentState = stateRef.current;
+      const currentSelectionEnd = DateTime.addDuration(
+        currentState.selectedStartDateTime,
+        currentState.selectedDuration
+      );
+
+      // Update last known latest date
+      d(SetLastKnownLatestDate({ lastKnownLatestDate: latestDateTime }));
+
+      // Check if new data is available (latest > current selection end)
+      if (DateTime.greaterThan(latestDateTime, currentSelectionEnd)) {
+        // Always notify when new data is available
+        onNewDataAvailable?.(latestDate, DateTime.toDate(currentSelectionEnd));
+
+        // If tracking is enabled, also update selection
+        if (currentState.isTrackingLatest) {
+          const newStart = DateTime.subtractDuration(latestDateTime, currentState.selectedDuration);
+          d(SetSelectedStartDateTime({
+            selectedStartDateTime: newStart,
+            updateSource: UpdateSource.TrackLatestUpdate
+          }));
+
+          // Update view to show the new selection
+          const optimalViewStart = calculateOptimalViewStart(
+            currentState.selectedStartDateTime,
+            newStart,
+            currentState.selectedDuration,
+            currentState.viewStartDateTime,
+            currentState.viewDuration
+          );
+          d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+        }
+      }
+    }).pipe(
+      Effect.catchAll((e) => Effect.sync(() => {
+        console.error('[TimeRangeSlider] Poll failed:', e);
+      }))
+    );
+
+    // Schedule: run immediately, then repeat with spaced interval
+    const scheduledPoll = pollOnce.pipe(
+      Effect.repeat(Schedule.spaced(Duration.millis(pollingInterval)))
+    );
+
+    // Run and store the fiber
+    pollingFiberRef.current = Effect.runFork(scheduledPoll);
+
+    return () => {
+      if (pollingFiberRef.current) {
+        Effect.runFork(Fiber.interrupt(pollingFiberRef.current));
+        pollingFiberRef.current = null;
+      }
+    };
+  }, [getLatestDateRange, pollingInterval, onNewDataAvailable]);
+
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
   /**
