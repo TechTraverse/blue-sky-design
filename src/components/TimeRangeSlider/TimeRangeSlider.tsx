@@ -272,10 +272,14 @@ const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: 
     ? optimalViewStart
     : state.viewStartDateTime;
 
+  // Auto-disable tracking on user interaction
+  const shouldDisableTracking = x.updateSource === UpdateSource.UserInteraction && state.isTrackingLatest;
+
   return {
     ...state,
     viewStartDateTime,
     selectedStartDateTime: start,
+    ...(shouldDisableTracking ? { isTrackingLatest: false } : {}),
   }
 }
 
@@ -293,10 +297,14 @@ const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateT
     roundingFn
   );
 
+  // Auto-disable tracking on user interaction
+  const shouldDisableTracking = x.updateSource === UpdateSource.UserInteraction && state.isTrackingLatest;
+
   return {
     ...state,
     viewStartDateTime,
     selectedDuration: x.selectedDuration,
+    ...(shouldDisableTracking ? { isTrackingLatest: false } : {}),
   };
 }
 
@@ -447,7 +455,8 @@ function withMiddleware(
   onDateRangeSelect: (rv: RangeValue<Date>) => void,
   roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
   onTimeZoneChange?: (timeZone: TimeZone) => void,
-  onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void
+  onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void,
+  onTrackLatestChange?: (enabled: boolean) => void
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
 
@@ -468,6 +477,16 @@ function withMiddleware(
             start: DateTime.toDate(start),
             end: DateTime.toDate(end)
           });
+        }
+
+        // Notify when tracking was auto-disabled due to user interaction
+        if (oldState.isTrackingLatest && !newState.isTrackingLatest) {
+          onTrackLatestChange?.(false);
+        }
+      })
+      .with("SetTrackingLatest", () => {
+        if (oldState.isTrackingLatest !== newState.isTrackingLatest) {
+          onTrackLatestChange?.(newState.isTrackingLatest);
         }
       })
       .with("SetTimeZone", () => (newState.timeZone !== oldState.timeZone),
@@ -670,7 +689,7 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, roundDateTimeDownToNearestIncrement, onTimeZoneChange, onAnimationOrStepModeChange), null, () => initialValues);
+  const [s, d] = useReducer(withMiddleware(reducer, onDateRangeSelect, roundDateTimeDownToNearestIncrement, onTimeZoneChange, onAnimationOrStepModeChange, onTrackLatestChange), null, () => initialValues);
 
 
   /**
