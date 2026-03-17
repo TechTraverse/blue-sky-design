@@ -1257,74 +1257,82 @@ export const TimeRangeSlider = ({
                 </IconButton>
               </Tooltip>
 
-              {(dateRangeForReset || getLatestDateRange) && (
-                <Tooltip title="Jump to latest available date">
+              {getLatestDateRange && (
+                <Tooltip title={s.isTrackingLatest ? "Tracking latest - click to disable" : "Track latest automatically"}>
                   <IconButton
                     size="small"
                     onClick={async () => {
-                      const latestDateTime = await match({ getLatestDateRange, dateRangeForReset })
-                        .with({ getLatestDateRange: P.not(P.nullish) }, async ({ getLatestDateRange }) => {
-                          try {
-                            const latestDate = await getLatestDateRange();
-                            return DateTime.unsafeFromDate(latestDate);
-                          } catch (error) {
-                            console.error('Failed to get latest date range:', error);
-                            return match(dateRangeForReset)
-                              .with(P.not(P.nullish), (dateRange) => DateTime.unsafeFromDate(dateRange.start))
-                              .otherwise(() => null);
-                          }
-                        })
-                        .with({ dateRangeForReset: P.not(P.nullish) }, ({ dateRangeForReset }) =>
-                          Promise.resolve(DateTime.unsafeFromDate(dateRangeForReset.start))
-                        )
-                        .otherwise(() => Promise.resolve(null));
-
-                      if (!latestDateTime) return;
-
-                      if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
-                        // In animation mode: position animation range to end at latest date
-                        // and move primary range to start of animation range
-                        const newAnimationStart = DateTime.subtractDuration(latestDateTime, s.animationDuration);
-                        d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
-                        d(SetSelectedStartDateTime({
-                          selectedStartDateTime: newAnimationStart,
-                          updateSource: UpdateSource.UserInteraction
-                        }));
-
-                        // Update view to show the animation range
-                        const optimalViewStart = calculateOptimalViewStart(
-                          s.viewStartDateTime,
-                          newAnimationStart,
-                          s.animationDuration,
-                          s.viewStartDateTime,
-                          s.viewDuration
-                        );
-                        d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                      if (s.isTrackingLatest) {
+                        // Disable tracking
+                        d(SetTrackingLatest({ isTrackingLatest: false }));
                       } else {
-                        // In step mode: move selected range to latest date
-                        // Calculate the start time so the range ends at latest date
-                        const newSelectedStart = DateTime.subtractDuration(latestDateTime, s.selectedDuration);
-                        d(SetSelectedStartDateTime({
-                          selectedStartDateTime: newSelectedStart,
-                          updateSource: UpdateSource.UserInteraction
-                        }));
+                        // Enable tracking - first jump to latest, then enable polling
+                        try {
+                          const latestDate = await getLatestDateRange();
+                          const latestDateTime = DateTime.unsafeFromDate(latestDate);
 
-                        // Update view to show the selected range
-                        const optimalViewStart = calculateOptimalViewStart(
-                          s.viewStartDateTime,
-                          newSelectedStart,
-                          s.selectedDuration,
-                          s.viewStartDateTime,
-                          s.viewDuration
-                        );
-                        d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                          if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+                            // In animation mode: position animation range to end at latest date
+                            // and move primary range to start of animation range
+                            const newAnimationStart = DateTime.subtractDuration(latestDateTime, s.animationDuration);
+                            d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
+                            d(SetSelectedStartDateTime({
+                              selectedStartDateTime: newAnimationStart,
+                              updateSource: UpdateSource.TrackLatestUpdate
+                            }));
+
+                            // Update view to show the animation range
+                            const optimalViewStart = calculateOptimalViewStart(
+                              s.viewStartDateTime,
+                              newAnimationStart,
+                              s.animationDuration,
+                              s.viewStartDateTime,
+                              s.viewDuration
+                            );
+                            d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+
+                            // Pause animation when enabling tracking (mutually exclusive)
+                            if (s.animationPlayMode === PlayMode.Play) {
+                              d(SetAnimationPlayMode({ playMode: PlayMode.Pause }));
+                            }
+                          } else {
+                            // In step mode: move selected range to latest date
+                            const newSelectedStart = DateTime.subtractDuration(latestDateTime, s.selectedDuration);
+                            d(SetSelectedStartDateTime({
+                              selectedStartDateTime: newSelectedStart,
+                              updateSource: UpdateSource.TrackLatestUpdate
+                            }));
+
+                            // Update view to show the selected range
+                            const optimalViewStart = calculateOptimalViewStart(
+                              s.viewStartDateTime,
+                              newSelectedStart,
+                              s.selectedDuration,
+                              s.viewStartDateTime,
+                              s.viewDuration
+                            );
+                            d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
+                          }
+
+                          // Enable tracking
+                          d(SetTrackingLatest({ isTrackingLatest: true }));
+                        } catch (error) {
+                          console.error('Failed to enable track latest:', error);
+                        }
                       }
                     }}
                     sx={{
                       padding: '4px',
-                      color: theme === AppTheme.Dark ? '#4a9eff' : '#0076d6',
+                      color: s.isTrackingLatest
+                        ? '#4caf50'  // Green when tracking
+                        : (theme === AppTheme.Dark ? '#4a9eff' : '#0076d6'),
+                      backgroundColor: s.isTrackingLatest
+                        ? 'rgba(76, 175, 80, 0.1)'
+                        : 'transparent',
                       '&:hover': {
-                        backgroundColor: theme === AppTheme.Dark ? 'rgba(74, 158, 255, 0.1)' : 'rgba(0, 118, 214, 0.1)',
+                        backgroundColor: s.isTrackingLatest
+                          ? 'rgba(76, 175, 80, 0.2)'
+                          : (theme === AppTheme.Dark ? 'rgba(74, 158, 255, 0.1)' : 'rgba(0, 118, 214, 0.1)'),
                       }
                     }}
                   >
@@ -1470,6 +1478,11 @@ export const TimeRangeSlider = ({
                   d(SetAnimationStartDateTime({ animationStartDateTime: animationStart }));
                 }
                 d(SetAnimationPlayMode({ playMode: PlayMode.Play }));
+
+                // Disable tracking when starting animation (mutually exclusive)
+                if (s.isTrackingLatest) {
+                  d(SetTrackingLatest({ isTrackingLatest: false }));
+                }
               }
             }}
 
@@ -1477,6 +1490,10 @@ export const TimeRangeSlider = ({
             playMode={s.animationPlayMode}
             setPlayMode={(mode: PlayMode) => {
               d(SetAnimationPlayMode({ playMode: mode }));
+              // Disable tracking when starting animation play (mutually exclusive)
+              if (mode === PlayMode.Play && s.isTrackingLatest) {
+                d(SetTrackingLatest({ isTrackingLatest: false }));
+              }
             }}
 
             /* Animation speed settings */
