@@ -18,8 +18,16 @@ export interface TimeRangeSliderProps {
     hideAnimationToggle?: boolean;
     /** When provided, shows the animation toggle in a disabled state with this tooltip message */
     disabledAnimationTooltip?: string;
+    /** Polling interval in ms (default 60000). Set to 0 to disable polling. */
+    pollingInterval?: number;
+    /** Called when poll detects data newer than current selection */
+    onNewDataAvailable?: (latestDate: Date, currentSelectionEnd: Date) => void;
+    /** Called when tracking mode changes */
+    onTrackLatestChange?: (enabled: boolean) => void;
+    /** Initial tracking state (default false) */
+    initialTrackLatest?: boolean;
 }
 /**
  * Exported component
  */
-export declare const TimeRangeSlider: ({ dateRange, dateRangeForReset, onDateRangeSelect, getLatestDateRange, animationRequestFrequency, className, theme, timeZone, onTimeZoneChange, onAnimationOrStepModeChange, increment, hideAnimationToggle, disabledAnimationTooltip, }: TimeRangeSliderProps) => import("react/jsx-runtime").JSX.Element;
+export declare const TimeRangeSlider: ({ dateRange, dateRangeForReset, onDateRangeSelect, getLatestDateRange, animationRequestFrequency, className, theme, timeZone, onTimeZoneChange, onAnimationOrStepModeChange, increment, hideAnimationToggle, disabledAnimationTooltip, pollingInterval, onNewDataAvailable, onTrackLatestChange, initialTrackLatest, }: TimeRangeSliderProps) => import("react/jsx-runtime").JSX.Element;
