@@ -338,7 +338,33 @@ export class MapClassWrapper {
 
         if (isBasemapAuthError) {
           const nextFallback = fallbackChain.shift();
-          if (nextFallback) m.setStyle(nextFallback());
+          if (nextFallback) {
+            m.setStyle(nextFallback(), {
+              transformStyle: (prev, next) => {
+                // Preserve non-basemap layers (overlays, labels, draw)
+                const keepLayers = (prev?.layers ?? []).filter(l =>
+                  l.id.startsWith(LABELS_PREFIX) ||
+                  l.id.startsWith('COMMON-') ||
+                  l.id.includes('mapbox-gl-draw')
+                );
+                // Tag new basemap layers
+                const taggedLayers = next.layers.map(l => ({
+                  ...l,
+                  id: `${BASEMAP_PREFIX}${l.id}`
+                }));
+                // Tag new basemap sources
+                const taggedSources: Record<string, any> = {};
+                Object.entries(next.sources).forEach(([k, v]) => {
+                  taggedSources[`${BASEMAP_PREFIX}${k}`] = v;
+                });
+                return {
+                  ...next,
+                  sources: { ...taggedSources },
+                  layers: [...taggedLayers, ...keepLayers]
+                } as StyleSpecification;
+              }
+            });
+          }
         }
       });
     }
@@ -882,13 +908,18 @@ export class MapService extends Context.Tag("MapService")<
   MapService, MapServiceImpl
 >() { }
 
-const MapServiceLive = Layer.effect(
+/** Creates a MapService layer with optional configuration */
+export const createMapServiceLayer = (config?: {
+  basemapUrl?: string;
+  fallbackOptions?: BasemapFallbackOptions;
+}) => Layer.effect(
   MapService,
   E.gen(function* () {
-    // Default basemap URL - OpenStreetMap (no API key required, CORS-friendly)
-    const defaultBasemapUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+    const basemapUrl = config?.basemapUrl || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-    const mapWrapper = yield* E.promise(() => MapClassWrapper.make(defaultBasemapUrl));
+    const mapWrapper = yield* E.promise(() =>
+      MapClassWrapper.make(basemapUrl, undefined, undefined, "map", config?.fallbackOptions)
+    );
 
     return {
       addLayer: mapWrapper.addLayer,
@@ -904,4 +935,5 @@ const MapServiceLive = Layer.effect(
   }),
 );
 
-export const MapServiceLayer = MapServiceLive;
+/** Default MapService layer (backwards compatible) */
+export const MapServiceLayer = createMapServiceLayer();
