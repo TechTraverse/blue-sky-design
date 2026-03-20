@@ -73,7 +73,19 @@ export class MapServiceAdapter implements MapOperations {
   }
 
   async setBasemap(basemapConfig: string | any): Promise<void> {
-    const resourceUrl = typeof basemapConfig === 'string' ? basemapConfig : (basemapConfig.tileUrl || 'custom-style');
+    // Handle style objects directly on the map
+    if (typeof basemapConfig === 'object' && basemapConfig.style) {
+      const map = this.mapService.getMapInstance();
+      map.setStyle(basemapConfig.style);
+      return;
+    }
+
+    const resourceUrl = typeof basemapConfig === 'string' ? basemapConfig : basemapConfig.tileUrl;
+    if (!resourceUrl) {
+      console.warn('setBasemap: No valid URL or style provided');
+      return;
+    }
+
     const basemapLayer = {
       _tag: "Basemap",
       id: "basemap",
