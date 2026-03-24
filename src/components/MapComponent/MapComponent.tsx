@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { Effect as E } from 'effect';
-import { MapService, MapServiceLayer } from './mapService';
+import { MapService, MapServiceLayer, createMapServiceLayer, MapClassWrapper } from './mapService';
+import type { BasemapFallbackOptions } from './types';
 import { MapServiceAdapter } from './mapServiceInterface';
 import type { MapComponentCoreProps, MapComponentCallbacks, MapOperations } from './types';
 
@@ -21,7 +22,7 @@ export interface MapComponentRef extends MapOperations {
 }
 
 // Internal hook for managing effect-ts runtime
-function useMapService() {
+function useMapService(fallbackOptions?: BasemapFallbackOptions) {
   const [mapService, setMapService] = useState<MapServiceAdapter | null>(null);
   const [isReady, setIsReady] = useState(false);
 
@@ -34,7 +35,11 @@ function useMapService() {
           return service;
         });
 
-        const providedProgram = E.provide(program, MapServiceLayer);
+        // Use custom layer with fallback options if provided
+        const serviceLayer = fallbackOptions
+          ? createMapServiceLayer({ fallbackOptions })
+          : MapServiceLayer;
+        const providedProgram = E.provide(program, serviceLayer);
         const service = await E.runPromise(providedProgram);
 
         const adapter = new MapServiceAdapter(service);
@@ -48,11 +53,12 @@ function useMapService() {
     initializeMapService();
 
     return () => {
-      // Cleanup if needed
+      // Cleanup: reset singleton so next mount creates fresh instance
+      MapClassWrapper.resetInstance();
       setIsReady(false);
       setMapService(null);
     };
-  }, []);
+  }, [fallbackOptions]);
 
   return { mapService, isReady };
 }
@@ -72,6 +78,7 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
     geolocate: true,
     scale: true,
   },
+  fallbackOptions,
   eventHandlers = {},
   onLayerAdd,
   onLayerRemove,
@@ -81,7 +88,7 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   onMapError,
   children,
 }, ref) => {
-  const { mapService, isReady } = useMapService();
+  const { mapService, isReady } = useMapService(fallbackOptions);
   const cleanupFunctionsRef = useRef<Array<() => void>>([]);
 
   // Setup event handlers and initialization
