@@ -43,6 +43,7 @@ export type { MapServiceEffect } from './mapServiceInterface';
 export {
   MapService,
   MapServiceLayer,
+  createMapServiceLayer,
   MapClassWrapper,
   createSolidColorStyle,
   BASEMAP_PREFIX,
