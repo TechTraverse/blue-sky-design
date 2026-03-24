@@ -190,6 +190,93 @@ export const FullStyleBasemap: Story = {
   },
 };
 
+// === Basemap Fallback Stories ===
+// These demonstrate the fallback configuration and solid color background
+
+// Shows fallback options configured with Esri as fallback
+export const WithFallbackToEsri: Story = {
+  args: {
+    style: { height: '500px' },
+    initialBasemap: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    fallbackOptions: {
+      fallbackBasemap: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      solidColorFallback: '#1a365d',
+      onBasemapFallback: (info) => {
+        console.log('Basemap fallback triggered:', info);
+        console.log('Reason:', info.reason.type, 'Using solid color:', info.usingSolidColor);
+      },
+    },
+    onMapReady: () => console.log('Map ready - fallback configured for auth errors'),
+  },
+};
+
+// Directly shows solid color background (simulates final fallback state)
+export const SolidColorBackground: Story = {
+  args: {
+    style: { height: '500px' },
+    initialBasemap: {
+      style: {
+        version: 8,
+        sources: {},
+        layers: [{
+          id: 'background-solid',
+          type: 'background',
+          paint: { 'background-color': '#1a365d' }
+        }]
+      }
+    },
+    initialCenter: [-98.58, 39.83],
+    initialZoom: 4,
+    onMapReady: () => console.log('Solid color background loaded'),
+  },
+};
+
+// Shows that overlay layers render correctly on solid background
+export const SolidColorWithOverlays: Story = {
+  args: {
+    style: { height: '500px' },
+    initialBasemap: {
+      style: {
+        version: 8,
+        sources: {
+          'cities-data': {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [
+                { type: 'Feature', geometry: { type: 'Point', coordinates: [-104.99, 39.74] }, properties: { name: 'Denver' } },
+                { type: 'Feature', geometry: { type: 'Point', coordinates: [-122.42, 37.77] }, properties: { name: 'San Francisco' } },
+                { type: 'Feature', geometry: { type: 'Point', coordinates: [-73.94, 40.73] }, properties: { name: 'New York' } },
+              ]
+            }
+          }
+        },
+        layers: [
+          {
+            id: 'background-solid',
+            type: 'background',
+            paint: { 'background-color': '#1a365d' }
+          },
+          {
+            id: 'city-circles',
+            type: 'circle',
+            source: 'cities-data',
+            paint: {
+              'circle-radius': 8,
+              'circle-color': '#ff6b6b',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff'
+            }
+          }
+        ]
+      }
+    },
+    initialCenter: [-98.58, 39.83],
+    initialZoom: 4,
+    onMapReady: () => console.log('Solid background with overlay circles visible'),
+  },
+};
+
 // Effect-ts enhanced stories
 const EffectMeta = {
   component: MapComponentEffect,
