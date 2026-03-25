@@ -234,3 +234,25 @@ export const Constrained4hWindowNarrow: Story = {
     theme: Theme.Dark
   }
 };
+
+/**
+ * Demonstrates hiding the date picker when using a constrained window.
+ * Useful when the available range is narrow and the calendar picker adds no value.
+ */
+export const Constrained24hWindowNoDatePicker: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000 - (2 * 60 * 60 * 1000)),
+      end: new Date(1752991200000 - (2 * 60 * 60 * 1000) + (5 * 60 * 1000))
+    },
+    availableDateRange: {
+      start: new Date(1752991200000 - (24 * 60 * 60 * 1000)),
+      end: new Date(1752991200000)
+    },
+    hideDatePicker: true,
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    theme: Theme.Dark
+  }
+};

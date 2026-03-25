@@ -33,6 +33,8 @@ export interface TimeRangeSliderProps {
   hideAnimationToggle?: boolean;
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string;
+  /** When true, hides the date picker popup */
+  hideDatePicker?: boolean;
   /** Polling interval in ms (default 60000). Set to 0 to disable polling. */
   pollingInterval?: number;
   /** Called when poll detects data newer than current selection */
@@ -521,6 +523,7 @@ export const TimeRangeSlider = ({
   increment = TimeDuration["5m"],
   hideAnimationToggle = false,
   disabledAnimationTooltip,
+  hideDatePicker = false,
   pollingInterval = 60000,
   onNewDataAvailable,
   onTrackLatestChange,
@@ -1363,76 +1366,80 @@ export const TimeRangeSlider = ({
             </div>
           )}
 
-          <DateAndRangeSelect
-            startDateTime={s.selectedStartDateTime}
-            setStartDateTime={(date: DateTime.DateTime) => {
-              // In animation mode, adjust animation range if new date falls outside it
-              if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
-                const selectedEnd = DateTime.addDuration(date, s.selectedDuration);
-                const animationEnd = DateTime.addDuration(s.animationStartDateTime, s.animationDuration);
+          {!hideDatePicker && (
+            <>
+              <DateAndRangeSelect
+                startDateTime={s.selectedStartDateTime}
+                setStartDateTime={(date: DateTime.DateTime) => {
+                  // In animation mode, adjust animation range if new date falls outside it
+                  if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+                    const selectedEnd = DateTime.addDuration(date, s.selectedDuration);
+                    const animationEnd = DateTime.addDuration(s.animationStartDateTime, s.animationDuration);
 
-                // Check if selected range falls outside animation bounds
-                const startsBeforeAnimation = DateTime.lessThan(date, s.animationStartDateTime);
-                const endsAfterAnimation = DateTime.greaterThan(selectedEnd, animationEnd);
+                    // Check if selected range falls outside animation bounds
+                    const startsBeforeAnimation = DateTime.lessThan(date, s.animationStartDateTime);
+                    const endsAfterAnimation = DateTime.greaterThan(selectedEnd, animationEnd);
 
-                if (startsBeforeAnimation || endsAfterAnimation) {
-                  // Expand animation range to include the new selection
-                  let newAnimationStart = s.animationStartDateTime;
-                  let newAnimationEnd = animationEnd;
+                    if (startsBeforeAnimation || endsAfterAnimation) {
+                      // Expand animation range to include the new selection
+                      let newAnimationStart = s.animationStartDateTime;
+                      let newAnimationEnd = animationEnd;
 
-                  if (startsBeforeAnimation) {
-                    newAnimationStart = date;
+                      if (startsBeforeAnimation) {
+                        newAnimationStart = date;
+                      }
+                      if (endsAfterAnimation) {
+                        newAnimationEnd = selectedEnd;
+                      }
+
+                      // Enforce availableDateRange constraints (with dateRangeForReset fallback)
+                      const maxAllowedDateTime = availableDateRange
+                        ? DateTime.unsafeFromDate(availableDateRange.end)
+                        : dateRangeForReset
+                          ? DateTime.unsafeFromDate(dateRangeForReset.start)
+                          : undefined;
+                      const minAllowedDateTime = availableDateRange
+                        ? DateTime.unsafeFromDate(availableDateRange.start)
+                        : undefined;
+
+                      if (maxAllowedDateTime && DateTime.greaterThan(newAnimationEnd, maxAllowedDateTime)) {
+                        newAnimationEnd = maxAllowedDateTime;
+                      }
+                      if (minAllowedDateTime && DateTime.lessThan(newAnimationStart, minAllowedDateTime)) {
+                        newAnimationStart = minAllowedDateTime;
+                      }
+
+                      const newAnimationDuration = DateTime.distanceDuration(newAnimationStart, newAnimationEnd);
+                      d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
+                      d(SetAnimationDuration({ animationDuration: newAnimationDuration }));
+                    }
                   }
-                  if (endsAfterAnimation) {
-                    newAnimationEnd = selectedEnd;
-                  }
 
-                  // Enforce availableDateRange constraints (with dateRangeForReset fallback)
-                  const maxAllowedDateTime = availableDateRange
-                    ? DateTime.unsafeFromDate(availableDateRange.end)
-                    : dateRangeForReset
-                      ? DateTime.unsafeFromDate(dateRangeForReset.start)
-                      : undefined;
-                  const minAllowedDateTime = availableDateRange
-                    ? DateTime.unsafeFromDate(availableDateRange.start)
-                    : undefined;
-
-                  if (maxAllowedDateTime && DateTime.greaterThan(newAnimationEnd, maxAllowedDateTime)) {
-                    newAnimationEnd = maxAllowedDateTime;
-                  }
-                  if (minAllowedDateTime && DateTime.lessThan(newAnimationStart, minAllowedDateTime)) {
-                    newAnimationStart = minAllowedDateTime;
-                  }
-
-                  const newAnimationDuration = DateTime.distanceDuration(newAnimationStart, newAnimationEnd);
-                  d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
-                  d(SetAnimationDuration({ animationDuration: newAnimationDuration }));
+                  d(SetSelectedStartDateTime({
+                    selectedStartDateTime: date,
+                    updateSource: UpdateSource.UserInteraction
+                  }));
+                }}
+                returnToDefaultDateTime={() => {
+                  d(ResetAll());
+                }}
+                timeZone={s.timeZone}
+                onTimeZoneChange={(tz: TimeZone) => d(SetTimeZone({ timeZone: tz }))}
+                rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
+                  ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
+                setRange={
+                  (timeDuration: TimeDuration) =>
+                    d(SetSelectedDuration({
+                      selectedDuration: Duration.millis(timeDuration),
+                      updateSource: UpdateSource.UserInteraction
+                    }))
                 }
-              }
-
-              d(SetSelectedStartDateTime({
-                selectedStartDateTime: date,
-                updateSource: UpdateSource.UserInteraction
-              }));
-            }}
-            returnToDefaultDateTime={() => {
-              d(ResetAll());
-            }}
-            timeZone={s.timeZone}
-            onTimeZoneChange={(tz: TimeZone) => d(SetTimeZone({ timeZone: tz }))}
-            rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
-              ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
-            setRange={
-              (timeDuration: TimeDuration) =>
-                d(SetSelectedDuration({
-                  selectedDuration: Duration.millis(timeDuration),
-                  updateSource: UpdateSource.UserInteraction
-                }))
-            }
-            dateRangeForReset={dateRangeForReset}
-            availableDateRange={availableDateRange}
-          />
-          <Divider variant="middle" orientation={"vertical"} flexItem />
+                dateRangeForReset={dateRangeForReset}
+                availableDateRange={availableDateRange}
+              />
+              <Divider variant="middle" orientation={"vertical"} flexItem />
+            </>
+          )}
           <AnimateAndStepControls
             /* Step controls */
             incrementStartDateTime={() => {
