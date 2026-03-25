@@ -32,15 +32,18 @@ type Step = {
   value: number;
   disabled: boolean;
 }
-const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime, latestValidDateTime?: DateTime.DateTime): Step[] => {
+const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime, earliestValidDateTime?: DateTime.DateTime, latestValidDateTime?: DateTime.DateTime): Step[] => {
   const steps: Step[] = [];
+  const earliestValidMillis = earliestValidDateTime ? DateTime.toEpochMillis(earliestValidDateTime) : undefined;
   const latestValidMillis = latestValidDateTime ? DateTime.toEpochMillis(latestValidDateTime) : undefined;
 
   for (let i = start; i <= end; i += step) {
     const dt = DateTime.unsafeFromDate(new Date(i));
     const displayDt = toDisplay(dt);
     const minutes = DateTime.getPart(displayDt, "minutes");
-    const isDisabled = latestValidMillis !== undefined && i > latestValidMillis;
+    const isBeforeMin = earliestValidMillis !== undefined && i < earliestValidMillis;
+    const isAfterMax = latestValidMillis !== undefined && i > latestValidMillis;
+    const isDisabled = isBeforeMin || isAfterMax;
 
     const label = minutes === 0
       ? <div className={`hour-marks ${isDisabled ? 'disabled-marks' : ''}`}>{DateTime.getPart(displayDt, "hours").toString()}</div>
@@ -71,6 +74,7 @@ export const HorizontalCalendar = ({
   primaryRange,
   limitedRange,
   viewRange,
+  earliestValidDateTime,
   latestValidDateTime,
   increment,
   theme = AppTheme.Light,
@@ -79,6 +83,7 @@ export const HorizontalCalendar = ({
   primaryRange: PrimaryRange<DateTime.DateTime>,
   limitedRange?: LimitedRange<DateTime.DateTime>,
   viewRange: RangeValue<DateTime.DateTime>,
+  earliestValidDateTime?: DateTime.DateTime,
   latestValidDateTime?: DateTime.DateTime,
   increment?: number,
   theme?: AppTheme,
@@ -103,6 +108,10 @@ export const HorizontalCalendar = ({
     start: toDisplay(viewRange.start),
     end: toDisplay(viewRange.end)
   }), [viewRange.start, viewRange.end, toDisplay]);
+
+  const displayEarliestValidDateTime = useMemo(() =>
+    earliestValidDateTime ? toDisplay(earliestValidDateTime) : undefined
+    , [earliestValidDateTime, toDisplay]);
 
   const displayLatestValidDateTime = useMemo(() =>
     latestValidDateTime ? toDisplay(latestValidDateTime) : undefined
@@ -157,6 +166,7 @@ export const HorizontalCalendar = ({
       DateTime.toEpochMillis(displayViewRange.end),
       increment || 10 * 60 * 1000,
       toDisplay,
+      displayEarliestValidDateTime,
       displayLatestValidDateTime
     )
   });
@@ -170,10 +180,11 @@ export const HorizontalCalendar = ({
         DateTime.toEpochMillis(displayViewRange.end),
         increment || 10 * 60 * 1000,
         toDisplay,
+        displayEarliestValidDateTime,
         displayLatestValidDateTime
       )
     });
-  }, [displayViewRange, increment, toDisplay, displayLatestValidDateTime]);
+  }, [displayViewRange, increment, toDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
 
   /**
    * Selected date range settings and slider active updates
@@ -261,9 +272,37 @@ export const HorizontalCalendar = ({
   const lastEvtTypeRef = useRef<string>('');
   const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
   const [hoveringBoundary, setHoveringBoundary] = useState<'start' | 'end' | null>(null);
-  const [hoveringDisabledRegion, setHoveringDisabledRegion] = useState(false);
+  const [hoveringDisabledRegion, setHoveringDisabledRegion] = useState<'left' | 'right' | null>(null);
 
-  // Calculate latestValidDateTime position for visual indicator
+  // Calculate earliestValidDateTime position for visual indicator (left-side disabled region)
+  const earliestValidPosition = useMemo(() => {
+    if (!displayEarliestValidDateTime) return null;
+
+    const earliestValidMs = DateTime.toEpochMillis(displayEarliestValidDateTime);
+    const viewStart = viewRangeAndStep.start;
+    const viewEnd = viewRangeAndStep.end;
+    const viewDuration = viewEnd - viewStart;
+
+    // If earliestValidDateTime is before view start, no disabled region visible on left
+    if (earliestValidMs <= viewStart) return null;
+
+    // If earliestValidDateTime is after view end, entire view is disabled
+    if (earliestValidMs >= viewEnd) {
+      return {
+        percent: 100,
+        fullyCovered: true,
+      };
+    }
+
+    // earliestValidDateTime falls within the visible view
+    const positionPercent = ((earliestValidMs - viewStart) / viewDuration) * 100;
+    return {
+      percent: positionPercent,
+      fullyCovered: false,
+    };
+  }, [displayEarliestValidDateTime, viewRangeAndStep]);
+
+  // Calculate latestValidDateTime position for visual indicator (right-side disabled region)
   const latestValidPosition = useMemo(() => {
     if (!displayLatestValidDateTime) return null;
 
@@ -383,6 +422,12 @@ export const HorizontalCalendar = ({
       const incrementMs = increment || 5 * 60 * 1000;
       let roundedMs = Math.round(newMs / incrementMs) * incrementMs;
 
+      // Enforce earliestValidDateTime constraint
+      if (displayEarliestValidDateTime) {
+        const minMs = DateTime.toEpochMillis(displayEarliestValidDateTime);
+        roundedMs = Math.max(roundedMs, minMs);
+      }
+
       // Enforce latestValidDateTime constraint
       if (displayLatestValidDateTime) {
         const maxMs = DateTime.toEpochMillis(displayLatestValidDateTime);
@@ -434,7 +479,7 @@ export const HorizontalCalendar = ({
       document.removeEventListener('touchend', handlePointerEnd);
       document.removeEventListener('touchcancel', handlePointerEnd);
     };
-  }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay, displayLatestValidDateTime]);
+  }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -587,7 +632,64 @@ export const HorizontalCalendar = ({
             </div>
           </>
         )}
-        {/* Latest valid date time visual indicator - shows disabled region */}
+        {/* Earliest valid date time visual indicator - shows left-side disabled region */}
+        {earliestValidPosition && (
+          <>
+            {/* Dim overlay for disabled area (before earliestValidDateTime) */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: earliestValidPosition.fullyCovered ? 0 : `calc(${100 - earliestValidPosition.percent}% + 12px)`,
+                top: 0,
+                bottom: 0,
+                backgroundColor: colors.compBg,
+                opacity: 0.7,
+                cursor: 'not-allowed',
+                zIndex: 1,
+              }}
+              onMouseEnter={() => setHoveringDisabledRegion('left')}
+              onMouseLeave={() => setHoveringDisabledRegion(null)}
+            />
+            {/* Boundary line at cutoff point - only show when cutoff is visible */}
+            {!earliestValidPosition.fullyCovered && (
+              <div style={{
+                position: 'absolute',
+                left: `${earliestValidPosition.percent}%`,
+                top: 0,
+                bottom: 0,
+                width: '3px',
+                marginLeft: '-11px',
+                backgroundColor: colors.boundary,
+                opacity: 0.8,
+                pointerEvents: 'none',
+                zIndex: 2,
+                borderRadius: '1px',
+              }} />
+            )}
+            {/* Tooltip for disabled region */}
+            {hoveringDisabledRegion === 'left' && (
+              <div style={{
+                position: 'absolute',
+                left: earliestValidPosition.fullyCovered ? '50%' : `calc(${earliestValidPosition.percent}% - 80px)`,
+                transform: earliestValidPosition.fullyCovered ? 'translateX(-50%)' : 'none',
+                top: '-28px',
+                backgroundColor: theme === AppTheme.Dark ? '#374151' : '#1f2937',
+                color: '#fff',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 10,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              }}>
+                No data available
+              </div>
+            )}
+          </>
+        )}
+        {/* Latest valid date time visual indicator - shows right-side disabled region */}
         {latestValidPosition && (
           <>
             {/* Dim overlay for disabled area (beyond latestValidDateTime) */}
@@ -603,8 +705,8 @@ export const HorizontalCalendar = ({
                 cursor: 'not-allowed',
                 zIndex: 1,
               }}
-              onMouseEnter={() => setHoveringDisabledRegion(true)}
-              onMouseLeave={() => setHoveringDisabledRegion(false)}
+              onMouseEnter={() => setHoveringDisabledRegion('right')}
+              onMouseLeave={() => setHoveringDisabledRegion(null)}
             />
             {/* Boundary line at cutoff point - only show when cutoff is visible */}
             {!latestValidPosition.fullyCovered && (
@@ -623,7 +725,7 @@ export const HorizontalCalendar = ({
               }} />
             )}
             {/* Tooltip for disabled region */}
-            {hoveringDisabledRegion && (
+            {hoveringDisabledRegion === 'right' && (
               <div style={{
                 position: 'absolute',
                 left: latestValidPosition.fullyCovered ? '50%' : `calc(${latestValidPosition.percent}% + 16px)`,
@@ -680,12 +782,15 @@ export const HorizontalCalendar = ({
 
               // Check if click is outside the limited range
               if (clickPosition < limitStart || clickPosition > limitEnd) {
-                // Check if click is before latest valid date
+                // Check if click is within valid date range
+                const edt = displayEarliestValidDateTime
+                  ? DateTime.toEpochMillis(displayEarliestValidDateTime)
+                  : -Infinity;
                 const ldt = displayLatestValidDateTime
                   ? DateTime.toEpochMillis(displayLatestValidDateTime)
                   : Infinity;
 
-                if (clickPosition <= ldt) {
+                if (clickPosition >= edt && clickPosition <= ldt) {
                   const limitedDuration = limitEnd - limitStart;
                   const primaryDuration = primaryRangeMillis[1] - primaryRangeMillis[0];
 
@@ -693,11 +798,21 @@ export const HorizontalCalendar = ({
                   const baseTime = DateTime.toEpochMillis(displayViewRange.start);
                   const offsetFromBase = clickPosition - baseTime;
                   const roundedOffset = Math.round(offsetFromBase / incrementMs) * incrementMs;
-                  const roundedClickPosition = baseTime + roundedOffset;
+                  let roundedClickPosition = baseTime + roundedOffset;
+
+                  // Ensure click position is within valid range after rounding
+                  roundedClickPosition = Math.max(roundedClickPosition, edt);
+                  roundedClickPosition = Math.min(roundedClickPosition, ldt);
 
                   // Move limited range to start at click position
-                  const newLimitStart = roundedClickPosition;
-                  const newLimitEnd = Math.min(newLimitStart + limitedDuration, ldt);
+                  let newLimitStart = roundedClickPosition;
+                  let newLimitEnd = Math.min(newLimitStart + limitedDuration, ldt);
+
+                  // Ensure start is not before earliest valid
+                  if (newLimitStart < edt) {
+                    newLimitStart = edt;
+                    newLimitEnd = Math.min(newLimitStart + limitedDuration, ldt);
+                  }
 
                   // Update limited range state
                   const limitStartDateTime = pipe(
@@ -791,6 +906,17 @@ export const HorizontalCalendar = ({
               // Final check to ensure we're within bounds
               newStart = Math.max(newStart, limitStart);
               newEnd = Math.min(newEnd, limitEnd);
+            }
+
+            /**
+             * Enforce earliest valid date time if set
+             */
+            const edt = displayEarliestValidDateTime
+              ? DateTime.toEpochMillis(displayEarliestValidDateTime)
+              : -1;
+            if (edt !== -1 && Math.min(newStart, newEnd) < edt) {
+              newStart = edt;
+              newEnd = edt + incrementMs;
             }
 
             /**
