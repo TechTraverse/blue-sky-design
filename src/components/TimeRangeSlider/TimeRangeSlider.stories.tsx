@@ -170,3 +170,67 @@ export const DisabledAnimationToggleDark: Story = {
     disabledAnimationTooltip: 'Animation requires at least 2 hours of data'
   }
 };
+
+/**
+ * Demonstrates using availableDateRange to constrain the selectable date range
+ * to a 24-hour window. The earliest allowed date is 24 hours before the current time,
+ * and the latest allowed date is the current time.
+ */
+export const Constrained24hWindow: Story = {
+  args: {
+    dateRange: {
+      // Selection starts 2 hours before current time, 5 minute duration
+      start: new Date(1752991200000 - (2 * 60 * 60 * 1000)),
+      end: new Date(1752991200000 - (2 * 60 * 60 * 1000) + (5 * 60 * 1000))
+    },
+    availableDateRange: {
+      // Available range: 24 hours before current time to current time
+      start: new Date(1752991200000 - (24 * 60 * 60 * 1000)),
+      end: new Date(1752991200000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    theme: Theme.Dark,
+    hideAnimationToggle: false
+  }
+};
+
+export const Constrained24hWindowLightTheme: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000 - (2 * 60 * 60 * 1000)),
+      end: new Date(1752991200000 - (2 * 60 * 60 * 1000) + (5 * 60 * 1000))
+    },
+    availableDateRange: {
+      start: new Date(1752991200000 - (24 * 60 * 60 * 1000)),
+      end: new Date(1752991200000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    theme: Theme.Light
+  }
+};
+
+/**
+ * Demonstrates a narrow 4-hour available window to show both left and right
+ * disabled regions clearly visible in the default view.
+ */
+export const Constrained4hWindowNarrow: Story = {
+  args: {
+    dateRange: {
+      start: new Date(1752991200000 - (2 * 60 * 60 * 1000)),
+      end: new Date(1752991200000 - (2 * 60 * 60 * 1000) + (5 * 60 * 1000))
+    },
+    availableDateRange: {
+      // Narrow 4-hour window
+      start: new Date(1752991200000 - (4 * 60 * 60 * 1000)),
+      end: new Date(1752991200000)
+    },
+    onDateRangeSelect: ({ start, end }) => {
+      console.log('Selected date range:', start, 'to', end);
+    },
+    theme: Theme.Dark
+  }
+};

@@ -24,6 +24,7 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   rangeValue?: TimeDuration;
   setRange?: (timeDuration: TimeDuration) => void;
   dateRangeForReset?: RangeValue<Date>;
+  availableDateRange?: RangeValue<Date>;
 }
 
 function FieldsetBox({
@@ -42,13 +43,51 @@ function FieldsetBox({
 
 const SliderDatePicker = <T extends DateValue>(
   { label, description, errorMessage, firstDayOfWeek,
-    rangeValue, setRange, dateRangeForReset, ...props }:
+    rangeValue, setRange, dateRangeForReset, availableDateRange, ...props }:
     LocalDatePickerProps<T>
 ) => {
   const { toDisplay, mode } = useTimeZoneDisplay();
 
-  // Calculate max allowed date from dateRangeForReset
+  // Calculate min allowed date from availableDateRange
+  const getMinValue = () => {
+    if (!availableDateRange) return undefined;
+
+    const minDateTime = DateTime.unsafeFromDate(availableDateRange.start);
+    const displayMinDateTime = toDisplay(minDateTime);
+    const parts = DateTime.toParts(displayMinDateTime);
+
+    const calendarDate = new CalendarDateTime(
+      parts.year,
+      parts.month,
+      parts.day,
+      parts.hours,
+      parts.minutes,
+      parts.seconds,
+      (parts as { millis?: number }).millis ?? 0
+    );
+    return calendarDate;
+  };
+
+  // Calculate max allowed date from availableDateRange or dateRangeForReset
   const getMaxValue = () => {
+    // Prefer availableDateRange.end if available
+    if (availableDateRange) {
+      const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
+      const displayMaxDateTime = toDisplay(maxDateTime);
+      const parts = DateTime.toParts(displayMaxDateTime);
+
+      return new CalendarDateTime(
+        parts.year,
+        parts.month,
+        parts.day,
+        parts.hours,
+        parts.minutes,
+        parts.seconds,
+        (parts as { millis?: number }).millis ?? 0
+      );
+    }
+
+    // Fallback to legacy dateRangeForReset behavior
     if (!dateRangeForReset) return undefined;
 
     // dateRangeForReset.start is actually the max allowed datetime
@@ -77,6 +116,7 @@ const SliderDatePicker = <T extends DateValue>(
       hideTimeZone
       shouldForceLeadingZeros
       aria-label={label || "Select start date and time"}
+      minValue={getMinValue()}
       maxValue={getMaxValue()}
     >
       <FieldsetBox label={label} className={"slider-date-picker-group"}>
@@ -169,6 +209,7 @@ export const DateAndRangeSelect = ({
   rangeValue,
   setRange,
   dateRangeForReset,
+  availableDateRange,
   returnToDefaultDateTime: _returnToDefaultDateTime,
   timeZone: _timeZone,
   onTimeZoneChange: _onTimeZoneChange,
@@ -178,6 +219,7 @@ export const DateAndRangeSelect = ({
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
   dateRangeForReset?: RangeValue<Date>,
+  availableDateRange?: RangeValue<Date>,
   returnToDefaultDateTime?: () => void,
   timeZone?: TimeZone,
   onTimeZoneChange?: (tz: TimeZone) => void,
@@ -224,11 +266,22 @@ export const DateAndRangeSelect = ({
     // Convert from display timezone back to UTC
     const utcDt = fromDisplay(displayDateTime);
 
-    // Enforce maximum date limit if dateRangeForReset is provided
-    if (dateRangeForReset) {
+    // Enforce constraints from availableDateRange (with dateRangeForReset fallback)
+    if (availableDateRange) {
+      const minDateTime = DateTime.unsafeFromDate(availableDateRange.start);
+      const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
+      if (DateTime.lessThan(utcDt, minDateTime)) {
+        console.warn("Selected date is before minimum allowed date");
+        return;
+      }
+      if (DateTime.greaterThan(utcDt, maxDateTime)) {
+        console.warn("Selected date exceeds maximum allowed date");
+        return;
+      }
+    } else if (dateRangeForReset) {
+      // Legacy fallback - dateRangeForReset.start is actually the max
       const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
       if (DateTime.greaterThan(utcDt, maxDateTime)) {
-        // Don't update if the selected date exceeds the maximum
         console.warn("Selected date exceeds maximum allowed date");
         return;
       }
@@ -249,6 +302,7 @@ export const DateAndRangeSelect = ({
         rangeValue={rangeValue}
         setRange={setRange}
         dateRangeForReset={dateRangeForReset}
+        availableDateRange={availableDateRange}
       />
     </div>);
 }
