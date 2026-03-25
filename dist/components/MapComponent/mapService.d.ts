@@ -268,5 +268,11 @@ export type MapServiceImpl = {
 declare const MapService_base: Context.TagClass<MapService, "MapService", MapServiceImpl>;
 export declare class MapService extends MapService_base {
 }
+/** Creates a MapService layer with optional configuration */
+export declare const createMapServiceLayer: (config?: {
+    basemapUrl?: string;
+    fallbackOptions?: BasemapFallbackOptions;
+}) => Layer.Layer<MapService, never, never>;
+/** Default MapService layer (backwards compatible) */
 export declare const MapServiceLayer: Layer.Layer<MapService, never, never>;
 export {};
