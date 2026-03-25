@@ -19,6 +19,8 @@ import { TimeZoneDisplayProvider } from '../../contexts/TimeZoneDisplayContext';
 export interface TimeRangeSliderProps {
   dateRange?: RangeValue<Date>;
   dateRangeForReset?: RangeValue<Date>;
+  /** Constrains the selectable date range. start = earliest allowed, end = latest allowed. */
+  availableDateRange?: RangeValue<Date>;
   onDateRangeSelect: (rv: RangeValue<Date>) => void;
   getLatestDateRange?: () => Promise<Date>;
   animationRequestFrequency?: AnimationRequestFrequency;
@@ -507,6 +509,7 @@ function withMiddleware(
 export const TimeRangeSlider = ({
   dateRange,
   dateRangeForReset,
+  availableDateRange,
   onDateRangeSelect,
   getLatestDateRange,
   animationRequestFrequency = AnimationRequestFrequency['1 fps'],
@@ -1138,13 +1141,23 @@ export const TimeRangeSlider = ({
     start?: DateTime.DateTime;
     end?: DateTime.DateTime;
   }) => {
-    // Enforce latestValidDateTime constraint
-    const maxAllowedDateTime = dateRangeForReset
-      ? DateTime.unsafeFromDate(dateRangeForReset.start)
+    // Enforce min/max constraints from availableDateRange (with dateRangeForReset fallback)
+    const maxAllowedDateTime = availableDateRange
+      ? DateTime.unsafeFromDate(availableDateRange.end)
+      : dateRangeForReset
+        ? DateTime.unsafeFromDate(dateRangeForReset.start)
+        : undefined;
+    const minAllowedDateTime = availableDateRange
+      ? DateTime.unsafeFromDate(availableDateRange.start)
       : undefined;
 
     if (r.start) {
       let newStart = r.start;
+
+      // Constrain start to not go before minimum
+      if (minAllowedDateTime && DateTime.lessThan(newStart, minAllowedDateTime)) {
+        newStart = minAllowedDateTime;
+      }
 
       // If setting start would push end past limit, constrain it
       if (maxAllowedDateTime) {
@@ -1169,7 +1182,7 @@ export const TimeRangeSlider = ({
       const newDuration = DateTime.distanceDuration(start, newEnd);
       d(SetAnimationDuration({ animationDuration: newDuration }));
     }
-  }, [s.animationDuration, s.animationStartDateTime, dateRangeForReset]);
+  }, [s.animationDuration, s.animationStartDateTime, availableDateRange, dateRangeForReset]);
 
   const limitedRangeHC = useMemo(() => {
     if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
@@ -1205,10 +1218,17 @@ export const TimeRangeSlider = ({
               primaryRange={primaryRangeHC}
               limitedRange={limitedRangeHC}
               viewRange={viewRangeHC}
-              latestValidDateTime={
-                dateRangeForReset
-                  ? DateTime.unsafeFromDate(dateRangeForReset.start)
+              earliestValidDateTime={
+                availableDateRange
+                  ? DateTime.unsafeFromDate(availableDateRange.start)
                   : undefined
+              }
+              latestValidDateTime={
+                availableDateRange
+                  ? DateTime.unsafeFromDate(availableDateRange.end)
+                  : dateRangeForReset
+                    ? DateTime.unsafeFromDate(dateRangeForReset.start)
+                    : undefined
               }
               timeZone={s.timeZone}
               increment={s.increment}
@@ -1367,12 +1387,21 @@ export const TimeRangeSlider = ({
                     newAnimationEnd = selectedEnd;
                   }
 
-                  // Enforce dateRangeForReset constraint on the end
-                  if (dateRangeForReset) {
-                    const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-                    if (DateTime.greaterThan(newAnimationEnd, maxAllowedDateTime)) {
-                      newAnimationEnd = maxAllowedDateTime;
-                    }
+                  // Enforce availableDateRange constraints (with dateRangeForReset fallback)
+                  const maxAllowedDateTime = availableDateRange
+                    ? DateTime.unsafeFromDate(availableDateRange.end)
+                    : dateRangeForReset
+                      ? DateTime.unsafeFromDate(dateRangeForReset.start)
+                      : undefined;
+                  const minAllowedDateTime = availableDateRange
+                    ? DateTime.unsafeFromDate(availableDateRange.start)
+                    : undefined;
+
+                  if (maxAllowedDateTime && DateTime.greaterThan(newAnimationEnd, maxAllowedDateTime)) {
+                    newAnimationEnd = maxAllowedDateTime;
+                  }
+                  if (minAllowedDateTime && DateTime.lessThan(newAnimationStart, minAllowedDateTime)) {
+                    newAnimationStart = minAllowedDateTime;
                   }
 
                   const newAnimationDuration = DateTime.distanceDuration(newAnimationStart, newAnimationEnd);
@@ -1401,6 +1430,7 @@ export const TimeRangeSlider = ({
                 }))
             }
             dateRangeForReset={dateRangeForReset}
+            availableDateRange={availableDateRange}
           />
           <Divider variant="middle" orientation={"vertical"} flexItem />
           <AnimateAndStepControls
@@ -1409,8 +1439,14 @@ export const TimeRangeSlider = ({
               const newStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
               const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
 
-              // Check if the new end time would exceed dateRangeForReset
-              if (dateRangeForReset) {
+              // Check if the new end time would exceed availableDateRange.end
+              if (availableDateRange) {
+                const maxAllowedDateTime = DateTime.unsafeFromDate(availableDateRange.end);
+                if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
+                  return; // Don't increment if it would exceed the limit
+                }
+              } else if (dateRangeForReset) {
+                // Fallback to legacy dateRangeForReset behavior
                 const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
                 if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
                   return; // Don't increment if it would exceed the limit
@@ -1425,9 +1461,16 @@ export const TimeRangeSlider = ({
             decrementStartDateTime={() => {
               const newStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
 
-              // Decrementing should generally be allowed as it moves away from the limit
-              // But let's add a sanity check in case the duration is negative
-              if (dateRangeForReset) {
+              // Check if new start time would be before availableDateRange.start
+              if (availableDateRange) {
+                const minAllowedDateTime = DateTime.unsafeFromDate(availableDateRange.start);
+                if (DateTime.lessThan(newStartDateTime, minAllowedDateTime)) {
+                  return; // Don't decrement if it would go before the minimum
+                }
+              }
+
+              // Also check max constraint (legacy dateRangeForReset behavior)
+              if (!availableDateRange && dateRangeForReset) {
                 const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
                 const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
                 if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
@@ -1457,13 +1500,22 @@ export const TimeRangeSlider = ({
                 let animationStart = s.selectedStartDateTime;
                 let needsStartUpdate = false;
 
-                // Check if animation range would exceed dateRangeForReset
-                if (dateRangeForReset) {
-                  const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+                // Determine max/min constraints
+                const maxAllowedDateTime = availableDateRange
+                  ? DateTime.unsafeFromDate(availableDateRange.end)
+                  : dateRangeForReset
+                    ? DateTime.unsafeFromDate(dateRangeForReset.start)
+                    : undefined;
+                const minAllowedDateTime = availableDateRange
+                  ? DateTime.unsafeFromDate(availableDateRange.start)
+                  : undefined;
+
+                // Check if animation range would exceed max
+                if (maxAllowedDateTime) {
                   const proposedAnimationEnd = DateTime.addDuration(animationStart, s.animationDuration);
 
                   if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
-                    // Bump animation back to the latest 2 hours of acceptable dates
+                    // Bump animation back to fit within the acceptable range
                     const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
                     // Only update if the adjustment is actually different
                     if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(animationStart)) {
@@ -1471,6 +1523,12 @@ export const TimeRangeSlider = ({
                       needsStartUpdate = true;
                     }
                   }
+                }
+
+                // Check if animation start would be before min
+                if (minAllowedDateTime && DateTime.lessThan(animationStart, minAllowedDateTime)) {
+                  animationStart = minAllowedDateTime;
+                  needsStartUpdate = true;
                 }
 
                 // Only dispatch if we need to update the start time
@@ -1503,14 +1561,34 @@ export const TimeRangeSlider = ({
             }}
             animationDuration={s.animationDuration}
             setAnimationDuration={(duration: Duration.Duration) => {
-              // Check if new duration would cause animation to exceed dateRangeForReset
-              if (dateRangeForReset && s.animationOrStepMode === AnimationOrStepMode.Animation) {
-                const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-                const proposedAnimationEnd = DateTime.addDuration(s.animationStartDateTime, duration);
+              // Determine max/min constraints
+              const maxAllowedDateTime = availableDateRange
+                ? DateTime.unsafeFromDate(availableDateRange.end)
+                : dateRangeForReset
+                  ? DateTime.unsafeFromDate(dateRangeForReset.start)
+                  : undefined;
+              const minAllowedDateTime = availableDateRange
+                ? DateTime.unsafeFromDate(availableDateRange.start)
+                : undefined;
 
-                if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
-                  // Adjust animation start to accommodate the new duration
-                  const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, duration);
+              // Check if new duration would cause animation to exceed constraints
+              if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
+                let adjustedStart = s.animationStartDateTime;
+
+                if (maxAllowedDateTime) {
+                  const proposedAnimationEnd = DateTime.addDuration(adjustedStart, duration);
+                  if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
+                    // Adjust animation start to accommodate the new duration
+                    adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, duration);
+                  }
+                }
+
+                // Ensure adjusted start doesn't go before minimum
+                if (minAllowedDateTime && DateTime.lessThan(adjustedStart, minAllowedDateTime)) {
+                  adjustedStart = minAllowedDateTime;
+                }
+
+                if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(s.animationStartDateTime)) {
                   d(SetAnimationStartDateTime({ animationStartDateTime: adjustedStart }));
                 }
               }
