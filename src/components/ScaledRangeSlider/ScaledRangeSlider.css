@@ -1,0 +1,57 @@
+/**
+ * ScaledRangeSlider styles
+ */
+
+.scaled-range-slider {
+  width: 100%;
+}
+
+.scaled-range-slider__container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Ensure slider takes remaining space */
+.scaled-range-slider__container .MuiSlider-root {
+  flex: 1;
+}
+
+/* Dark theme (default) */
+.scaled-range-slider.dark {
+  --text: #fff;
+}
+
+.scaled-range-slider.dark .MuiInput-root {
+  color: #fff;
+}
+
+.scaled-range-slider.dark .MuiInput-root::before {
+  border-bottom-color: rgba(255, 255, 255, 0.42);
+}
+
+.scaled-range-slider.dark .MuiInput-root:hover::before {
+  border-bottom-color: rgba(255, 255, 255, 0.87);
+}
+
+/* Light theme */
+.scaled-range-slider.light {
+  --text: #000;
+}
+
+.scaled-range-slider.light .MuiInput-root {
+  color: #000;
+}
+
+.scaled-range-slider.light .MuiInput-root::before {
+  border-bottom-color: rgba(0, 0, 0, 0.42);
+}
+
+.scaled-range-slider.light .MuiInput-root:hover::before {
+  border-bottom-color: rgba(0, 0, 0, 0.87);
+}
+
+/* Mark labels positioning */
+.scaled-range-slider .MuiSlider-markLabel {
+  font-size: 0.75rem;
+}
