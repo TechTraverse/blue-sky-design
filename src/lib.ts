@@ -95,3 +95,19 @@ export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as Layer
 // SidePanel exports
 export { SidePanel } from './components/SidePanel';
 export type { SidePanelProps } from './components/SidePanel';
+
+// ScaledRangeSlider exports
+export { ScaledRangeSlider } from './components/ScaledRangeSlider';
+export type {
+  ScaledRangeSliderProps,
+  ColorStop,
+  SliderMark,
+  ScalePreset,
+  ScaleFunction,
+  InverseScaleFunction,
+} from './components/ScaledRangeSlider';
+export {
+  getScaleFunctions,
+  cubicScale,
+  cubicInverse,
+} from './components/ScaledRangeSlider';
