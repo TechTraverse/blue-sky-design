@@ -132,6 +132,8 @@ export interface MapComponentCoreProps {
     initialZoom?: number;
     initialBasemap?: string | BasemapConfig;
     initialBounds?: [number, number, number, number];
+    /** Basemap fallback configuration for 401/403 error handling */
+    fallbackOptions?: BasemapFallbackOptions;
     controls?: MapControls;
     eventHandlers?: MapEventHandlers;
     interactive?: boolean;

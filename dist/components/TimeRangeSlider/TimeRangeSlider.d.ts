@@ -6,6 +6,8 @@ import { AnimationOrStepMode, AnimationRequestFrequency, TimeDuration, Theme as 
 export interface TimeRangeSliderProps {
     dateRange?: RangeValue<Date>;
     dateRangeForReset?: RangeValue<Date>;
+    /** Constrains the selectable date range. start = earliest allowed, end = latest allowed. */
+    availableDateRange?: RangeValue<Date>;
     onDateRangeSelect: (rv: RangeValue<Date>) => void;
     getLatestDateRange?: () => Promise<Date>;
     animationRequestFrequency?: AnimationRequestFrequency;
@@ -18,6 +20,8 @@ export interface TimeRangeSliderProps {
     hideAnimationToggle?: boolean;
     /** When provided, shows the animation toggle in a disabled state with this tooltip message */
     disabledAnimationTooltip?: string;
+    /** When true, hides the date picker popup */
+    hideDatePicker?: boolean;
     /** Polling interval in ms (default 60000). Set to 0 to disable polling. */
     pollingInterval?: number;
     /** Called when poll detects data newer than current selection */
@@ -30,4 +34,4 @@ export interface TimeRangeSliderProps {
 /**
  * Exported component
  */
-export declare const TimeRangeSlider: ({ dateRange, dateRangeForReset, onDateRangeSelect, getLatestDateRange, animationRequestFrequency, className, theme, timeZone, onTimeZoneChange, onAnimationOrStepModeChange, increment, hideAnimationToggle, disabledAnimationTooltip, pollingInterval, onNewDataAvailable, onTrackLatestChange, initialTrackLatest, }: TimeRangeSliderProps) => import("react/jsx-runtime").JSX.Element;
+export declare const TimeRangeSlider: ({ dateRange, dateRangeForReset, availableDateRange, onDateRangeSelect, getLatestDateRange, animationRequestFrequency, className, theme, timeZone, onTimeZoneChange, onAnimationOrStepModeChange, increment, hideAnimationToggle, disabledAnimationTooltip, hideDatePicker, pollingInterval, onNewDataAvailable, onTrackLatestChange, initialTrackLatest, }: TimeRangeSliderProps) => import("react/jsx-runtime").JSX.Element;
