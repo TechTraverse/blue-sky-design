@@ -46,23 +46,23 @@ export const ScaledRangeSlider: React.FC<ScaledRangeSliderProps> = ({
     [scaleConfig]
   );
 
-  // Track local display value during drag to avoid fighting with parent state
-  const [localDisplayValue, setLocalDisplayValue] = useState<number | null>(null);
+  // Track if we're actively dragging (ref to avoid re-renders)
   const isDraggingRef = useRef(false);
+
+  // Track local display value during drag only
+  const localDisplayValueRef = useRef<number | null>(null);
+
+  // Force update mechanism for drag visual feedback
+  const [, forceUpdate] = useState(0);
 
   // Compute display-space bounds
   const minDisplay = useMemo(() => inverse(min), [inverse, min]);
   const maxDisplay = useMemo(() => inverse(max), [inverse, max]);
 
   // Current display value: local during drag, otherwise derived from prop
-  const displayValue = localDisplayValue ?? inverse(value);
-
-  // Sync local value when prop changes (and not dragging)
-  useEffect(() => {
-    if (!isDraggingRef.current) {
-      setLocalDisplayValue(null);
-    }
-  }, [value]);
+  const displayValue = isDraggingRef.current && localDisplayValueRef.current !== null
+    ? localDisplayValueRef.current
+    : inverse(value);
 
   // Generate track gradient from color stops
   const trackGradient = useMemo(() => {
@@ -90,7 +90,9 @@ export const ScaledRangeSlider: React.FC<ScaledRangeSliderProps> = ({
         ? newDisplayValue[0]
         : newDisplayValue;
       isDraggingRef.current = true;
-      setLocalDisplayValue(displayVal);
+      localDisplayValueRef.current = displayVal;
+      // Force re-render to show updated slider position
+      forceUpdate((n) => n + 1);
 
       const actualValue = scale(displayVal);
       onChange?.(actualValue);
@@ -105,7 +107,7 @@ export const ScaledRangeSlider: React.FC<ScaledRangeSliderProps> = ({
         ? newDisplayValue[0]
         : newDisplayValue;
       isDraggingRef.current = false;
-      setLocalDisplayValue(null);
+      localDisplayValueRef.current = null;
 
       const actualValue = scale(displayVal);
       onChangeCommitted?.(actualValue);

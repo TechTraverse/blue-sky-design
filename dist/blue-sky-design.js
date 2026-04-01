@@ -44193,11 +44193,7 @@ const Nie = ({
   const { scale: b, inverse: x } = ne(
     () => nie(o),
     [o]
-  ), [w, v] = Ee(null), y = de(!1), D = ne(() => x(t), [x, t]), E = ne(() => x(n), [x, n]), P = w ?? x(e);
-  me(() => {
-    y.current || v(null);
-  }, [e]);
-  const M = ne(() => {
+  ), w = de(!1), v = de(null), [, y] = Ee(0), D = ne(() => x(t), [x, t]), E = ne(() => x(n), [x, n]), P = w.current && v.current !== null ? v.current : x(e), M = ne(() => {
     if (s.length !== 0)
       return rie(s, x, n);
   }, [s, x, n]), C = ne(() => u ? (u === "auto" ? oie(s) : u).map((W) => ({
@@ -44206,7 +44202,7 @@ const Nie = ({
   })) : void 0, [u, s, x]), k = Ie(
     (H, W) => {
       const N = Array.isArray(W) ? W[0] : W;
-      y.current = !0, v(N);
+      w.current = !0, v.current = N, y((K) => K + 1);
       const I = b(N);
       i?.(I);
     },
@@ -44214,7 +44210,7 @@ const Nie = ({
   ), S = Ie(
     (H, W) => {
       const N = Array.isArray(W) ? W[0] : W;
-      y.current = !1, v(null);
+      w.current = !1, v.current = null;
       const I = b(N);
       a?.(I);
     },
