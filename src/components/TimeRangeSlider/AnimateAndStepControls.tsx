@@ -1,7 +1,7 @@
 import "./animateAndStepControls.css";
-import { TbPlayerPause, TbPlayerPlay, TbPlayerSkipBack, TbPlayerSkipForward } from "react-icons/tb";
+import { TbPlayerPause, TbPlayerPlay } from "react-icons/tb";
 import { Button, Tooltip } from "@mui/material";
-import { AnimationSpeed, PlayMode, TimeDuration } from "./timeSliderTypes";
+import { AnimationSpeed, PlayMode } from "./timeSliderTypes";
 import { MdFirstPage, MdLastPage } from "react-icons/md";
 import { ControlSettings } from "./ControlSettings";
 import { Duration } from "effect";
@@ -17,8 +17,6 @@ export const AnimateAndStepControls = ({
   setAnimationDuration,
   incrementStartDateTime,
   decrementStartDateTime,
-  incrementAnimationSpeed,
-  decrementAnimationSpeed,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
 }: {
@@ -32,8 +30,6 @@ export const AnimateAndStepControls = ({
   setAnimationDuration?: (duration: Duration.Duration) => void,
   incrementStartDateTime?: () => void,
   decrementStartDateTime?: () => void,
-  incrementAnimationSpeed?: () => void,
-  decrementAnimationSpeed?: () => void,
   hideAnimationToggle?: boolean,
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string,

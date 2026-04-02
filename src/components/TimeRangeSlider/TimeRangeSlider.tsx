@@ -138,7 +138,7 @@ type Action = D.TaggedEnum<{
   SetTrackingLatest: { isTrackingLatest: boolean; };
   SetLastKnownLatestDate: { lastKnownLatestDate: DateTime.DateTime | null; };
 
-  ResetAll: {};
+  ResetAll: object;
 }>;
 
 const {
@@ -146,7 +146,6 @@ const {
 
   SetTimeZone,
   ExtSetTimeZone,
-  SetIncrement,
   ExtSetIncrement,
   SetViewStartDateTime,
   SetViewDuration,
@@ -164,10 +163,8 @@ const {
 
   SetAnimationStartDateTime,
   SetAnimationDuration,
-  SetAnimationRequestFrequency,
   SetAnimationPlayMode,
   SetAnimationSpeed,
-  SetResetAnimationSpeed,
   SetTrackingLatest,
   SetLastKnownLatestDate,
   ResetAll } = D.taggedEnum<Action>();

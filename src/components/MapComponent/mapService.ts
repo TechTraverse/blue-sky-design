@@ -3,7 +3,7 @@ import maplibregl from "maplibre-gl";
 import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
 import { firstValueFrom, fromEvent, interval, raceWith, map, Observable, shareReplay, take, Subscription, takeUntil } from "rxjs";
-import type { BasemapConfig, BasemapFallbackOptions, BasemapFallbackInfo } from "./types";
+import type { BasemapConfig, BasemapFallbackOptions } from "./types";
 
 /**
  * Creates a MapLibre style with a solid background color and no external dependencies.
@@ -279,7 +279,7 @@ export class MapClassWrapper {
   }
 
   static async make(
-    basemapConfig: string | { style?: any; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number },
+    basemapConfig: string | { style?: StyleSpecification; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number },
     mapSettings?: MapSettings,
     controls?: MapControlsConfig,
     containerId: string = "map",
@@ -300,8 +300,8 @@ export class MapClassWrapper {
     });
 
     const buildStyleFromConfig = (
-      config: string | { style?: any; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number }
-    ): { style: any; basemapUrl: string } =>
+      config: string | { style?: StyleSpecification; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number }
+    ): { style: string | StyleSpecification; basemapUrl: string } =>
       match(config)
         // Tile URL template (contains {z} and either {x} or {y})
         .with(P.string.regex(/{z}.*({x}|{y})/), (url) => ({
@@ -359,9 +359,9 @@ export class MapClassWrapper {
           });
           return createSolidColorStyle(fallbackOptions.solidColorFallback);
         }
-      ].filter(Boolean) as Array<() => any>;
+      ].filter(Boolean) as Array<() => StyleSpecification>;
 
-      m.on('error', (event: any) => {
+      m.on('error', (event: { error?: { status?: number; url?: string } }) => {
         const err = event?.error;
         const status = err?.status as number | undefined;
         const errorUrl = err?.url as string | undefined;
@@ -387,7 +387,7 @@ export class MapClassWrapper {
                   id: `${BASEMAP_PREFIX}${l.id}`
                 }));
                 // Tag new basemap sources
-                const taggedSources: Record<string, any> = {};
+                const taggedSources: Record<string, SourceSpecification> = {};
                 Object.entries(next.sources).forEach(([k, v]) => {
                   taggedSources[`${BASEMAP_PREFIX}${k}`] = v;
                 });
@@ -411,8 +411,12 @@ export class MapClassWrapper {
   }
 
   updateMapOptions = (mapOptions: Pick<MapOptions, "zoom" | "center">) => {
-    mapOptions.center && this.#map.setCenter(mapOptions.center);
-    mapOptions.zoom && this.#map.setZoom(mapOptions.zoom);
+    if (mapOptions.center) {
+      this.#map.setCenter(mapOptions.center);
+    }
+    if (mapOptions.zoom) {
+      this.#map.setZoom(mapOptions.zoom);
+    }
 
     return E.succeed(undefined);
   }

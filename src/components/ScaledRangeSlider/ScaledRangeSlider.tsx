@@ -11,7 +11,7 @@
  * - Scale functions transform between display space and actual values
  */
 
-import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Slider, Input, styled } from '@mui/material';
 import type { ScaledRangeSliderProps, SliderMark } from './types';
 import { normalizeScaleConfig } from './scaleUtils';

@@ -5,6 +5,7 @@ import type { MapServiceImpl } from './mapService';
 import { createMapServiceEffect } from './mapServiceInterface';
 import type { MapServiceEffect } from './mapServiceInterface';
 import type { MapComponentCoreProps } from './types';
+import type { Map as MapLibreMap, MapMouseEvent } from 'maplibre-gl';
 
 // Enhanced props for effect-ts integration
 export interface MapComponentEffectProps extends MapComponentCoreProps {
@@ -28,7 +29,7 @@ export interface MapComponentEffectRef {
   runEffect: <A, Err>(effect: E.Effect<A, Err, never>) => Promise<A>;
 
   // Standard operations
-  getMapInstance: () => any;
+  getMapInstance: () => MapLibreMap;
 }
 
 // Hook for managing effect-ts runtime with optional external layer
@@ -93,7 +94,7 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
   initializationEffect,
   children,
 }, ref) => {
-  const { mapServiceEffect, isReady, runtime } = useMapServiceEffect(mapServiceLayer, initializationEffect);
+  const { mapServiceEffect, isReady } = useMapServiceEffect(mapServiceLayer, initializationEffect);
 
   // Setup effect-ts based initialization
   useEffect(() => {
@@ -111,12 +112,13 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
         // Register event handlers using effect-ts
         if (eventHandlers.onClick) {
           const effect = mapServiceEffect.registerEventHandlerEffect('click', (e, map) => {
+            const mouseEvent = e as MapMouseEvent;
             const cleanEvent = {
               type: 'click',
-              originalEvent: (e as any).originalEvent,
-              point: (e as any).point,
-              lngLat: (e as any).lngLat,
-              features: (e as any).features,
+              originalEvent: mouseEvent.originalEvent,
+              point: mouseEvent.point,
+              lngLat: mouseEvent.lngLat,
+              features: undefined,
               target: map,
             };
             eventHandlers.onClick!(cleanEvent);
@@ -139,7 +141,7 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
     };
 
     setupMap();
-  }, [mapServiceEffect, isReady, runtime, initialCenter, initialZoom, eventHandlers, onMapServiceReady, onEffectError]);
+  }, [mapServiceEffect, isReady, initialCenter, initialZoom, eventHandlers, onMapServiceReady, onEffectError]);
 
   // Expose enhanced imperative API through ref
   useImperativeHandle(ref, () => ({
@@ -152,7 +154,7 @@ export const MapComponentEffect = forwardRef<MapComponentEffectRef, MapComponent
       if (!mapServiceEffect) throw new Error('MapService not ready');
       return mapServiceEffect.getMapInstance();
     },
-  }), [mapServiceEffect, runtime]);
+  }), [mapServiceEffect]);
 
   const containerStyle: React.CSSProperties = {
     width: '100%',

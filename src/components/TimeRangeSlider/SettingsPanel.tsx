@@ -40,8 +40,6 @@ export const SettingsPanel = ({
   theme,
   onThemeChange,
   currentMode,
-  stepDuration,
-  onStepDurationChange,
   rangeValue,
   setRange,
 }: SettingsPanelProps) => {

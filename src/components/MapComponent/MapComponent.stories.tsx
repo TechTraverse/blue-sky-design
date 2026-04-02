@@ -277,77 +277,68 @@ export const SolidColorWithOverlays: Story = {
   },
 };
 
-// Effect-ts enhanced stories
-const EffectMeta = {
-  component: MapComponentEffect,
-  parameters: {
-    layout: 'fullscreen',
-  },
-  tags: ['autodocs'],
-} satisfies Meta<typeof MapComponentEffect>;
-
-type EffectStory = StoryObj<typeof EffectMeta>;
-
+// Effect-ts enhanced stories - using render functions to work with MapComponentEffect
 // Basic effect-ts usage
-export const EffectBasic: EffectStory = {
-  args: {
-    style: { height: '500px' },
-    onMapServiceReady: (mapServiceEffect) => {
-      console.log('MapService effect ready:', mapServiceEffect);
-    },
-    onEffectError: (error) => {
-      console.error('Effect error:', error);
-    },
-  },
+export const EffectBasic: Story = {
+  render: () => (
+    <MapComponentEffect
+      style={{ height: '500px' }}
+      onMapServiceReady={(mapServiceEffect) => {
+        console.log('MapService effect ready:', mapServiceEffect);
+      }}
+      onEffectError={(error) => {
+        console.error('Effect error:', error);
+      }}
+    />
+  ),
 };
 
 // With initialization effect
-export const EffectWithInitialization: EffectStory = {
-  args: {
-    style: { height: '500px' },
-    initializationEffect: (mapService) => 
-      E.gen(function* () {
-        console.log('Initializing map service...');
-        yield* mapService.log();
-        console.log('Map service initialized!');
-      }),
-    onMapServiceReady: (mapServiceEffect) => {
-      console.log('Enhanced MapService ready with initialization');
-    },
-  },
+export const EffectWithInitialization: Story = {
+  render: () => (
+    <MapComponentEffect
+      style={{ height: '500px' }}
+      initializationEffect={(mapService) =>
+        E.gen(function* () {
+          console.log('Initializing map service...');
+          yield* mapService.log();
+          console.log('Map service initialized!');
+        })
+      }
+      onMapServiceReady={() => {
+        console.log('Enhanced MapService ready with initialization');
+      }}
+    />
+  ),
 };
 
 // Advanced effect-ts usage
-export const EffectAdvanced: EffectStory = {
-  args: {
-    style: { height: '500px' },
-    initialCenter: [-73.935242, 40.730610], // Brooklyn
-    initialZoom: 11,
-    eventHandlers: {
-      onClick: (event) => {
-        console.log('Effect-enhanced click:', event);
-      },
-    },
-    initializationEffect: (mapService) => 
-      E.gen(function* () {
-        console.log('Setting up advanced map features...');
-        yield* mapService.updateMapOptions({
-          center: [-73.935242, 40.730610],
-          zoom: 11
-        });
-        yield* mapService.log();
-      }),
-    onMapServiceReady: (mapServiceEffect) => {
-      console.log('Advanced effect map ready with full configuration');
-      
-      // Example of running effects through the service
-      const mapInstance = mapServiceEffect.getMapInstance();
-      console.log('Direct map instance access:', mapInstance);
-    },
-  },
+export const EffectAdvanced: Story = {
+  render: () => (
+    <MapComponentEffect
+      style={{ height: '500px' }}
+      initialCenter={[-73.935242, 40.730610]}
+      initialZoom={11}
+      eventHandlers={{
+        onClick: (event) => {
+          console.log('Effect-enhanced click:', event);
+        },
+      }}
+      initializationEffect={(mapService) =>
+        E.gen(function* () {
+          console.log('Setting up advanced map features...');
+          yield* mapService.updateMapOptions({
+            center: [-73.935242, 40.730610],
+            zoom: 11
+          });
+          yield* mapService.log();
+        })
+      }
+      onMapServiceReady={(mapServiceEffect) => {
+        console.log('Advanced effect map ready with full configuration');
+        const mapInstance = mapServiceEffect.getMapInstance();
+        console.log('Direct map instance access:', mapInstance);
+      }}
+    />
+  ),
 };
-
-// Export effect stories with different component
-export const EffectBasicStory = EffectBasic;
-export const EffectWithInitializationStory = EffectWithInitialization;
-export const EffectAdvancedStory = EffectAdvanced;

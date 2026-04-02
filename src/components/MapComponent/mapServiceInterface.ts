@@ -3,7 +3,8 @@
 
 import { Effect as E } from "effect";
 import type { LayerType, MapServiceImpl } from "./mapService";
-import type { Layer, MapOperations, MapEvent } from "./types";
+import type { Layer, MapOperations, MapEvent, BasemapConfig, SourceConfig, LayerConfig } from "./types";
+import type { MapGeoJSONFeature, PointLike } from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { LayerEnabled, LayerVisible } from "./mapService";
 
@@ -19,8 +20,8 @@ export function convertLayerType(layer: LayerType): Layer {
   return {
     id: layer.id,
     type: layer._tag === "LargeScaleImagery" || layer._tag === "SmallScaleImagery" ? 'raster' : 'vector',
-    sourceConfig: layer.sourceConfig as any,
-    layerConfigs: layer.orderedLayerConfigs as any,
+    sourceConfig: layer.sourceConfig as unknown as SourceConfig,
+    layerConfigs: layer.orderedLayerConfigs as unknown as LayerConfig[],
     visible: true, // TODO: extract from layer.enabled
   };
 }
@@ -28,24 +29,27 @@ export function convertLayerType(layer: LayerType): Layer {
 // Convert clean Layer interface to internal LayerType
 export function convertToLayerType(layer: Layer): LayerType {
   // Create a minimal CustomOrder layer for generic layers
+  // Type assertion needed: crossing boundary between public API types and internal Effect-ts types
   return {
     _tag: "CustomOrder",
     id: layer.id,
     humanReadableName: layer.name || layer.id,
-    sourceConfig: layer.sourceConfig as any,
+    sourceConfig: layer.sourceConfig,
     orderedLayerConfigs: layer.layerConfigs || [],
     paramKeyVals: {},
     enabled: layer.visible !== false
       ? LayerEnabled({ visible: LayerVisible(), order: 0 })
       : { _tag: "LayerDisabled", selectable: { _tag: "LayerSelectable" } },
-  } as LayerType;
+  } as unknown as LayerType;
 }
 
 // Promise-based wrapper around effect-ts MapService
 export class MapServiceAdapter implements MapOperations {
   constructor(private mapService: MapServiceImpl) {}
 
-  async addLayer(layer: Layer, _above?: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async addLayer(layer: Layer, above?: string): Promise<void> {
+    // TODO: implement 'above' parameter for layer ordering
     const layerType = convertToLayerType(layer);
     const effect = this.mapService.addLayer(layerType);
     await E.runPromise(effect as E.Effect<undefined, Error, never>);
@@ -72,7 +76,7 @@ export class MapServiceAdapter implements MapOperations {
     await this.addLayer(layer);
   }
 
-  async setBasemap(basemapConfig: string | any): Promise<void> {
+  async setBasemap(basemapConfig: string | BasemapConfig): Promise<void> {
     // Handle style objects directly on the map
     if (typeof basemapConfig === 'object' && basemapConfig.style) {
       const map = this.mapService.getMapInstance();
@@ -108,17 +112,17 @@ export class MapServiceAdapter implements MapOperations {
     map.flyTo({ center: options.center, zoom: options.zoom });
   }
 
-  async queryRenderedFeatures(point?: { x: number; y: number }): Promise<any[]> {
+  async queryRenderedFeatures(point?: { x: number; y: number }): Promise<MapGeoJSONFeature[]> {
     const map = this.mapService.getMapInstance();
-    return map.queryRenderedFeatures(point as any);
+    return map.queryRenderedFeatures(point as PointLike | undefined);
   }
 
-  getSource(sourceId: string): any {
+  getSource(sourceId: string): ReturnType<MapLibreMap['getSource']> {
     const map = this.mapService.getMapInstance();
     return map.getSource(sourceId);
   }
 
-  getLayer(layerId: string): any {
+  getLayer(layerId: string): ReturnType<MapLibreMap['getLayer']> {
     const map = this.mapService.getMapInstance();
     return map.getLayer(layerId);
   }
@@ -130,12 +134,13 @@ export class MapServiceAdapter implements MapOperations {
   ): Promise<() => void> {
     const effect = this.mapService.registerEventHandler(eventName, (e: unknown, map: MapLibreMap) => {
       // Convert maplibre event to clean MapEvent interface
+      const mapEvent = e as { originalEvent?: Event; point?: { x: number; y: number }; lngLat?: { lng: number; lat: number }; features?: MapGeoJSONFeature[] };
       const cleanEvent: MapEvent = {
         type: eventName,
-        originalEvent: (e as any).originalEvent,
-        point: (e as any).point,
-        lngLat: (e as any).lngLat,
-        features: (e as any).features,
+        originalEvent: mapEvent.originalEvent,
+        point: mapEvent.point,
+        lngLat: mapEvent.lngLat,
+        features: mapEvent.features,
         target: map,
       };
       handler(cleanEvent);
@@ -162,7 +167,7 @@ export interface MapServiceEffect {
   updateMapOptionsEffect: (options: { zoom?: number; center?: [number, number] }) => E.Effect<void, Error, void>;
 
   // Event handling with effect-ts
-  registerEventHandlerEffect: (eventName: string, handler: (e: unknown, map: MapLibreMap) => void) => E.Effect<any>;
+  registerEventHandlerEffect: (eventName: string, handler: (e: unknown, map: MapLibreMap) => void) => E.Effect<{ unsubscribe: () => void }>;
 
   // Access to underlying map instance
   getMapInstance: () => MapLibreMap;

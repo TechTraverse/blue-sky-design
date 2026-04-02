@@ -4,7 +4,7 @@ export interface LayerItem {
   enabled: boolean;
   tags?: Set<string>;
   downloadable?: boolean;
-  [key: string]: any; // Allow additional properties
+  [key: string]: unknown; // Allow additional properties
 }
 
 export interface LayerGroup {

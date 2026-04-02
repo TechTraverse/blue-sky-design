@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Popover, Typography, Box, Tooltip, FormControl, Select, MenuItem } from "@mui/material";
-import { AnimationSpeed, TimeDuration } from "./timeSliderTypes";
+import { AnimationSpeed } from "./timeSliderTypes";
 import { Duration } from "effect";
 
 // Speed options for animation

@@ -2,7 +2,7 @@ import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 
 export function TimeZoneToggle() {
-  const { mode, setMode, getDisplayZone } = useTimeZoneDisplay();
+  const { mode, setMode } = useTimeZoneDisplay();
   
   return (
     <ToggleButtonGroup

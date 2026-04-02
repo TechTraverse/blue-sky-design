@@ -1,12 +1,12 @@
 import "./horizontalCalendar.css";
-import { DateTime, Match, pipe } from "effect";
+import { DateTime, pipe } from "effect";
 import Slider from "@mui/material/Slider";
 import Box from "@mui/material/Box";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type PrimaryRange, type SubRange, type LimitedRange, Theme as AppTheme, TimeDuration } from "./timeSliderTypes";
+import { type PrimaryRange, type LimitedRange, Theme as AppTheme } from "./timeSliderTypes";
 import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
-import { match, P } from "ts-pattern";
+import { match } from "ts-pattern";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 
 const getMonth = (number: number): string => {
@@ -78,7 +78,6 @@ export const HorizontalCalendar = ({
   latestValidDateTime,
   increment,
   theme = AppTheme.Light,
-  timeZone: _timeZone,
 }: {
   primaryRange: PrimaryRange<DateTime.DateTime>,
   limitedRange?: LimitedRange<DateTime.DateTime>,
@@ -89,7 +88,7 @@ export const HorizontalCalendar = ({
   theme?: AppTheme,
   timeZone?: unknown,
 }) => {
-  const { toDisplay, fromDisplay, mode } = useTimeZoneDisplay();
+  const { toDisplay, fromDisplay } = useTimeZoneDisplay();
 
   // Convert all DateTimes to display timezone
   const displayPrimaryRange = useMemo(() => ({

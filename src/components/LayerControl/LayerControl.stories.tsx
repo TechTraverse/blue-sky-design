@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { LayerControl } from './LayerControl';
 import { SimplifiedLayerControl } from './SimplifiedLayerControl';
 import { LayerItem } from './types';
@@ -125,53 +125,6 @@ const meta: Meta<typeof LayerControl> = {
           .layer-control .MuiAccordionSummary-root {
             background-color: #f8f9fa !important;
             border-radius: 4px !important;
-          }
-        `}</style>
-        <Story />
-      </div>
-    ),
-  ],
-};
-
-// Simplified Layer Control Stories
-const simplifiedMeta: Meta<typeof SimplifiedLayerControl> = {
-  title: 'Components/SimplifiedLayerControl',
-  component: SimplifiedLayerControl,
-  parameters: {
-    layout: 'centered',
-    docs: {
-      description: {
-        component: 'A simplified layer control that shows active layers with toggle and download functionality, but without drag-and-drop reordering.'
-      }
-    }
-  },
-  argTypes: {
-    onLayerToggle: { action: 'layer toggled' },
-    onLayerDownload: { action: 'layer downloaded' },
-  },
-  decorators: [
-    (Story) => (
-      <div style={{ 
-        width: 300, 
-        height: 200, 
-        border: '1px solid #ccc', 
-        borderRadius: 4,
-        backgroundColor: '#f5f5f5',
-        padding: '8px'
-      }}>
-        <style>{`
-          .layer-control .layerWrapper {
-            background-color: white !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 4px !important;
-            margin: 2px 0 !important;
-          }
-          .layer-control .MuiListSubheader-root {
-            background-color: #f8f9fa !important;
-            color: #666 !important;
-            font-weight: 500 !important;
-            border-radius: 4px !important;
-            margin-bottom: 4px !important;
           }
         `}</style>
         <Story />

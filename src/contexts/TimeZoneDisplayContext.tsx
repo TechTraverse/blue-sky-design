@@ -1,6 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 import { DateTime, Option as O } from "effect";
 import { createContext, useContext, useState, useMemo, ReactNode } from "react";
-import { TimeZone } from "../components/TimeRangeSlider/timeSliderTypes";
 
 export type TimeZoneDisplayMode = "utc" | "local";
 

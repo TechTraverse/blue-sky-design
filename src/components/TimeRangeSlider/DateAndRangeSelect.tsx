@@ -2,16 +2,16 @@ import "./dateAndRangeSelect.css";
 import { DateTime } from "effect";
 import Popover from '@mui/material/Popover';
 import PopupState, { bindTrigger, bindPopover } from 'material-ui-popup-state';
-import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, FieldError, Heading, Text } from 'react-aria-components';
+import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, Heading, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
-import { FaCalendarAlt, FaUndo } from "react-icons/fa";
+import { FaCalendarAlt } from "react-icons/fa";
 import { TimeDuration, TimeZone } from "./timeSliderTypes";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 
 // RangeValue was removed from react-aria-components, define locally
 type RangeValue<T> = { start: T; end: T };
 import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-icons/md";
-import { Button, Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 import { TimeZoneToggle } from './TimeZoneToggle';
 
@@ -42,11 +42,11 @@ function FieldsetBox({
 }
 
 const SliderDatePicker = <T extends DateValue>(
-  { label, description, errorMessage, firstDayOfWeek,
+  { label, description, firstDayOfWeek,
     rangeValue, setRange, dateRangeForReset, availableDateRange, ...props }:
     LocalDatePickerProps<T>
 ) => {
-  const { toDisplay, mode } = useTimeZoneDisplay();
+  const { toDisplay } = useTimeZoneDisplay();
 
   // Calculate min allowed date from availableDateRange
   const getMinValue = () => {
@@ -210,9 +210,6 @@ export const DateAndRangeSelect = ({
   setRange,
   dateRangeForReset,
   availableDateRange,
-  returnToDefaultDateTime: _returnToDefaultDateTime,
-  timeZone: _timeZone,
-  onTimeZoneChange: _onTimeZoneChange,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
@@ -224,7 +221,7 @@ export const DateAndRangeSelect = ({
   timeZone?: TimeZone,
   onTimeZoneChange?: (tz: TimeZone) => void,
 }) => {
-  const { toDisplay, fromDisplay, mode, getDisplayZone } = useTimeZoneDisplay();
+  const { toDisplay, fromDisplay, getDisplayZone } = useTimeZoneDisplay();
 
   // Convert DateTime to CalendarDateTime for display
   const getDisplayDateTime = (dt: DateTime.DateTime | undefined) => {

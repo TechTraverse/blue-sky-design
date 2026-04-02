@@ -4,6 +4,7 @@ import { MapService, MapServiceLayer, createMapServiceLayer, MapClassWrapper } f
 import type { BasemapFallbackOptions } from './types';
 import { MapServiceAdapter } from './mapServiceInterface';
 import type { MapComponentCoreProps, MapComponentCallbacks, MapOperations } from './types';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 
 // Core MapComponent props - React-only API
 export interface MapComponentProps extends MapComponentCoreProps, MapComponentCallbacks {
@@ -12,13 +13,13 @@ export interface MapComponentProps extends MapComponentCoreProps, MapComponentCa
     id: string;
     type: 'basemap' | 'overlay';
     url?: string;
-    sourceConfig?: any;
+    sourceConfig?: Record<string, unknown>;
   }>;
 }
 
 // Ref interface for imperative API
 export interface MapComponentRef extends MapOperations {
-  getMapInstance: () => any;
+  getMapInstance: () => MapLibreMap;
 }
 
 // Internal hook for managing effect-ts runtime
@@ -72,12 +73,6 @@ export const MapComponent = forwardRef<MapComponentRef, MapComponentProps>(({
   initialZoom = 4,
   initialBasemap = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   initialLayers = [],
-  controls: _controls = {
-    navigation: true,
-    fullscreen: true,
-    geolocate: true,
-    scale: true,
-  },
   fallbackOptions,
   eventHandlers = {},
   onLayerAdd,
