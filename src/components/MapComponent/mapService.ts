@@ -291,8 +291,8 @@ export class MapClassWrapper {
 
     const defaultUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-    const buildRasterStyle = (url: string, tileSize = 256, attribution = '© Map contributors', minZoom = 0, maxZoom = 22) => ({
-      version: 8,
+    const buildRasterStyle = (url: string, tileSize = 256, attribution = '© Map contributors', minZoom = 0, maxZoom = 22): StyleSpecification => ({
+      version: 8 as const,
       sources: {
         'raster-tiles': { type: 'raster' as const, tiles: [url], tileSize, attribution }
       },
@@ -341,7 +341,7 @@ export class MapClassWrapper {
 
       const fallbackChain = [
         fallbackOptions.fallbackBasemap && (() => {
-          const { style } = buildStyleFromConfig(fallbackOptions.fallbackBasemap!);
+          const { style } = buildStyleFromConfig(fallbackOptions.fallbackBasemap as string | { style?: StyleSpecification; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number });
           fallbackOptions.onBasemapFallback?.({
             reason: { type: 'auth_error', status: 401, url: basemapUrl },
             originalBasemap: basemapConfig,

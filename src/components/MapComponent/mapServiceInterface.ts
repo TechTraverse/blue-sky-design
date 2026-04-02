@@ -4,7 +4,7 @@
 import { Effect as E } from "effect";
 import type { LayerType, MapServiceImpl } from "./mapService";
 import type { Layer, MapOperations, MapEvent, BasemapConfig, SourceConfig, LayerConfig } from "./types";
-import type { MapGeoJSONFeature, PointLike } from "maplibre-gl";
+import type { MapGeoJSONFeature, PointLike, StyleSpecification } from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { LayerEnabled, LayerVisible } from "./mapService";
 
@@ -80,7 +80,7 @@ export class MapServiceAdapter implements MapOperations {
     // Handle style objects directly on the map
     if (typeof basemapConfig === 'object' && basemapConfig.style) {
       const map = this.mapService.getMapInstance();
-      map.setStyle(basemapConfig.style);
+      map.setStyle(basemapConfig.style as StyleSpecification);
       return;
     }
 

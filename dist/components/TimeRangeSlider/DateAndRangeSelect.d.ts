@@ -4,7 +4,7 @@ type RangeValue<T> = {
     start: T;
     end: T;
 };
-export declare const DateAndRangeSelect: ({ startDateTime, setStartDateTime, rangeValue, setRange, dateRangeForReset, availableDateRange, returnToDefaultDateTime: _returnToDefaultDateTime, timeZone: _timeZone, onTimeZoneChange: _onTimeZoneChange, }: {
+export declare const DateAndRangeSelect: ({ startDateTime, setStartDateTime, rangeValue, setRange, dateRangeForReset, availableDateRange, }: {
     startDateTime?: DateTime.DateTime;
     setStartDateTime?: (date: DateTime.DateTime) => void;
     rangeValue?: TimeDuration;

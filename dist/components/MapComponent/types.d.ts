@@ -6,9 +6,9 @@ export interface LayerConfig {
     id: string;
     type: string;
     source?: string;
-    layout?: Record<string, any>;
-    paint?: Record<string, any>;
-    filter?: any[];
+    layout?: Record<string, unknown>;
+    paint?: Record<string, unknown>;
+    filter?: unknown[];
     minzoom?: number;
     maxzoom?: number;
 }
@@ -34,7 +34,7 @@ export interface Layer {
     opacity?: number;
     sourceConfig?: SourceConfig;
     layerConfigs?: LayerConfig[];
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 export interface MapEvent {
     type: string;
@@ -47,8 +47,8 @@ export interface MapEvent {
         lng: number;
         lat: number;
     };
-    features?: any[];
-    target?: any;
+    features?: unknown[];
+    target?: unknown;
 }
 export interface MapEventHandlers {
     onLoad?: () => void;
@@ -78,7 +78,12 @@ export interface MapComponentCallbacks {
 }
 export interface BasemapConfig {
     tileUrl?: string;
-    style?: any;
+    style?: {
+        version: 8;
+        sources: Record<string, unknown>;
+        layers: unknown[];
+        [key: string]: unknown;
+    };
     attribution?: string;
     tileSize?: number;
     minZoom?: number;
@@ -120,9 +125,9 @@ export interface MapOperations {
     queryRenderedFeatures: (point?: {
         x: number;
         y: number;
-    }) => Promise<any[]>;
-    getSource: (sourceId: string) => any;
-    getLayer: (layerId: string) => any;
+    }) => Promise<unknown[]>;
+    getSource: (sourceId: string) => unknown;
+    getLayer: (layerId: string) => unknown;
 }
 export interface MapComponentCoreProps {
     id?: string;
@@ -153,9 +158,9 @@ export interface MapComponentCoreProps {
 export interface ExtendedLayer extends Layer {
     minzoom?: number;
     maxzoom?: number;
-    filter?: any[];
-    layout?: Record<string, any>;
-    paint?: Record<string, any>;
+    filter?: unknown[];
+    layout?: Record<string, unknown>;
+    paint?: Record<string, unknown>;
     beforeId?: string;
 }
 export interface VectorSourceConfig extends SourceConfig {
@@ -167,7 +172,7 @@ export interface VectorSourceConfig extends SourceConfig {
     clusterMaxZoom?: number;
     clusterRadius?: number;
     clusterMinPoints?: number;
-    clusterProperties?: Record<string, any>;
+    clusterProperties?: Record<string, unknown>;
     lineMetrics?: boolean;
     generateId?: boolean;
 }
@@ -185,7 +190,7 @@ export interface GeoJSONSourceConfig extends SourceConfig {
     clusterMaxZoom?: number;
     clusterRadius?: number;
     clusterMinPoints?: number;
-    clusterProperties?: Record<string, any>;
+    clusterProperties?: Record<string, unknown>;
     lineMetrics?: boolean;
     generateId?: boolean;
     promoteId?: string | Record<string, string>;
@@ -221,10 +226,10 @@ export interface AdvancedMapOperations extends MapOperations {
     updateLayerVisibility: (layerId: string, visible: boolean) => Promise<void>;
     updateLayerOpacity: (layerId: string, opacity: number) => Promise<void>;
     getLayerVisibility: (layerId: string) => boolean;
-    updateSource: (sourceId: string, data: any) => Promise<void>;
+    updateSource: (sourceId: string, data: unknown) => Promise<void>;
     hasSource: (sourceId: string) => boolean;
     setStyle: (styleUrl: string) => Promise<void>;
-    getStyle: () => any;
+    getStyle: () => unknown;
     isStyleLoaded: () => boolean;
     easeTo: (options: {
         center?: [number, number];
@@ -244,8 +249,8 @@ export interface AdvancedMapOperations extends MapOperations {
     } & AnimationOptions) => Promise<void>;
     querySourceFeatures: (sourceId: string, parameters?: {
         sourceLayer?: string;
-        filter?: any;
-    }) => any[];
+        filter?: unknown;
+    }) => unknown[];
     queryRenderedFeatures: (pointOrBounds?: {
         x: number;
         y: number;
@@ -257,8 +262,8 @@ export interface AdvancedMapOperations extends MapOperations {
         y: number;
     }], options?: {
         layers?: string[];
-        filter?: any;
-    }) => Promise<any[]>;
+        filter?: unknown;
+    }) => Promise<unknown[]>;
     project: (lngLat: [number, number]) => {
         x: number;
         y: number;

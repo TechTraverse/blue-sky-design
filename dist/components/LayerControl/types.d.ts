@@ -4,7 +4,7 @@ export interface LayerItem {
     enabled: boolean;
     tags?: Set<string>;
     downloadable?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 export interface LayerGroup {
     name: string;

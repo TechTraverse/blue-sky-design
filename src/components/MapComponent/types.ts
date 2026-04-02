@@ -86,8 +86,13 @@ export interface MapComponentCallbacks {
 export interface BasemapConfig {
   // Simple tile URL (will be converted to proper style)
   tileUrl?: string;
-  // Or full MapLibre style specification
-  style?: Record<string, unknown>;
+  // Or full MapLibre style specification (version must be 8)
+  style?: {
+    version: 8;
+    sources: Record<string, unknown>;
+    layers: unknown[];
+    [key: string]: unknown;
+  };
   // Custom attribution text
   attribution?: string;
   // Tile size (default: 256)

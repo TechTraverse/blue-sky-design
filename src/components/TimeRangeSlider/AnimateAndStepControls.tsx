@@ -17,6 +17,10 @@ export const AnimateAndStepControls = ({
   setAnimationDuration,
   incrementStartDateTime,
   decrementStartDateTime,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  incrementAnimationSpeed,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  decrementAnimationSpeed,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
 }: {
@@ -30,6 +34,8 @@ export const AnimateAndStepControls = ({
   setAnimationDuration?: (duration: Duration.Duration) => void,
   incrementStartDateTime?: () => void,
   decrementStartDateTime?: () => void,
+  incrementAnimationSpeed?: () => void,
+  decrementAnimationSpeed?: () => void,
   hideAnimationToggle?: boolean,
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string,

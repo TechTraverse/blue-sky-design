@@ -3,7 +3,7 @@ import { Effect as E } from 'effect';
 import { MapService, MapServiceLayer, createMapServiceLayer, MapClassWrapper } from './mapService';
 import type { BasemapFallbackOptions } from './types';
 import { MapServiceAdapter } from './mapServiceInterface';
-import type { MapComponentCoreProps, MapComponentCallbacks, MapOperations } from './types';
+import type { MapComponentCoreProps, MapComponentCallbacks, MapOperations, SourceConfig } from './types';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 
 // Core MapComponent props - React-only API
@@ -13,7 +13,7 @@ export interface MapComponentProps extends MapComponentCoreProps, MapComponentCa
     id: string;
     type: 'basemap' | 'overlay';
     url?: string;
-    sourceConfig?: Record<string, unknown>;
+    sourceConfig?: SourceConfig;
   }>;
 }
 

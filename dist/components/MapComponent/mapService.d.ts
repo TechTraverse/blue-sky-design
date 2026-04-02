@@ -229,6 +229,19 @@ export declare const Basemap: D.Case.Constructor<{
 }, "_tag">;
 export declare const BASEMAP_PREFIX = "BASEMAP-";
 export declare const LABELS_PREFIX = "LABELS-";
+export declare const COMMON_PREFIX = "COMMON-";
+/**
+ * Extracts the base layer resource ID from a full MapLibre layer ID.
+ * Handles the various suffixes added by bluesky:
+ * - COMMON- prefix
+ * - UUID suffix for cache-busting (_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+ * - Layer type suffix (-fill, -line, -circle, -symbol, -raster, -label)
+ *
+ * @example
+ * extractLayerResourceId("COMMON-NGFS_GEC_SC-fill_f27128cc-f55e-4542-a4ed-1b6e1a1055ea")
+ * // => "NGFS_GEC_SC"
+ */
+export declare const extractLayerResourceId: (layerId: string) => string;
 export declare class MapClassWrapper {
     #private;
     constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig);
@@ -238,7 +251,7 @@ export declare class MapClassWrapper {
     setOnSourceDataLoaded: (callback: (map: MapLibreMap) => void) => void;
     static resetInstance: () => void;
     static make(basemapConfig: string | {
-        style?: any;
+        style?: StyleSpecification;
         tileUrl?: string;
         tileSize?: number;
         attribution?: string;

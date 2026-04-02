@@ -11,4 +11,4 @@ export interface SettingsPanelProps {
     rangeValue?: TimeDuration;
     setRange?: (timeDuration: TimeDuration) => void;
 }
-export declare const SettingsPanel: ({ timeZone, onTimeZoneChange, theme, onThemeChange, currentMode, stepDuration, onStepDurationChange, rangeValue, setRange, }: SettingsPanelProps) => import("react/jsx-runtime").JSX.Element;
+export declare const SettingsPanel: ({ timeZone, onTimeZoneChange, theme, onThemeChange, currentMode, rangeValue, setRange, }: SettingsPanelProps) => import("react/jsx-runtime").JSX.Element;
