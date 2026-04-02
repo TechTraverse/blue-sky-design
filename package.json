@@ -17,6 +17,9 @@
     },
     "./src/components/LayerControl/LayerControl.css": "./dist/lib.css"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --p ./tsconfig.lib.json && vite build",

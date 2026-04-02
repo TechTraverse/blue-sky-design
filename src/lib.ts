@@ -51,6 +51,8 @@ export {
   createMapServiceEffect,
   BASEMAP_PREFIX,
   LABELS_PREFIX,
+  COMMON_PREFIX,
+  extractLayerResourceId,
   getParamaterizedUrl,
   // Tagged enum constructors
   VectorTiles,
