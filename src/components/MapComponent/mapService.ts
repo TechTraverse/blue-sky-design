@@ -167,6 +167,40 @@ export const {
 
 export const BASEMAP_PREFIX = "BASEMAP-";
 export const LABELS_PREFIX = "LABELS-";
+export const COMMON_PREFIX = "COMMON-";
+
+/**
+ * Extracts the base layer resource ID from a full MapLibre layer ID.
+ * Handles the various suffixes added by bluesky:
+ * - COMMON- prefix
+ * - UUID suffix for cache-busting (_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+ * - Layer type suffix (-fill, -line, -circle, -symbol, -raster, -label)
+ *
+ * @example
+ * extractLayerResourceId("COMMON-NGFS_GEC_SC-fill_f27128cc-f55e-4542-a4ed-1b6e1a1055ea")
+ * // => "NGFS_GEC_SC"
+ */
+export const extractLayerResourceId = (layerId: string): string => {
+  // 1. Strip COMMON- prefix
+  let id = layerId.startsWith(COMMON_PREFIX) ? layerId.slice(COMMON_PREFIX.length) : layerId;
+
+  // 2. Strip UUID suffix if present (format: _xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+  const uuidSuffixMatch = id.match(/_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i);
+  if (uuidSuffixMatch) {
+    id = id.slice(0, -uuidSuffixMatch[0].length);
+  }
+
+  // 3. Strip layer type suffix (-fill, -line, -circle, -symbol, -raster, -label)
+  const layerTypeSuffixes = ['-fill', '-line', '-circle', '-symbol', '-raster', '-label'];
+  for (const suffix of layerTypeSuffixes) {
+    if (id.endsWith(suffix)) {
+      id = id.slice(0, -suffix.length);
+      break;
+    }
+  }
+
+  return id;
+};
 
 export class MapClassWrapper {
   static #instance: MapClassWrapper | undefined;
