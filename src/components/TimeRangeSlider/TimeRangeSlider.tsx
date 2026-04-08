@@ -730,6 +730,7 @@ export const TimeRangeSlider = ({
     }
 
     hasInitialCenteredRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - runs once after mount
 
   /**
@@ -783,16 +784,17 @@ export const TimeRangeSlider = ({
       }
     });
 
-    if (sliderRef.current) {
-      resizeObserver.observe(sliderRef.current);
+    const sliderElement = sliderRef.current;
+    if (sliderElement) {
+      resizeObserver.observe(sliderElement);
     }
 
     return () => {
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
       }
-      if (sliderRef.current) {
-        resizeObserver.unobserve(sliderRef.current);
+      if (sliderElement) {
+        resizeObserver.unobserve(sliderElement);
       }
     };
   }, []);
@@ -810,13 +812,14 @@ export const TimeRangeSlider = ({
       }
     });
 
-    if (containerRef.current) {
-      containerResizeObserver.observe(containerRef.current);
+    const containerElement = containerRef.current;
+    if (containerElement) {
+      containerResizeObserver.observe(containerElement);
     }
 
     return () => {
-      if (containerRef.current) {
-        containerResizeObserver.unobserve(containerRef.current);
+      if (containerElement) {
+        containerResizeObserver.unobserve(containerElement);
       }
     };
   }, []);
@@ -879,6 +882,8 @@ export const TimeRangeSlider = ({
         clearTimeout(centeringTimeoutRef.current);
       }
     };
+    // viewStartDateTime intentionally excluded - we only re-center when animation bounds change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.animationOrStepMode, s.animationStartDateTime, s.animationDuration, s.viewDuration]);
 
   /**
@@ -1105,6 +1110,8 @@ export const TimeRangeSlider = ({
         pollingFiberRef.current = null;
       }
     };
+    // calculateOptimalViewStart uses stateRef.current, so it's intentionally not a dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getLatestDateRange, pollingInterval, onNewDataAvailable]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
