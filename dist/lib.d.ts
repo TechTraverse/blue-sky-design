@@ -16,6 +16,11 @@ export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './co
 export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
 export { SidePanel } from './components/SidePanel';
 export type { SidePanelProps } from './components/SidePanel';
+export { LayerToggle } from './components/LayerToggle';
+export type { LayerToggleProps } from './components/LayerToggle';
 export { ScaledRangeSlider } from './components/ScaledRangeSlider';
 export type { ScaledRangeSliderProps, ColorStop, SliderMark, ScalePreset, ScaleFunction, InverseScaleFunction, } from './components/ScaledRangeSlider';
 export { getScaleFunctions, cubicScale, cubicInverse, } from './components/ScaledRangeSlider';
+export { DurationSlider } from './components/DurationSlider';
+export type { DurationSliderProps, DurationMark, DurationUnit, RangePreset, FormatOptions, } from './components/DurationSlider';
+export { parseDuration, formatDuration, getRangeFromPreset, generateDurationMarks, MS_PER_UNIT, } from './components/DurationSlider';
