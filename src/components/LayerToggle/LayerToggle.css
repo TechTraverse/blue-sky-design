@@ -1,0 +1,61 @@
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  width: 100%;
+  background: var(--layer-toggle-bg, #fff);
+  border: 2px solid var(--layer-toggle-border, #ccc);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.layer-toggle:hover {
+  background-color: var(--layer-toggle-hover-bg, #f5f5f5);
+  border-color: var(--layer-toggle-hover-border, #999);
+}
+
+.layer-toggle:focus-visible {
+  outline: 2px solid var(--layer-toggle-focus, #2563eb);
+  outline-offset: 2px;
+}
+
+.layer-toggle--selected {
+  background-color: var(--layer-toggle-selected-bg, #dbeafe);
+  border-color: var(--layer-toggle-selected-border, #2563eb);
+  box-shadow: 0 0 0 1px var(--layer-toggle-selected-border, #2563eb);
+}
+
+.layer-toggle__thumbnail {
+  width: 48px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.layer-toggle__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.layer-toggle__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--layer-toggle-text, #1f2937);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-toggle__description {
+  font-size: 12px;
+  color: var(--layer-toggle-text-secondary, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
