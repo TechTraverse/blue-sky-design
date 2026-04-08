@@ -117,3 +117,20 @@ export {
   cubicScale,
   cubicInverse,
 } from './components/ScaledRangeSlider';
+
+// DurationSlider exports
+export { DurationSlider } from './components/DurationSlider';
+export type {
+  DurationSliderProps,
+  DurationMark,
+  DurationUnit,
+  RangePreset,
+  FormatOptions,
+} from './components/DurationSlider';
+export {
+  parseDuration,
+  formatDuration,
+  getRangeFromPreset,
+  generateDurationMarks,
+  MS_PER_UNIT,
+} from './components/DurationSlider';

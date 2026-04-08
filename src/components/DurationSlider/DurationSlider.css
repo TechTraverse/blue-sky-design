@@ -1,0 +1,58 @@
+/**
+ * DurationSlider styles
+ */
+
+.duration-slider {
+  width: 100%;
+}
+
+.duration-slider__container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Ensure slider takes remaining space */
+.duration-slider__slider {
+  flex: 1;
+}
+
+/* Dark theme (default) */
+.duration-slider.dark {
+  --text: #fff;
+}
+
+.duration-slider.dark .MuiInput-root {
+  color: #fff;
+}
+
+.duration-slider.dark .MuiInput-root::before {
+  border-bottom-color: rgba(255, 255, 255, 0.42);
+}
+
+.duration-slider.dark .MuiInput-root:hover::before {
+  border-bottom-color: rgba(255, 255, 255, 0.87);
+}
+
+/* Light theme */
+.duration-slider.light {
+  --text: #000;
+}
+
+.duration-slider.light .MuiInput-root {
+  color: #000;
+}
+
+.duration-slider.light .MuiInput-root::before {
+  border-bottom-color: rgba(0, 0, 0, 0.42);
+}
+
+.duration-slider.light .MuiInput-root:hover::before {
+  border-bottom-color: rgba(0, 0, 0, 0.87);
+}
+
+/* Input styling */
+.duration-slider .MuiInput-root {
+  font-family: monospace;
+  font-size: 0.875rem;
+}
