@@ -148,7 +148,7 @@ export const HorizontalCalendar = ({
     }
   };
 
-  const colors = getThemeColors(theme);
+  const colors = useMemo(() => getThemeColors(theme), [theme]);
 
   /**
    * View range and step settings
