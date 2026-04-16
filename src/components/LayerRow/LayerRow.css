@@ -1,0 +1,69 @@
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.layer-row__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #f8f9fa;
+}
+
+.layer-row__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.layer-row__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.layer-row__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+.layer-row__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--layer-row-text, #1f2937);
+}
+
+.layer-row__label--truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-row__description {
+  font-size: 12px;
+  color: var(--layer-row-text-secondary, #6b7280);
+}
+
+.layer-row__description--truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-row__trailing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
