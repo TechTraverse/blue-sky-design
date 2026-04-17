@@ -1,3 +1,4 @@
+import { LayerRow } from '../LayerRow';
 import './LayerToggle.css';
 
 export interface LayerToggleProps {
@@ -50,19 +51,12 @@ export const LayerToggle = ({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
     >
-      {thumbnail && (
-        <img
-          src={thumbnail}
-          alt={thumbnailAlt ?? label}
-          className="layer-toggle__thumbnail"
-        />
-      )}
-      <div className="layer-toggle__content">
-        <span className="layer-toggle__label">{label}</span>
-        {description && (
-          <span className="layer-toggle__description">{description}</span>
-        )}
-      </div>
+      <LayerRow
+        icon={thumbnail}
+        iconAlt={thumbnailAlt ?? label}
+        label={label}
+        description={description}
+      />
     </button>
   );
 };
