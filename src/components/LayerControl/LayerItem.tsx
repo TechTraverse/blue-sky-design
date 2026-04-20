@@ -4,14 +4,15 @@ import { CSS } from '@dnd-kit/utilities';
 import { RxDragHandleDots1 } from "react-icons/rx";
 import { BiSolidDownload } from "react-icons/bi";
 import { Button, ButtonGroup } from "@mui/material";
+import { LayerRow } from "../LayerRow";
 import { LayerItemComponentProps } from "./types";
 
-export const LayerItem = ({ 
-  layer, 
-  dragCapable, 
-  onLayerToggle, 
+export const LayerItem = ({
+  layer,
+  dragCapable,
+  onLayerToggle,
   onLayerDownload,
-  renderLayerIcon 
+  renderLayerIcon
 }: LayerItemComponentProps) => {
   const { id, name, enabled, downloadable } = layer;
 
@@ -60,35 +61,32 @@ export const LayerItem = ({
         </div>
       )}
       <div className="LayerContainer">
-        <div className="layerIcon">
-          {renderLayerIcon ? renderLayerIcon(layer) : (
-            <div className="defaultLayerIcon" />
+        <LayerRow
+          icon={renderLayerIcon ? renderLayerIcon(layer) : undefined}
+          label={name}
+        >
+          {downloadable && onLayerDownload && (
+            <ButtonGroup className="layerButtons" variant="outlined">
+              <Button
+                title="Download layer data"
+                aria-label="Download layer data"
+                onClick={handleDownload}
+                size="small"
+              >
+                <BiSolidDownload />
+              </Button>
+            </ButtonGroup>
           )}
-        </div>
-        <div className="layerCardElements">
-          <div>{name}</div>
-        </div>
-        {downloadable && onLayerDownload && (
-          <ButtonGroup className="layerButtons" variant="outlined">
-            <Button
-              title="Download layer data"
-              aria-label="Download layer data"
-              onClick={handleDownload}
-              size="small"
-            >
-              <BiSolidDownload />
-            </Button>
-          </ButtonGroup>
-        )}
-        <input
-          onChange={onChangeHandler}
-          type="checkbox"
-          className="CheckItem"
-          id={`${id}`}
-          name={name}
-          value={id}
-          checked={enabled}
-        />
+          <input
+            onChange={onChangeHandler}
+            type="checkbox"
+            className="CheckItem"
+            id={`${id}`}
+            name={name}
+            value={id}
+            checked={enabled}
+          />
+        </LayerRow>
       </div>
     </div>
   );
