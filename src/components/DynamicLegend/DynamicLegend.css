@@ -1,0 +1,134 @@
+.dynamicLegend {
+  background: var(--legend-bg, rgba(255, 255, 255, 0.92));
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  max-width: 280px;
+  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 12px;
+  color: var(--legend-text, #333);
+  overflow: hidden;
+  user-select: none;
+}
+
+.dynamicLegend.legend-dark {
+  --legend-bg: rgba(30, 30, 30, 0.92);
+  --legend-text: #e0e0e0;
+  --legend-border: rgba(255, 255, 255, 0.1);
+  --legend-header-hover: rgba(255, 255, 255, 0.05);
+}
+
+/* Header / collapse toggle */
+.legendHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  border-bottom: 1px solid var(--legend-border, rgba(0, 0, 0, 0.08));
+}
+
+.legendHeader:hover {
+  background: var(--legend-header-hover, rgba(0, 0, 0, 0.03));
+}
+
+.legendTitle {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.legendToggle {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+/* Body */
+.legendBody {
+  padding: 4px 0;
+}
+
+/* Entry row */
+.legendEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 10px;
+}
+
+.legendEntry + .legendEntry {
+  border-top: 1px solid var(--legend-border, rgba(0, 0, 0, 0.05));
+}
+
+.legendEntryDisabled {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.legendEntryLabel {
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legendEntryVisual {
+  flex-shrink: 0;
+}
+
+/* Gradient bar */
+.legendGradientBar {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.legendGradientTrack {
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--legend-border, rgba(0, 0, 0, 0.1));
+}
+
+.legendGradientLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  opacity: 0.7;
+  padding: 0 1px;
+}
+
+.legendGradientLabel {
+  white-space: nowrap;
+}
+
+/* Swatch */
+.legendSwatch {
+  width: 100%;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--legend-border, rgba(0, 0, 0, 0.1));
+}
+
+/* Thumbnail */
+.legendThumbnail {
+  width: 100%;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+/* Icon */
+.legendIcon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
