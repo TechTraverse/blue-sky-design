@@ -98,6 +98,10 @@ export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as Layer
 export { SidePanel } from './components/SidePanel';
 export type { SidePanelProps } from './components/SidePanel';
 
+// LayerRow exports
+export { LayerRow } from './components/LayerRow';
+export type { LayerRowProps } from './components/LayerRow';
+
 // LayerToggle exports
 export { LayerToggle } from './components/LayerToggle';
 export type { LayerToggleProps } from './components/LayerToggle';
