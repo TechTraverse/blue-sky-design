@@ -53,6 +53,41 @@ export const colorStopsToGradient = (
 };
 
 /**
+ * Convert color stops to a CSS linear-gradient without requiring a scale function.
+ *
+ * If stops have a `width` property, blocks are sized proportionally.
+ * Otherwise, blocks are distributed evenly.
+ * Creates hard color stops (no blending).
+ */
+export const colorStopsToSimpleGradient = (
+  colorStops: ColorStop[],
+  direction: string = 'to right'
+): string => {
+  if (colorStops.length === 0) return 'transparent';
+
+  const sorted = [...colorStops].sort((a, b) => a.value - b.value);
+  const hasWidths = sorted.some((s) => s.width !== undefined);
+
+  const stops: string[] = [];
+  let cursor = 0;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const stop = sorted[i];
+    const blockWidth = hasWidths
+      ? (stop.width ?? 1 / sorted.length) * 100
+      : 100 / sorted.length;
+    const startPct = cursor;
+    const endPct = cursor + blockWidth;
+
+    stops.push(`${stop.color} ${startPct}%`);
+    stops.push(`${stop.color} ${endPct}%`);
+    cursor = endPct;
+  }
+
+  return `linear-gradient(${direction}, ${stops.join(', ')})`;
+};
+
+/**
  * Generate marks from color stops
  * Useful when marks should align with color thresholds
  */

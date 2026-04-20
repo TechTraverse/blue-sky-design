@@ -23,4 +23,4 @@ export {
   logarithmicScale,
   logarithmicInverse,
 } from './scaleUtils';
-export { colorStopsToGradient, colorStopsToMarks } from './colorUtils';
+export { colorStopsToGradient, colorStopsToSimpleGradient, colorStopsToMarks } from './colorUtils';
