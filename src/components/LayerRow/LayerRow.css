@@ -3,6 +3,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  width: 100%;
 }
 
 .layer-row__icon {

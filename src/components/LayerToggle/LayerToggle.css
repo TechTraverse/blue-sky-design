@@ -2,13 +2,15 @@
   display: flex;
   align-items: center;
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 4px 8px;
   background: var(--layer-toggle-bg, #fff);
   border: 1px solid var(--layer-toggle-border, #e0e0e0);
   border-radius: 4px;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .layer-toggle:hover {
@@ -24,5 +26,5 @@
 .layer-toggle--selected {
   background-color: var(--layer-toggle-selected-bg, #f0f5ff);
   border-color: var(--layer-toggle-selected-border, #2563eb);
-  border-left: 3px solid var(--layer-toggle-selected-accent, #2563eb);
+  box-shadow: inset 3px 0 0 var(--layer-toggle-selected-accent, #2563eb);
 }
