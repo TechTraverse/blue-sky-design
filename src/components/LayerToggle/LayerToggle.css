@@ -4,6 +4,7 @@
   width: 100%;
   min-width: 0;
   overflow: hidden;
+  box-sizing: border-box;
   padding: 4px 8px;
   background: var(--layer-toggle-bg, #fff);
   border: 1px solid var(--layer-toggle-border, #e0e0e0);
