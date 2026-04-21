@@ -55,7 +55,7 @@ export const WithThumbnail: Story = {
     id: 'imagery',
     label: 'Satellite Imagery',
     description: 'High-resolution satellite photos',
-    thumbnail: 'https://placehold.co/64x64/1a1a2e/ffffff?text=Sat',
+    icon: 'https://placehold.co/64x64/1a1a2e/ffffff?text=Sat',
     selected: false,
   },
 };
@@ -65,7 +65,7 @@ export const WithThumbnailSelected: Story = {
     id: 'imagery',
     label: 'Satellite Imagery',
     description: 'High-resolution satellite photos',
-    thumbnail: 'https://placehold.co/64x64/1a1a2e/ffffff?text=Sat',
+    icon: 'https://placehold.co/64x64/1a1a2e/ffffff?text=Sat',
     selected: true,
   },
 };
@@ -103,16 +103,16 @@ export const RadioGroup: Story = {
   },
 };
 
-/** Radio group with thumbnails */
+/** Radio group with icons */
 export const RadioGroupWithThumbnails: Story = {
   render: () => {
     const [selected, setSelected] = useState('geocolor');
 
     const options = [
-      { id: 'geocolor', label: 'GOES-East CONUS GeoColor', thumbnail: 'https://placehold.co/64x64/2d5a27/ffffff?text=GC' },
-      { id: 'fire-temp', label: 'GOES-East CONUS Fire Temperature', thumbnail: 'https://placehold.co/64x64/1a2a4e/ffffff?text=FT' },
-      { id: 'microphysics', label: 'GOES-East CONUS Microphysics', thumbnail: 'https://placehold.co/64x64/4a2a4e/ffffff?text=MP' },
-      { id: 'dayfire', label: 'GOES-East CONUS DayFire', thumbnail: 'https://placehold.co/64x64/4e3a1a/ffffff?text=DF' },
+      { id: 'geocolor', label: 'GOES-East CONUS GeoColor', icon: 'https://placehold.co/64x64/2d5a27/ffffff?text=GC' },
+      { id: 'fire-temp', label: 'GOES-East CONUS Fire Temperature', icon: 'https://placehold.co/64x64/1a2a4e/ffffff?text=FT' },
+      { id: 'microphysics', label: 'GOES-East CONUS Microphysics', icon: 'https://placehold.co/64x64/4a2a4e/ffffff?text=MP' },
+      { id: 'dayfire', label: 'GOES-East CONUS DayFire', icon: 'https://placehold.co/64x64/4e3a1a/ffffff?text=DF' },
     ];
 
     return (
@@ -122,7 +122,7 @@ export const RadioGroupWithThumbnails: Story = {
             key={opt.id}
             id={opt.id}
             label={opt.label}
-            thumbnail={opt.thumbnail}
+            icon={opt.icon}
             selected={selected === opt.id}
             onSelect={setSelected}
           />

@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { LayerRow } from '../LayerRow';
 import './LayerToggle.css';
 
@@ -8,10 +9,10 @@ export interface LayerToggleProps {
   label: string;
   /** Optional description text */
   description?: string;
-  /** Optional thumbnail image URL */
-  thumbnail?: string;
-  /** Alt text for thumbnail (defaults to label) */
-  thumbnailAlt?: string;
+  /** 32x32 icon area: a URL string renders an <img>, a ReactNode renders directly */
+  icon?: string | ReactNode;
+  /** Alt text when icon is a URL string (defaults to label) */
+  iconAlt?: string;
   /** Whether this option is currently selected */
   selected?: boolean;
   /** Callback when this option is clicked */
@@ -20,13 +21,13 @@ export interface LayerToggleProps {
   className?: string;
 }
 
-/** A stylized radio button option with optional thumbnail and description */
+/** A stylized radio button option with optional icon and description */
 export const LayerToggle = ({
   id,
   label,
   description,
-  thumbnail,
-  thumbnailAlt,
+  icon,
+  iconAlt,
   selected = false,
   onSelect,
   className = '',
@@ -52,8 +53,8 @@ export const LayerToggle = ({
       onKeyDown={handleKeyDown}
     >
       <LayerRow
-        icon={thumbnail}
-        iconAlt={thumbnailAlt ?? label}
+        icon={icon}
+        iconAlt={iconAlt ?? label}
         label={label}
         description={description}
       />
