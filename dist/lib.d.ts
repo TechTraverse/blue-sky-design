@@ -16,6 +16,8 @@ export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './co
 export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
 export { SidePanel } from './components/SidePanel';
 export type { SidePanelProps } from './components/SidePanel';
+export { LayerRow } from './components/LayerRow';
+export type { LayerRowProps } from './components/LayerRow';
 export { LayerToggle } from './components/LayerToggle';
 export type { LayerToggleProps } from './components/LayerToggle';
 export { ScaledRangeSlider } from './components/ScaledRangeSlider';
