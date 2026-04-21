@@ -106,6 +106,18 @@ export type { LayerRowProps } from './components/LayerRow';
 export { LayerToggle } from './components/LayerToggle';
 export type { LayerToggleProps } from './components/LayerToggle';
 
+// DynamicLegend exports
+export { DynamicLegend, LegendEntryRow, GradientBar } from './components/DynamicLegend';
+export type {
+  DynamicLegendProps,
+  LegendEntry,
+  LegendVisual,
+  GradientVisual,
+  SwatchVisual,
+  ThumbnailVisual,
+  IconVisual,
+} from './components/DynamicLegend';
+
 // ScaledRangeSlider exports
 export { ScaledRangeSlider } from './components/ScaledRangeSlider';
 export type {
@@ -120,6 +132,7 @@ export {
   getScaleFunctions,
   cubicScale,
   cubicInverse,
+  colorStopsToSimpleGradient,
 } from './components/ScaledRangeSlider';
 
 // DurationSlider exports
