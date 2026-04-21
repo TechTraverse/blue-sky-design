@@ -7059,7 +7059,7 @@ const Yw = (e) => {
   ), g = J(() => [
     V.toEpochMillis(c.start),
     V.toEpochMillis(c.end)
-  ], [c.start, c.end]), v = ((L) => L === qt.Dark ? {
+  ], [c.start, c.end]), f = (L) => L === qt.Dark ? {
     primary: "#1e3a5f",
     // darker blue for primary selections
     select: "#4a9eff",
@@ -7093,7 +7093,7 @@ const Yw = (e) => {
     // main text
     boundary: "#9ca3af"
     // gray boundary for disabled cutoff
-  })(i), [y, E] = xe({
+  }, v = J(() => f(i), [i]), [y, E] = xe({
     start: V.toEpochMillis(p.start),
     end: V.toEpochMillis(p.end),
     stepArr: bm(
