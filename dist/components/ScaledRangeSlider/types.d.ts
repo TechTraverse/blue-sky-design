@@ -15,6 +15,8 @@ export interface ColorStop {
     color: string;
     /** Optional label for this threshold */
     label?: string | number;
+    /** Optional proportional width (0-1) for non-uniform color blocks */
+    width?: number;
 }
 /** Mark configuration for slider labels */
 export interface SliderMark {
