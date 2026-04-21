@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 export interface LayerToggleProps {
     /** Unique identifier for this option */
     id: string;
@@ -5,10 +6,10 @@ export interface LayerToggleProps {
     label: string;
     /** Optional description text */
     description?: string;
-    /** Optional thumbnail image URL */
-    thumbnail?: string;
-    /** Alt text for thumbnail (defaults to label) */
-    thumbnailAlt?: string;
+    /** 32x32 icon area: a URL string renders an <img>, a ReactNode renders directly */
+    icon?: string | ReactNode;
+    /** Alt text when icon is a URL string (defaults to label) */
+    iconAlt?: string;
     /** Whether this option is currently selected */
     selected?: boolean;
     /** Callback when this option is clicked */
@@ -16,5 +17,5 @@ export interface LayerToggleProps {
     /** Additional CSS class */
     className?: string;
 }
-/** A stylized radio button option with optional thumbnail and description */
-export declare const LayerToggle: ({ id, label, description, thumbnail, thumbnailAlt, selected, onSelect, className, }: LayerToggleProps) => import("react/jsx-runtime").JSX.Element;
+/** A stylized radio button option with optional icon and description */
+export declare const LayerToggle: ({ id, label, description, icon, iconAlt, selected, onSelect, className, }: LayerToggleProps) => import("react/jsx-runtime").JSX.Element;

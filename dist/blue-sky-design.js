@@ -37115,8 +37115,8 @@ const gA = ({
   id: e,
   label: t,
   description: n,
-  thumbnail: r,
-  thumbnailAlt: o,
+  icon: r,
+  iconAlt: o,
   selected: a = !1,
   onSelect: i,
   className: l = ""
