@@ -728,6 +728,9 @@ export class MapClassWrapper {
   addLayer = (l: LayerType, uLayerAbove?: LayerType | undefined) => {
     const parameterizedLayer = this.#parameterizeLayerUrls(l);
     const layerSnapshot = this.#getSnapshotOfCurrentMapLayers(uLayerAbove);
+    const hidden = match(l)
+      .with({ enabled: { visible: { _tag: "LayerHidden" } } }, () => true)
+      .otherwise(() => false);
     return match([parameterizedLayer, layerSnapshot])
       .with([{ _tag: "Basemap" }, P._], ([x]) => this.#addBasemapLayer(x))
       .with([{ _tag: "Labels" }, P._], ([x]) => this.#addLabelsLayer(x))
@@ -736,7 +739,7 @@ export class MapClassWrapper {
         enabled: { _tag: "LayerEnabled" }
       }, { commonLayersPresent: false }], ([l]) => {
         this.#mapAddSource(l.sourceConfig);
-        this.#addLayerConfigs(l);
+        this.#addLayerConfigs(l, undefined, hidden);
         return E.succeed(undefined);
       })
       .with([P.select("l", {
@@ -748,7 +751,7 @@ export class MapClassWrapper {
         mMaplibreLayerAbove: { value: P.select("layerAbove") },
       }], ({ l, layerAbove }) => {
         this.#mapAddSource(l.sourceConfig);
-        this.#addLayerConfigs(l, layerAbove);
+        this.#addLayerConfigs(l, layerAbove, hidden);
         return E.succeed(undefined);
       })
       .with([P.select("l", {
@@ -756,7 +759,7 @@ export class MapClassWrapper {
         enabled: {
           _tag: "LayerEnabled"
         }
-      }), { commonLayersPresent: true }], ({ l }) => this.#addToTopOfCommonLayers(l))
+      }), { commonLayersPresent: true }], ({ l }) => this.#addToTopOfCommonLayers(l, hidden))
       .otherwise(() => E.fail(new Error("Unknown layer type"))) as E.Effect<undefined, Error, void>;
   }
 
