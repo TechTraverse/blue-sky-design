@@ -443,7 +443,7 @@ export class MapClassWrapper {
     return this.#map.getSource(sourceConfig.id);
   }
 
-  #mapAddLayer = (layerConfig: AddLayerObject, layerAbove?: string) => {
+  #mapAddLayer = (layerConfig: AddLayerObject, layerAbove?: string, hidden?: boolean) => {
     const newId = `${this.#commonLayersPrefix}${layerConfig.id}`;
     if (!this.#map.getLayer(newId)) {
       let _layerAbove = layerAbove;
@@ -453,6 +453,9 @@ export class MapClassWrapper {
         _layerAbove = labelsLayer ? labelsLayer.id : undefined;
       }
       this.#map.addLayer({ ...layerConfig, id: newId }, _layerAbove);
+      if (hidden) {
+        this.#map.setLayoutProperty(newId, 'visibility', 'none');
+      }
     }
     return this.#map.getLayer(layerConfig.id);
   };
@@ -657,7 +660,7 @@ export class MapClassWrapper {
     }
   }
 
-  #addToTopOfCommonLayers = (l: LayerType) => {
+  #addToTopOfCommonLayers = (l: LayerType, hidden?: boolean) => {
     if (l._tag === "Labels" || l._tag === "Basemap") {
       return E.fail(new Error("addToTopOfCommonLayers called with non-common layer"));
     }
@@ -666,7 +669,7 @@ export class MapClassWrapper {
 
     const layers = this.#map.getStyle().layers;
     const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
-    this.#addLayerConfigs(l, uFirstLabelsLayer?.id);
+    this.#addLayerConfigs(l, uFirstLabelsLayer?.id, hidden);
     return E.succeed(undefined);
   }
 
@@ -707,17 +710,17 @@ export class MapClassWrapper {
     }
   }
 
-  #addLayerConfigs = (l: LayerResourceDescriptor, layerAboveId?: string) => {
+  #addLayerConfigs = (l: LayerResourceDescriptor, layerAboveId?: string, hidden?: boolean) => {
     if (layerAboveId) {
       let lastId = layerAboveId;
       l.orderedLayerConfigs.forEach(x => {
-        this.#mapAddLayer(x, lastId);
+        this.#mapAddLayer(x, lastId, hidden);
         lastId = `${this.#commonLayersPrefix}${x.id}`;
       });
     } else {
       // Each layer will be inserted below the labels layer. Reverse the order
       l.orderedLayerConfigs.slice().reverse().forEach(x => {
-        this.#mapAddLayer(x)
+        this.#mapAddLayer(x, undefined, hidden)
       });
     }
   }
