@@ -763,6 +763,19 @@ export class MapClassWrapper {
       .otherwise(() => E.fail(new Error("Unknown layer type"))) as E.Effect<undefined, Error, void>;
   }
 
+  setLayerVisibility = (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => {
+    l.orderedLayerConfigs.forEach(x => {
+      const layerIdWithPrefix = `${this.#commonLayersPrefix}${x.id}`;
+      const allLayers = this.#map.getStyle().layers;
+      allLayers.forEach(layer => {
+        if (layer.id.startsWith(layerIdWithPrefix)) {
+          this.#map.setLayoutProperty(layer.id, 'visibility', visibility);
+        }
+      });
+    });
+    return E.succeed(undefined);
+  }
+
   #rmLayerConfigs = (l: LayerResourceDescriptor, pred?: (l: maplibregl.LayerSpecification) => boolean) => {
     l.orderedLayerConfigs.forEach(x => {
       const layerIdWithPrefix = `${this.#commonLayersPrefix}${x.id}`;
@@ -941,6 +954,7 @@ export type MapServiceImpl = {
   rmLayer: (l: LayerType) => E.Effect<void, Error, void>
   moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, Error, never>
   updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>
+  setLayerVisibility: (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => E.Effect<undefined>
   updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, Error, void>
   registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription>
   log: () => E.Effect<void>
@@ -970,6 +984,7 @@ export const createMapServiceLayer = (config?: {
       rmLayer: mapWrapper.rmLayer,
       moveLayer: mapWrapper.moveLayer,
       updateSourceParams: mapWrapper.updateSourceParams,
+      setLayerVisibility: mapWrapper.setLayerVisibility,
       updateMapOptions: mapWrapper.updateMapOptions,
       registerEventHandler: mapWrapper.registerEventHandler,
       log: mapWrapper.log,
