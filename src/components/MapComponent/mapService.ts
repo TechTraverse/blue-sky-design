@@ -849,15 +849,41 @@ export class MapClassWrapper {
         }
       })
       .with({
+        _tag: this.#nonBasemapLabelsLayersUnion,
         sourceConfig: P.select({
           _tag: "RasterTiles",
         })
-      }, (sourceConfig) => {
+      }, (sourceConfig, parameterizedLayer) => {
         const uSource = this.#map.getSource(sourceConfig.id);
         if (uSource) {
-          // Raster tiles work fine with setTiles()
+          // Hide layers before updating tiles to prevent stale cached tile flash.
+          // MapLibre keeps showing old cached tiles after setTiles() until new ones
+          // load (or 404), which causes a brief flash of wrong-time data.
+          this.setLayerVisibility(parameterizedLayer, 'none');
           (uSource as maplibregl.RasterTileSource).setTiles(sourceConfig.tiles);
-          return E.succeed(undefined);
+
+          // Show layers again once the new tiles have loaded.
+          // If all tiles 404, isSourceLoaded still fires and the layer shows
+          // (with nothing to render, which is correct — empty, not stale).
+          return E.async<undefined, never>((cb) => {
+            const onSourceData = (e: MapSourceDataEvent) => {
+              if (e.sourceId === sourceConfig.id && e.isSourceLoaded) {
+                this.#map.off('sourcedata', onSourceData);
+                this.setLayerVisibility(parameterizedLayer, 'visible');
+                cb(E.succeed(undefined));
+              }
+            };
+            this.#map.on('sourcedata', onSourceData);
+            return E.sync(() => this.#map.off('sourcedata', onSourceData));
+          }).pipe(
+            E.timeout(Duration.millis(5000)),
+            E.catchAll(() => {
+              // Timeout: show the layer anyway so it doesn't stay hidden forever
+              this.setLayerVisibility(parameterizedLayer, 'visible');
+              return E.succeed(undefined);
+            }),
+            E.as(undefined)
+          );
         } else {
           return this.addLayer(l);
         }
