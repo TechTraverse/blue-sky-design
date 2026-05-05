@@ -20,16 +20,18 @@ function groupLayersByFunction(layers: LayerItem[], groupBy?: (layer: LayerItem)
   return Object.entries(groups).map(([name, layers]) => ({ name, layers }));
 }
 
-function DisabledList({ 
-  disabledLayers, 
-  onLayerToggle, 
-  onLayerDownload, 
-  renderLayerIcon, 
-  groupBy 
+function DisabledList({
+  disabledLayers,
+  onLayerToggle,
+  onLayerDownload,
+  onLayerOpacityChange,
+  renderLayerIcon,
+  groupBy
 }: {
   disabledLayers: LayerItem[];
   onLayerToggle: (layerId: string, enabled: boolean) => void;
   onLayerDownload?: (layer: LayerItem) => void;
+  onLayerOpacityChange?: (layerId: string, opacity: number) => void;
   renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
   groupBy?: (layer: LayerItem) => string;
 }) {
@@ -44,10 +46,11 @@ function DisabledList({
             <Typography variant="subtitle2">{groupName} ({layers.length})</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <LayerList 
+            <LayerList
               layers={layers}
               onLayerToggle={onLayerToggle}
               onLayerDownload={onLayerDownload}
+              onLayerOpacityChange={onLayerOpacityChange}
               renderLayerIcon={renderLayerIcon}
             />
           </AccordionDetails>
@@ -57,17 +60,19 @@ function DisabledList({
   );
 }
 
-function EnabledList({ 
-  enabledLayers, 
-  onLayerToggle, 
-  onLayerReorder, 
-  onLayerDownload, 
-  renderLayerIcon 
+function EnabledList({
+  enabledLayers,
+  onLayerToggle,
+  onLayerReorder,
+  onLayerDownload,
+  onLayerOpacityChange,
+  renderLayerIcon
 }: {
   enabledLayers: LayerItem[];
   onLayerToggle: (layerId: string, enabled: boolean) => void;
   onLayerReorder: (layerId: string, newPosition: number) => void;
   onLayerDownload?: (layer: LayerItem) => void;
+  onLayerOpacityChange?: (layerId: string, opacity: number) => void;
   renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
 }) {
   return (
@@ -75,12 +80,13 @@ function EnabledList({
       className="currentlyActiveLayers"
       subheader={<ListSubheader>Currently Active</ListSubheader>}
     >
-      <LayerList 
-        layers={enabledLayers} 
+      <LayerList
+        layers={enabledLayers}
         dragCapable
         onLayerToggle={onLayerToggle}
         onLayerReorder={onLayerReorder}
         onLayerDownload={onLayerDownload}
+        onLayerOpacityChange={onLayerOpacityChange}
         renderLayerIcon={renderLayerIcon}
       />
     </List>
@@ -93,23 +99,26 @@ export function LayerControl({
   onLayerToggle,
   onLayerReorder,
   onLayerDownload,
+  onLayerOpacityChange,
   groupBy,
   renderLayerIcon,
   className = ""
 }: LayerControlProps) {
   return (
     <div className={`layer-control ${className}`}>
-      <EnabledList 
+      <EnabledList
         enabledLayers={enabledLayers}
         onLayerToggle={onLayerToggle}
         onLayerReorder={onLayerReorder}
         onLayerDownload={onLayerDownload}
+        onLayerOpacityChange={onLayerOpacityChange}
         renderLayerIcon={renderLayerIcon}
       />
-      <DisabledList 
+      <DisabledList
         disabledLayers={disabledLayers}
         onLayerToggle={onLayerToggle}
         onLayerDownload={onLayerDownload}
+        onLayerOpacityChange={onLayerOpacityChange}
         renderLayerIcon={renderLayerIcon}
         groupBy={groupBy}
       />

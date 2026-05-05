@@ -12,9 +12,11 @@ export const LayerItem = ({
   dragCapable,
   onLayerToggle,
   onLayerDownload,
+  onLayerOpacityChange,
   renderLayerIcon
 }: LayerItemComponentProps) => {
   const { id, name, enabled, downloadable } = layer;
+  const opacity = layer.opacity as number | undefined;
 
   const onChangeHandler = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
@@ -64,6 +66,8 @@ export const LayerItem = ({
         <LayerRow
           icon={renderLayerIcon ? renderLayerIcon(layer) : undefined}
           label={name}
+          opacity={onLayerOpacityChange ? opacity : undefined}
+          onOpacityChange={onLayerOpacityChange ? (value) => onLayerOpacityChange(id, value) : undefined}
         >
           {downloadable && onLayerDownload && (
             <ButtonGroup className="layerButtons" variant="outlined">

@@ -7,6 +7,7 @@ export interface SimplifiedLayerControlProps {
   activeLayers: LayerItem[];
   onLayerToggle: (layerId: string, enabled: boolean) => void;
   onLayerDownload?: (layer: LayerItem) => void;
+  onLayerOpacityChange?: (layerId: string, opacity: number) => void;
   renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
   className?: string;
 }
@@ -15,6 +16,7 @@ export function SimplifiedLayerControl({
   activeLayers,
   onLayerToggle,
   onLayerDownload,
+  onLayerOpacityChange,
   renderLayerIcon,
   className = ""
 }: SimplifiedLayerControlProps) {
@@ -29,6 +31,7 @@ export function SimplifiedLayerControl({
           dragCapable={false}
           onLayerToggle={onLayerToggle}
           onLayerDownload={onLayerDownload}
+          onLayerOpacityChange={onLayerOpacityChange}
           renderLayerIcon={renderLayerIcon}
         />
       </List>

@@ -15,13 +15,14 @@ import {
 import { LayerListProps } from "./types";
 import { LayerItem } from "./LayerItem";
 
-export const LayerList = ({ 
-  layers, 
-  dragCapable = false, 
-  onLayerToggle, 
+export const LayerList = ({
+  layers,
+  dragCapable = false,
+  onLayerToggle,
   onLayerReorder,
   onLayerDownload,
-  renderLayerIcon 
+  onLayerOpacityChange,
+  renderLayerIcon
 }: LayerListProps) => {
   
   const handleDragEnd = (event: DragEndEvent) => {
@@ -45,12 +46,13 @@ export const LayerList = ({
   );
 
   const componentList = layers.map((layer) => (
-    <LayerItem 
-      layer={layer} 
-      key={layer.id} 
+    <LayerItem
+      layer={layer}
+      key={layer.id}
       dragCapable={dragCapable}
       onLayerToggle={onLayerToggle}
       onLayerDownload={onLayerDownload}
+      onLayerOpacityChange={onLayerOpacityChange}
       renderLayerIcon={renderLayerIcon}
     />
   ));
