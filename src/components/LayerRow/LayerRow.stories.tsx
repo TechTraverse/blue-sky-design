@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { LayerRow } from './LayerRow';
 
@@ -59,4 +60,22 @@ export const WithTrailingContent: Story = {
       <input type="checkbox" style={{ width: 20, height: 20 }} />
     ),
   },
+};
+
+const OpacityWrapper = () => {
+  const [opacity, setOpacity] = useState(0.75);
+  return (
+    <LayerRow
+      icon="https://placehold.co/64x64/2d5a27/ffffff?text=GC"
+      label="GOES-East CONUS GeoColor"
+      opacity={opacity}
+      onOpacityChange={setOpacity}
+    >
+      <input type="checkbox" defaultChecked style={{ width: 20, height: 20 }} />
+    </LayerRow>
+  );
+};
+
+export const WithOpacitySlider: Story = {
+  render: () => <OpacityWrapper />,
 };
