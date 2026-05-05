@@ -1,5 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, useCallback } from 'react';
 import Slider from '@mui/material/Slider';
+import { MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import './LayerRow.css';
 
 export interface LayerRowProps {
@@ -37,6 +38,12 @@ export const LayerRow = ({
   const truncate = textOverflow === 'truncate';
   const showOpacity = opacity !== undefined && onOpacityChange !== undefined;
 
+  const handleEyeToggle = useCallback(() => {
+    if (onOpacityChange) {
+      onOpacityChange((opacity ?? 1) > 0 ? 0 : 1);
+    }
+  }, [opacity, onOpacityChange]);
+
   return (
     <div className={`layer-row ${showOpacity ? 'layer-row--with-opacity' : ''} ${className}`}>
       <div className="layer-row__main">
@@ -67,6 +74,14 @@ export const LayerRow = ({
       </div>
       {showOpacity && (
         <div className="layer-row__opacity">
+          <button
+            className="layer-row__eye-btn"
+            onClick={handleEyeToggle}
+            title={(opacity ?? 1) > 0 ? 'Hide layer' : 'Show layer'}
+            aria-label={(opacity ?? 1) > 0 ? `Hide ${label}` : `Show ${label}`}
+          >
+            {(opacity ?? 1) > 0 ? <MdVisibility /> : <MdVisibilityOff />}
+          </button>
           <Slider
             size="small"
             min={0}

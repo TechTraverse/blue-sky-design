@@ -82,5 +82,36 @@
 }
 
 .layer-row__opacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 0 4px 0 40px;
+}
+
+.layer-row__opacity .MuiSlider-root {
+  flex: 1;
+}
+
+.layer-row__eye-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--layer-row-text-secondary, #6b7280);
+  flex-shrink: 0;
+}
+
+.layer-row__eye-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.layer-row__eye-btn svg {
+  width: 18px;
+  height: 18px;
 }
