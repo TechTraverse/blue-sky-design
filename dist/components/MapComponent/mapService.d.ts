@@ -262,6 +262,7 @@ export declare class MapClassWrapper {
     registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription, never, never>;
     addLayer: (l: LayerType, uLayerAbove?: LayerType | undefined) => E.Effect<undefined, Error, void>;
     setLayerVisibility: (l: LayerResourceDescriptor, visibility: "visible" | "none") => E.Effect<undefined, never, never>;
+    setLayerOpacity: (l: LayerResourceDescriptor, opacity: number) => E.Effect<undefined, never, never>;
     rmLayer: (l: LayerType) => E.Effect<undefined, never, never> | E.Effect<never, Error, never>;
     moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, never, never>;
     updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>;
@@ -274,6 +275,7 @@ export type MapServiceImpl = {
     moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, Error, never>;
     updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>;
     setLayerVisibility: (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => E.Effect<undefined>;
+    setLayerOpacity: (l: LayerResourceDescriptor, opacity: number) => E.Effect<undefined>;
     updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, Error, void>;
     registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription>;
     log: () => E.Effect<void>;
