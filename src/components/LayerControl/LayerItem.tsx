@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { RxDragHandleDots1 } from "react-icons/rx";
 import { BiSolidDownload } from "react-icons/bi";
+import { MdClose } from "react-icons/md";
 import { Button, ButtonGroup } from "@mui/material";
 import { LayerRow } from "../LayerRow";
 import { LayerItemComponentProps } from "./types";
@@ -17,10 +18,15 @@ export const LayerItem = ({
 }: LayerItemComponentProps) => {
   const { id, name, enabled, downloadable } = layer;
   const opacity = layer.opacity as number | undefined;
+  const hasOpacityControl = enabled && onLayerOpacityChange !== undefined;
 
   const onChangeHandler = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     onLayerToggle(id, checked);
+  }, [id, onLayerToggle]);
+
+  const handleRemove = useCallback(() => {
+    onLayerToggle(id, false);
   }, [id, onLayerToggle]);
 
   const handleDownload = useCallback(() => {
@@ -81,15 +87,26 @@ export const LayerItem = ({
               </Button>
             </ButtonGroup>
           )}
-          <input
-            onChange={onChangeHandler}
-            type="checkbox"
-            className="CheckItem"
-            id={`${id}`}
-            name={name}
-            value={id}
-            checked={enabled}
-          />
+          {hasOpacityControl ? (
+            <button
+              className="layer-item__remove-btn"
+              onClick={handleRemove}
+              title="Remove layer"
+              aria-label={`Remove ${name}`}
+            >
+              <MdClose />
+            </button>
+          ) : (
+            <input
+              onChange={onChangeHandler}
+              type="checkbox"
+              className="CheckItem"
+              id={`${id}`}
+              name={name}
+              value={id}
+              checked={enabled}
+            />
+          )}
         </LayerRow>
       </div>
     </div>

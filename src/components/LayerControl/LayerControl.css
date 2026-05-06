@@ -80,4 +80,27 @@
   color: var(--comp-text, #333);
 }
 
+.layer-item__remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text, #555);
+}
+
+.layer-item__remove-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.layer-item__remove-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 
