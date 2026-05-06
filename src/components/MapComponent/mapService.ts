@@ -763,15 +763,35 @@ export class MapClassWrapper {
       .otherwise(() => E.fail(new Error("Unknown layer type"))) as E.Effect<undefined, Error, void>;
   }
 
+  #getMapLayerIds = (l: LayerResourceDescriptor): string[] =>
+    l.orderedLayerConfigs.flatMap(x => {
+      const prefix = `${this.#commonLayersPrefix}${x.id}`;
+      return this.#map.getStyle().layers
+        .filter(layer => layer.id.startsWith(prefix))
+        .map(layer => layer.id);
+    });
+
   setLayerVisibility = (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => {
-    l.orderedLayerConfigs.forEach(x => {
-      const layerIdWithPrefix = `${this.#commonLayersPrefix}${x.id}`;
-      const allLayers = this.#map.getStyle().layers;
-      allLayers.forEach(layer => {
-        if (layer.id.startsWith(layerIdWithPrefix)) {
-          this.#map.setLayoutProperty(layer.id, 'visibility', visibility);
-        }
-      });
+    this.#getMapLayerIds(l).forEach(id =>
+      this.#map.setLayoutProperty(id, 'visibility', visibility));
+    return E.succeed(undefined);
+  }
+
+  setLayerOpacity = (l: LayerResourceDescriptor, opacity: number) => {
+    const opacityProps: Record<string, string[]> = {
+      fill: ['fill-opacity'],
+      line: ['line-opacity'],
+      circle: ['circle-opacity'],
+      raster: ['raster-opacity'],
+      symbol: ['icon-opacity', 'text-opacity'],
+      'fill-extrusion': ['fill-extrusion-opacity'],
+    };
+
+    this.#getMapLayerIds(l).forEach(id => {
+      const layer = this.#map.getLayer(id);
+      if (!layer) return;
+      const props = opacityProps[layer.type] || [];
+      props.forEach(prop => this.#map.setPaintProperty(id, prop, opacity));
     });
     return E.succeed(undefined);
   }
@@ -981,6 +1001,7 @@ export type MapServiceImpl = {
   moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, Error, never>
   updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>
   setLayerVisibility: (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => E.Effect<undefined>
+  setLayerOpacity: (l: LayerResourceDescriptor, opacity: number) => E.Effect<undefined>
   updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, Error, void>
   registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription>
   log: () => E.Effect<void>
@@ -1011,6 +1032,7 @@ export const createMapServiceLayer = (config?: {
       moveLayer: mapWrapper.moveLayer,
       updateSourceParams: mapWrapper.updateSourceParams,
       setLayerVisibility: mapWrapper.setLayerVisibility,
+      setLayerOpacity: mapWrapper.setLayerOpacity,
       updateMapOptions: mapWrapper.updateMapOptions,
       registerEventHandler: mapWrapper.registerEventHandler,
       log: mapWrapper.log,

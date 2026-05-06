@@ -84,7 +84,7 @@
 .layer-row__opacity {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   padding: 0 4px 0 40px;
 }
 
