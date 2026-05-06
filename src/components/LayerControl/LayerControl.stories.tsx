@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { LayerControl } from './LayerControl';
 import { SimplifiedLayerControl } from './SimplifiedLayerControl';
@@ -334,6 +335,72 @@ export const SimplifiedDefault: StoryObj<typeof SimplifiedLayerControl> = {
     docs: {
       description: {
         story: 'Simplified layer control showing active layers with toggle and download functionality, but no drag-and-drop reordering.'
+      }
+    }
+  }
+};
+
+const WithOpacityControlWrapper = () => {
+  const [enabledLayers, setEnabledLayers] = useState<LayerItem[]>([
+    { id: 'temperature', name: 'Temperature Map', enabled: true, downloadable: true, opacity: 1, tags: new Set(['weather', 'temperature']) },
+    { id: 'precipitation', name: 'Precipitation Data', enabled: true, downloadable: false, opacity: 0.75, tags: new Set(['weather', 'precipitation']) },
+    { id: 'roads', name: 'Road Network', enabled: true, downloadable: false, opacity: 1, tags: new Set(['infrastructure']) },
+  ]);
+  const [disabledLayers, setDisabledLayers] = useState<LayerItem[]>([
+    { id: 'satellite-imagery', name: 'Satellite Imagery', enabled: false, downloadable: true, opacity: 1, tags: new Set(['satellite', 'imagery']) },
+    { id: 'water-bodies', name: 'Water Bodies', enabled: false, downloadable: false, opacity: 1, tags: new Set(['hydrology', 'water']) },
+  ]);
+
+  const handleToggle = useCallback((layerId: string, enabled: boolean) => {
+    if (enabled) {
+      const layer = disabledLayers.find(l => l.id === layerId);
+      if (layer) {
+        setDisabledLayers(prev => prev.filter(l => l.id !== layerId));
+        setEnabledLayers(prev => [...prev, { ...layer, enabled: true }]);
+      }
+    } else {
+      const layer = enabledLayers.find(l => l.id === layerId);
+      if (layer) {
+        setEnabledLayers(prev => prev.filter(l => l.id !== layerId));
+        setDisabledLayers(prev => [...prev, { ...layer, enabled: false }]);
+      }
+    }
+  }, [enabledLayers, disabledLayers]);
+
+  const handleOpacityChange = useCallback((layerId: string, opacity: number) => {
+    setEnabledLayers(prev => prev.map(l => l.id === layerId ? { ...l, opacity } : l));
+    setDisabledLayers(prev => prev.map(l => l.id === layerId ? { ...l, opacity } : l));
+  }, []);
+
+  const handleReorder = useCallback((layerId: string, newPosition: number) => {
+    setEnabledLayers(prev => {
+      const idx = prev.findIndex(l => l.id === layerId);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(idx, 1);
+      next.splice(newPosition, 0, moved);
+      return next;
+    });
+  }, []);
+
+  return (
+    <LayerControl
+      enabledLayers={enabledLayers}
+      disabledLayers={disabledLayers}
+      onLayerToggle={handleToggle}
+      onLayerReorder={handleReorder}
+      onLayerOpacityChange={handleOpacityChange}
+      renderLayerIcon={(layer) => <MockLayerIcon layer={layer} />}
+    />
+  );
+};
+
+export const WithOpacityControl: Story = {
+  render: () => <WithOpacityControlWrapper />,
+  parameters: {
+    docs: {
+      description: {
+        story: 'Enabled layers show an X to remove, an eye toggle, and an opacity slider. Disabled layers show a checkbox to add.'
       }
     }
   }
