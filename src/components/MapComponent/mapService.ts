@@ -3,7 +3,8 @@ import maplibregl from "maplibre-gl";
 import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
 import { firstValueFrom, fromEvent, interval, raceWith, map, Observable, shareReplay, take, Subscription, takeUntil } from "rxjs";
-import type { BasemapConfig, BasemapFallbackOptions } from "./types";
+import type { BasemapConfig, BasemapFallbackOptions, LayerLoadStatus } from "./types";
+import { Loading, Loaded, Empty, LoadError, Timeout } from "./types";
 
 /**
  * Creates a MapLibre style with a solid background color and no external dependencies.
@@ -226,6 +227,8 @@ export class MapClassWrapper {
 
   // Callback for sourcedata events (can be set externally for marker registry, etc.)
   #onSourceDataLoaded?: (map: MapLibreMap) => void;
+  // Callback for layer load status changes
+  #onLayerLoadStatus?: (status: LayerLoadStatus) => void;
 
   constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig) {
     this.#map = m;
@@ -272,6 +275,33 @@ export class MapClassWrapper {
    */
   setOnSourceDataLoaded = (callback: (map: MapLibreMap) => void) => {
     this.#onSourceDataLoaded = callback;
+  }
+
+  /**
+   * Set callback for layer load status events (loading, loaded, empty, error, timeout)
+   */
+  setOnLayerLoadStatus = (callback: (status: LayerLoadStatus) => void) => {
+    this.#onLayerLoadStatus = callback;
+  }
+
+  #emitLayerStatus = (status: LayerLoadStatus) => {
+    if (this.#onLayerLoadStatus) {
+      this.#onLayerLoadStatus(status);
+    }
+  }
+
+  #emitAddLayerStatus = (l: LayerResourceDescriptor) => {
+    const info = { layerId: l.id, layerName: l.humanReadableName };
+    match(l.sourceConfig)
+      .with({ _tag: "GeoJsonData", data: P.select() }, (data) => {
+        const isEmpty = typeof data === 'object'
+          && data !== null
+          && 'features' in data
+          && Array.isArray((data as { features: unknown[] }).features)
+          && (data as { features: unknown[] }).features.length === 0;
+        this.#emitLayerStatus(isEmpty ? Empty(info) : Loaded(info));
+      })
+      .otherwise(() => this.#emitLayerStatus(Loaded(info)));
   }
 
   static resetInstance = () => {
