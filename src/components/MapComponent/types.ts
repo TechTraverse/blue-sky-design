@@ -1,6 +1,8 @@
 // Clean TypeScript interfaces for external consumption
 // Separates effect-ts internal types from public API
 
+import { Data as D } from "effect";
+
 export interface MapSettings {
   zoom?: number;
   center?: [number, number];
@@ -123,6 +125,16 @@ export interface BasemapFallbackOptions {
   // Solid color to use as final fallback (default: '#1a365d' dark blue)
   solidColorFallback?: string;
 }
+
+// Layer load status (emitted via callback during layer lifecycle)
+export type LayerLoadStatus = D.TaggedEnum<{
+  Loading: { layerId: string; layerName: string };
+  Loaded: { layerId: string; layerName: string };
+  Empty: { layerId: string; layerName: string };
+  LoadError: { layerId: string; layerName: string; error: Error };
+  Timeout: { layerId: string; layerName: string };
+}>;
+export const { Loading, Loaded, Empty, LoadError, Timeout } = D.taggedEnum<LayerLoadStatus>();
 
 // Promise-based operations (converted from effect-ts)
 export interface MapOperations {
