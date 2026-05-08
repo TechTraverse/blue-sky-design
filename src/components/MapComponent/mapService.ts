@@ -677,14 +677,18 @@ export class MapClassWrapper {
       return E.fail(new Error("addBasemapLayer called with non-basemap layer"));
     }
 
+    const info = { layerId: l.id, layerName: l.humanReadableName };
     if (this.#map.isStyleLoaded()) {
+      this.#emitLayerStatus(Loaded(info));
       return this.#setStyleByResourceUrl(l.resourceUrl);
     } else {
+      this.#emitLayerStatus(Loading(info));
       const loadEvent$ = fromEvent(this.#map, "style.load");
       return E.andThen(
         E.promise(() => firstValueFrom(loadEvent$.pipe(
           raceWith(interval(1000))))),
         E.flatMap(() => {
+          this.#emitLayerStatus(Loaded(info));
           return this.#setStyleByResourceUrl(l.resourceUrl, false, false);
         }))
     }
@@ -700,6 +704,7 @@ export class MapClassWrapper {
     const layers = this.#map.getStyle().layers;
     const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
     this.#addLayerConfigs(l, uFirstLabelsLayer?.id, hidden);
+    this.#emitAddLayerStatus(l);
     return E.succeed(undefined);
   }
 
@@ -770,6 +775,7 @@ export class MapClassWrapper {
       }, { commonLayersPresent: false }], ([l]) => {
         this.#mapAddSource(l.sourceConfig);
         this.#addLayerConfigs(l, undefined, hidden);
+        this.#emitAddLayerStatus(l);
         return E.succeed(undefined);
       })
       .with([P.select("l", {
@@ -782,6 +788,7 @@ export class MapClassWrapper {
       }], ({ l, layerAbove }) => {
         this.#mapAddSource(l.sourceConfig);
         this.#addLayerConfigs(l, layerAbove, hidden);
+        this.#emitAddLayerStatus(l);
         return E.succeed(undefined);
       })
       .with([P.select("l", {
