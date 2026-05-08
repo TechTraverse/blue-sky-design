@@ -268,6 +268,7 @@ export class MapClassWrapper {
         this.#onSourceDataLoaded(this.#map);
       }
     });
+
   }
 
   /**
@@ -912,12 +913,14 @@ export class MapClassWrapper {
         })
       }, (sourceConfig, parameterizedLayer) => {
         const uSource = this.#map.getSource(sourceConfig.id);
+        const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
         if (uSource) {
           // Hide layers before updating tiles to prevent stale cached tile flash.
           // MapLibre keeps showing old cached tiles after setTiles() until new ones
           // load (or 404), which causes a brief flash of wrong-time data.
           this.setLayerVisibility(parameterizedLayer, 'none');
           (uSource as maplibregl.RasterTileSource).setTiles(sourceConfig.tiles);
+          this.#emitLayerStatus(Loading(info));
 
           // Show layers again once the new tiles have loaded.
           // If all tiles 404, isSourceLoaded still fires and the layer shows
@@ -927,6 +930,7 @@ export class MapClassWrapper {
               if (e.sourceId === sourceConfig.id && e.isSourceLoaded) {
                 this.#map.off('sourcedata', onSourceData);
                 this.setLayerVisibility(parameterizedLayer, 'visible');
+                this.#emitLayerStatus(Loaded(info));
                 cb(E.succeed(undefined));
               }
             };
@@ -937,6 +941,7 @@ export class MapClassWrapper {
             E.catchAll(() => {
               // Timeout: show the layer anyway so it doesn't stay hidden forever
               this.setLayerVisibility(parameterizedLayer, 'visible');
+              this.#emitLayerStatus(Timeout(info));
               return E.succeed(undefined);
             }),
             E.as(undefined)
@@ -953,16 +958,20 @@ export class MapClassWrapper {
       }, (sourceConfig, parameterizedLayer) => {
         const randomSuffix = crypto.randomUUID();
         const newSourceId = `${sourceConfig.id}_${randomSuffix}`;
+        const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
+        this.#emitLayerStatus(Loading(info));
 
         // Capture old sources BEFORE any changes
         const oldSourceIds = Object.keys(this.#map.getStyle().sources)
           .filter(id => id.startsWith(`${sourceConfig.id}_`));
 
         // E.async body runs synchronously - register listener, add source/layers, then wait
+        let timedOut = false;
         const waitForLoad = E.async<undefined, never>((cb) => {
           const onSourceData = (e: MapSourceDataEvent) => {
             if (e.sourceId === newSourceId && e.isSourceLoaded) {
               this.#map.off('sourcedata', onSourceData);
+              this.#emitLayerStatus(Loaded(info));
               cb(E.succeed(undefined));
             }
           };
@@ -996,8 +1005,14 @@ export class MapClassWrapper {
         // Chain: wait (with timeout) → cleanup old stuff
         return waitForLoad.pipe(
           E.timeout(Duration.millis(500)),
-          E.catchAll(() => E.succeed(undefined)),  // timeout is OK, proceed to cleanup
+          E.catchAll(() => {
+            timedOut = true;
+            return E.succeed(undefined);  // timeout is OK, proceed to cleanup
+          }),
           E.tap(() => {
+            if (timedOut) {
+              this.#emitLayerStatus(Timeout(info));
+            }
             this.#rmLayerConfigs(parameterizedLayer, (l) =>
               'source' in l && oldSourceIds.includes(l.source as string));
             oldSourceIds.forEach(srcId => {
