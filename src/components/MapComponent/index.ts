@@ -22,6 +22,7 @@ export type {
   BasemapFallbackReason,
   BasemapFallbackInfo,
   BasemapFallbackOptions,
+  LayerLoadStatus,
   ExtendedLayer,
   VectorSourceConfig,
   RasterSourceConfig,
@@ -34,6 +35,9 @@ export type {
   TransitionOptions,
   AdvancedMapOperations,
 } from './types';
+
+// Layer load status constructors
+export { Loading, Loaded, Empty, LoadError, Timeout } from './types';
 
 // Service interface exports (for advanced usage)
 export { MapServiceAdapter, createMapServiceEffect } from './mapServiceInterface';

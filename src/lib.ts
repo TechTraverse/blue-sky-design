@@ -29,6 +29,7 @@ export type {
   MapControls,
   MapOperations,
   BasemapConfig,
+  LayerLoadStatus,
   ExtendedLayer,
   VectorSourceConfig,
   RasterSourceConfig,
@@ -41,6 +42,9 @@ export type {
   TransitionOptions,
   AdvancedMapOperations,
 } from './components/MapComponent';
+
+// Layer load status constructors
+export { Loading, Loaded, Empty, LoadError, Timeout } from './components/MapComponent';
 
 // Advanced exports for effect-ts integration
 export {
