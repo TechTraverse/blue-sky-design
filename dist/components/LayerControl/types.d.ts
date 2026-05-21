@@ -16,6 +16,7 @@ export interface LayerControlProps {
     onLayerToggle: (layerId: string, enabled: boolean) => void;
     onLayerReorder: (layerId: string, newPosition: number) => void;
     onLayerDownload?: (layer: LayerItem) => void;
+    onLayerOpacityChange?: (layerId: string, opacity: number) => void;
     groupBy?: (layer: LayerItem) => string;
     renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
     className?: string;
@@ -26,6 +27,7 @@ export interface LayerListProps {
     onLayerToggle: (layerId: string, enabled: boolean) => void;
     onLayerReorder?: (layerId: string, newPosition: number) => void;
     onLayerDownload?: (layer: LayerItem) => void;
+    onLayerOpacityChange?: (layerId: string, opacity: number) => void;
     renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
 }
 export interface LayerItemComponentProps {
@@ -33,5 +35,6 @@ export interface LayerItemComponentProps {
     dragCapable: boolean;
     onLayerToggle: (layerId: string, enabled: boolean) => void;
     onLayerDownload?: (layer: LayerItem) => void;
+    onLayerOpacityChange?: (layerId: string, opacity: number) => void;
     renderLayerIcon?: (layer: LayerItem) => React.ReactNode;
 }

@@ -14,5 +14,9 @@ export interface LayerRowProps {
     className?: string;
     /** Trailing content (checkbox, buttons, etc.) */
     children?: ReactNode;
+    /** Layer opacity (0–1). When provided with onOpacityChange, renders an opacity slider. */
+    opacity?: number;
+    /** Called when the user adjusts the opacity slider */
+    onOpacityChange?: (opacity: number) => void;
 }
-export declare const LayerRow: ({ icon, iconAlt, label, description, textOverflow, className, children, }: LayerRowProps) => import("react/jsx-runtime").JSX.Element;
+export declare const LayerRow: ({ icon, iconAlt, label, description, textOverflow, className, children, opacity, onOpacityChange, }: LayerRowProps) => import("react/jsx-runtime").JSX.Element;
