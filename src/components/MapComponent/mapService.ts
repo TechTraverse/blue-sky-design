@@ -3,8 +3,22 @@ import maplibregl from "maplibre-gl";
 import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
 import { firstValueFrom, fromEvent, interval, raceWith, map, Observable, shareReplay, take, Subscription, takeUntil } from "rxjs";
-import type { BasemapConfig, BasemapFallbackOptions, LayerLoadStatus } from "./types";
+import type { BasemapConfig, BasemapFallbackOptions, BasemapFallbackReason, LayerLoadStatus } from "./types";
 import { Loading, Loaded, Empty, LoadError, Timeout } from "./types";
+import {
+  collectBasemapDomains,
+  isBasemapAuthError as checkBasemapAuthError,
+  mergeStylesheetDomains,
+} from "./basemapFallback";
+
+export {
+  isTileTemplateUrl,
+  extractHostname,
+  collectBasemapDomains,
+  collectDomainsFromStylesheet,
+  isBasemapAuthError,
+  mergeStylesheetDomains,
+} from "./basemapFallback";
 
 /**
  * Creates a MapLibre style with a solid background color and no external dependencies.
@@ -24,22 +38,6 @@ export const createSolidColorStyle = (
     }
   }]
 });
-
-/**
- * Extracts the domain from a basemap URL for error matching.
- */
-const extractBasemapDomain = (basemapConfig: string | BasemapConfig): string | undefined => {
-  try {
-    const url = typeof basemapConfig === 'string'
-      ? basemapConfig
-      : basemapConfig.tileUrl;
-    if (!url) return undefined;
-    const parsed = new URL(url);
-    return parsed.hostname;
-  } catch {
-    return undefined;
-  }
-};
 
 // Service utilities
 const objectToParams = (x: { [k: string]: unknown }) => {
@@ -229,10 +227,12 @@ export class MapClassWrapper {
   #onSourceDataLoaded?: (map: MapLibreMap) => void;
   // Callback for layer load status changes
   #onLayerLoadStatus?: (status: LayerLoadStatus) => void;
+  #basemapFallbackApplied: boolean;
 
-  constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig) {
+  constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig, basemapFallbackApplied = false) {
     this.#map = m;
     this.#loadedBasemapUrl = initialBasemapUrl;
+    this.#basemapFallbackApplied = basemapFallbackApplied;
 
     // Add controls based on configuration
     const ctrlConfig = controls ?? { navigation: true, fullscreen: true, geolocate: true, scale: true };
@@ -367,76 +367,122 @@ export class MapClassWrapper {
     });
 
     // Set up 401/403 error detection and fallback handling
-    if (fallbackOptions) {
-      const basemapDomain = extractBasemapDomain(basemapConfig);
+    let applyBasemapFallback: ((reason: BasemapFallbackReason) => void) | undefined;
+    let basemapFallbackApplied = false;
 
-      const fallbackChain = [
-        fallbackOptions.fallbackBasemap && (() => {
-          const { style } = buildStyleFromConfig(fallbackOptions.fallbackBasemap as string | { style?: StyleSpecification; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number });
-          fallbackOptions.onBasemapFallback?.({
-            reason: { type: 'auth_error', status: 401, url: basemapUrl },
-            originalBasemap: basemapConfig,
-            fallbackBasemap: fallbackOptions.fallbackBasemap,
-            usingSolidColor: false
-          });
-          return style;
-        }),
-        () => {
-          fallbackOptions.onBasemapFallback?.({
-            reason: { type: 'auth_error', status: 401, url: basemapUrl },
-            originalBasemap: basemapConfig,
-            fallbackBasemap: fallbackOptions.fallbackBasemap,
-            usingSolidColor: true
-          });
-          return createSolidColorStyle(fallbackOptions.solidColorFallback);
+    if (fallbackOptions) {
+      const basemapDomains = collectBasemapDomains(basemapConfig);
+      let authErrorHandled = false;
+
+      const transformStylePreserveOverlays = (prev: StyleSpecification | undefined, next: StyleSpecification) => {
+        const keepLayers = (prev?.layers ?? []).filter(l =>
+          l.id.startsWith(LABELS_PREFIX) ||
+          l.id.startsWith('COMMON-') ||
+          l.id.includes('mapbox-gl-draw')
+        );
+        const sourceMapping: Record<string, string> = {};
+        const taggedSources: Record<string, SourceSpecification> = {};
+        Object.entries(next.sources).forEach(([k, v]) => {
+          const taggedKey = `${BASEMAP_PREFIX}${k}`;
+          sourceMapping[k] = taggedKey;
+          taggedSources[taggedKey] = v;
+        });
+        const taggedLayers = next.layers.map(l => {
+          const tagged = {
+            ...l,
+            id: `${BASEMAP_PREFIX}${l.id}`,
+          };
+          if ('source' in tagged && typeof tagged.source === 'string' && sourceMapping[tagged.source]) {
+            return { ...tagged, source: sourceMapping[tagged.source] };
+          }
+          return tagged;
+        });
+        return {
+          ...next,
+          sources: { ...taggedSources },
+          layers: [...taggedLayers, ...keepLayers]
+        } as StyleSpecification;
+      };
+
+      type FallbackConfig = string | { style?: StyleSpecification; tileUrl?: string; tileSize?: number; attribution?: string; minZoom?: number; maxZoom?: number };
+      const fallbackSteps: Array<{
+        usingSolidColor: boolean;
+        getStyle: () => string | StyleSpecification;
+      }> = [];
+
+      if (fallbackOptions.fallbackBasemap) {
+        fallbackSteps.push({
+          usingSolidColor: false,
+          getStyle: () => buildStyleFromConfig(fallbackOptions.fallbackBasemap as FallbackConfig).style,
+        });
+      }
+
+      fallbackSteps.push({
+        usingSolidColor: true,
+        getStyle: () => createSolidColorStyle(fallbackOptions.solidColorFallback),
+      });
+
+      applyBasemapFallback = (reason: BasemapFallbackReason) => {
+        if (authErrorHandled || fallbackSteps.length === 0) return;
+        authErrorHandled = true;
+
+        const step = fallbackSteps.shift()!;
+        fallbackOptions.onBasemapFallback?.({
+          reason,
+          originalBasemap: basemapConfig,
+          fallbackBasemap: fallbackOptions.fallbackBasemap,
+          usingSolidColor: step.usingSolidColor,
+        });
+
+        const nextStyle = step.getStyle();
+        // MapLibre defers setStyle when transformStyle is set but style._loaded is false
+        // (waits for style.load, which never fires after a failed primary style). When
+        // the primary never loaded there are no overlays to preserve — apply as-is.
+        if (m.isStyleLoaded()) {
+          m.setStyle(nextStyle, { transformStyle: transformStylePreserveOverlays });
+        } else {
+          basemapFallbackApplied = true;
+          m.setStyle(nextStyle);
         }
-      ].filter(Boolean) as Array<() => StyleSpecification>;
+      };
+
+      const handleBasemapError = (status: number | undefined, errorUrl: string | undefined) => {
+        if (!checkBasemapAuthError(status, errorUrl, basemapDomains)) return;
+
+        const authStatus = (status === 401 || status === 403 || status === 0)
+          ? (status as 401 | 403 | 0)
+          : 403;
+
+        applyBasemapFallback!({
+          type: 'auth_error',
+          status: authStatus,
+          url: errorUrl ?? basemapUrl,
+        });
+      };
+
+      m.on('style.load', () => {
+        authErrorHandled = false;
+        mergeStylesheetDomains(basemapDomains, m.getStyle());
+      });
 
       m.on('error', (event: { error?: { status?: number; url?: string } }) => {
         const err = event?.error;
-        const status = err?.status as number | undefined;
-        const errorUrl = err?.url as string | undefined;
-
-        const isBasemapAuthError =
-          (status === 401 || status === 403) &&
-          (!basemapDomain || !errorUrl || errorUrl.includes(basemapDomain));
-
-        if (isBasemapAuthError) {
-          const nextFallback = fallbackChain.shift();
-          if (nextFallback) {
-            m.setStyle(nextFallback(), {
-              transformStyle: (prev, next) => {
-                // Preserve non-basemap layers (overlays, labels, draw)
-                const keepLayers = (prev?.layers ?? []).filter(l =>
-                  l.id.startsWith(LABELS_PREFIX) ||
-                  l.id.startsWith('COMMON-') ||
-                  l.id.includes('mapbox-gl-draw')
-                );
-                // Tag new basemap layers
-                const taggedLayers = next.layers.map(l => ({
-                  ...l,
-                  id: `${BASEMAP_PREFIX}${l.id}`
-                }));
-                // Tag new basemap sources
-                const taggedSources: Record<string, SourceSpecification> = {};
-                Object.entries(next.sources).forEach(([k, v]) => {
-                  taggedSources[`${BASEMAP_PREFIX}${k}`] = v;
-                });
-                return {
-                  ...next,
-                  sources: { ...taggedSources },
-                  layers: [...taggedLayers, ...keepLayers]
-                } as StyleSpecification;
-              }
-            });
-          }
-        }
+        handleBasemapError(err?.status as number | undefined, err?.url as string | undefined);
       });
     }
 
     const loadOrTimeout$ = fromEvent(m, "load").pipe(raceWith(interval(2000)))
     const loadedMap = await firstValueFrom(loadOrTimeout$.pipe(map(() => m)));
-    this.#instance = new MapClassWrapper(loadedMap, basemapUrl, controls);
+
+    if (applyBasemapFallback && !loadedMap.isStyleLoaded()) {
+      applyBasemapFallback({
+        type: 'auth_error',
+        status: 403,
+        url: basemapUrl,
+      });
+    }
+
+    this.#instance = new MapClassWrapper(loadedMap, basemapUrl, controls, basemapFallbackApplied);
 
     return this.#instance;
   }
@@ -514,6 +560,10 @@ export class MapClassWrapper {
       .otherwise(() => l);
 
   #addLabelsLayer = (l: LayerType) => {
+    if (this.#basemapFallbackApplied) {
+      console.warn('Skipping Esri labels layer — basemap is using fallback tiles without the Basemap Styles API');
+      return E.succeed(undefined);
+    }
     const parameterizedLayer = this.#parameterizeLayerUrls(l);
     if (parameterizedLayer._tag !== "Labels") {
       return E.fail(new Error("addLabelsLayer called with non-labels layer"));

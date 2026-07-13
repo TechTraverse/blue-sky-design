@@ -106,7 +106,7 @@ export interface BasemapConfig {
 
 // Basemap fallback types (for 401/403 error handling)
 export type BasemapFallbackReason =
-  | { type: 'auth_error'; status: 401 | 403; url: string }
+  | { type: 'auth_error'; status: 401 | 403 | 0; url: string }
   | { type: 'load_error'; error: Error; url: string }
   | { type: 'timeout'; url: string };
 

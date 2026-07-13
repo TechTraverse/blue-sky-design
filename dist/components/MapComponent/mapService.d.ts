@@ -2,6 +2,7 @@ import { Effect as E, Context, Layer, Data as D } from 'effect';
 import { default as maplibregl, AddLayerObject, Map as MapLibreMap, MapOptions, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl';
 import { Subscription } from 'rxjs';
 import { BasemapFallbackOptions, LayerLoadStatus } from './types';
+export { isTileTemplateUrl, extractHostname, collectBasemapDomains, collectDomainsFromStylesheet, isBasemapAuthError, mergeStylesheetDomains, } from './basemapFallback';
 /**
  * Creates a MapLibre style with a solid background color and no external dependencies.
  * Used as the final fallback when basemap loading fails.
@@ -244,7 +245,7 @@ export declare const COMMON_PREFIX = "COMMON-";
 export declare const extractLayerResourceId: (layerId: string) => string;
 export declare class MapClassWrapper {
     #private;
-    constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig);
+    constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig, basemapFallbackApplied?: boolean);
     /**
      * Set callback for sourcedata loaded events (for marker registry, etc.)
      */
@@ -296,4 +297,3 @@ export declare const createMapServiceLayer: (config?: {
 }) => Layer.Layer<MapService, never, never>;
 /** Default MapService layer (backwards compatible) */
 export declare const MapServiceLayer: Layer.Layer<MapService, never, never>;
-export {};

@@ -210,6 +210,25 @@ export const WithFallbackToEsri: Story = {
   },
 };
 
+// Mirrors wlfs-client: ESRI style JSON primary with public World Imagery fallback
+export const WithEsriStyleFallbackToWorldImagery: Story = {
+  args: {
+    style: { height: '500px' },
+    initialBasemap:
+      'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/arcgis/imagery/standard?token=invalid-restricted-token',
+    fallbackOptions: {
+      fallbackBasemap:
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      solidColorFallback: '#1a365d',
+      onBasemapFallback: (info) => {
+        console.log('Basemap fallback triggered:', info);
+        console.log('Reason:', info.reason.type, info.reason.status, 'Using solid color:', info.usingSolidColor);
+      },
+    },
+    onMapReady: () => console.log('Map ready - ESRI style fallback configured'),
+  },
+};
+
 // Directly shows solid color background (simulates final fallback state)
 export const SolidColorBackground: Story = {
   args: {
