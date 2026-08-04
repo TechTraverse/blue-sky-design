@@ -815,20 +815,22 @@ export class MapClassWrapper {
     return E.succeed(undefined);
   }
 
-  setLayerOpacity = (l: LayerResourceDescriptor, opacity: number) => {
-    const opacityProps: Record<string, string[]> = {
-      fill: ['fill-opacity'],
-      line: ['line-opacity'],
-      circle: ['circle-opacity'],
-      raster: ['raster-opacity'],
-      symbol: ['icon-opacity', 'text-opacity'],
-      'fill-extrusion': ['fill-extrusion-opacity'],
-    };
+  // Opacity paint properties keyed by layer type. Shared by setLayerOpacity
+  // and the buffered tile swap (which preserves opacity across the swap).
+  #opacityPaintProps: Record<string, string[]> = {
+    fill: ['fill-opacity'],
+    line: ['line-opacity'],
+    circle: ['circle-opacity'],
+    raster: ['raster-opacity'],
+    symbol: ['icon-opacity', 'text-opacity'],
+    'fill-extrusion': ['fill-extrusion-opacity'],
+  };
 
+  setLayerOpacity = (l: LayerResourceDescriptor, opacity: number) => {
     this.#getMapLayerIds(l).forEach(id => {
       const layer = this.#map.getLayer(id);
       if (!layer) return;
-      const props = opacityProps[layer.type] || [];
+      const props = this.#opacityPaintProps[layer.type] || [];
       props.forEach(prop => this.#map.setPaintProperty(id, prop, opacity));
     });
     return E.succeed(undefined);
@@ -909,123 +911,117 @@ export class MapClassWrapper {
       .with({
         _tag: this.#nonBasemapLabelsLayersUnion,
         sourceConfig: P.select({
-          _tag: "RasterTiles",
+          _tag: P.union("RasterTiles", "VectorTiles"),
         })
-      }, (sourceConfig, parameterizedLayer) => {
-        const uSource = this.#map.getSource(sourceConfig.id);
-        const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
-        if (uSource) {
-          // Hide layers before updating tiles to prevent stale cached tile flash.
-          // MapLibre keeps showing old cached tiles after setTiles() until new ones
-          // load (or 404), which causes a brief flash of wrong-time data.
-          this.setLayerVisibility(parameterizedLayer, 'none');
-          (uSource as maplibregl.RasterTileSource).setTiles(sourceConfig.tiles);
-          this.#emitLayerStatus(Loading(info));
-
-          // Show layers again once the new tiles have loaded.
-          // If all tiles 404, isSourceLoaded still fires and the layer shows
-          // (with nothing to render, which is correct — empty, not stale).
-          return E.async<undefined, never>((cb) => {
-            const onSourceData = (e: MapSourceDataEvent) => {
-              if (e.sourceId === sourceConfig.id && e.isSourceLoaded) {
-                this.#map.off('sourcedata', onSourceData);
-                this.setLayerVisibility(parameterizedLayer, 'visible');
-                this.#emitLayerStatus(Loaded(info));
-                cb(E.succeed(undefined));
-              }
-            };
-            this.#map.on('sourcedata', onSourceData);
-            return E.sync(() => this.#map.off('sourcedata', onSourceData));
-          }).pipe(
-            E.timeout(Duration.millis(5000)),
-            E.catchAll(() => {
-              // Timeout: show the layer anyway so it doesn't stay hidden forever
-              this.setLayerVisibility(parameterizedLayer, 'visible');
-              this.#emitLayerStatus(Timeout(info));
-              return E.succeed(undefined);
-            }),
-            E.as(undefined)
-          );
-        } else {
-          return this.addLayer(l);
-        }
-      })
-      .with({
-        _tag: this.#nonBasemapLabelsLayersUnion,
-        sourceConfig: P.select({
-          _tag: "VectorTiles",
-        })
-      }, (sourceConfig, parameterizedLayer) => {
-        const randomSuffix = crypto.randomUUID();
-        const newSourceId = `${sourceConfig.id}_${randomSuffix}`;
-        const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
-        this.#emitLayerStatus(Loading(info));
-
-        // Capture old sources BEFORE any changes
-        const oldSourceIds = Object.keys(this.#map.getStyle().sources)
-          .filter(id => id.startsWith(`${sourceConfig.id}_`));
-
-        // E.async body runs synchronously - register listener, add source/layers, then wait
-        let timedOut = false;
-        const waitForLoad = E.async<undefined, never>((cb) => {
-          const onSourceData = (e: MapSourceDataEvent) => {
-            if (e.sourceId === newSourceId && e.isSourceLoaded) {
-              this.#map.off('sourcedata', onSourceData);
-              this.#emitLayerStatus(Loaded(info));
-              cb(E.succeed(undefined));
-            }
-          };
-
-          // 1. Register listener FIRST
-          this.#map.on('sourcedata', onSourceData);
-
-          // 2. Add new source
-          this.#map.addSource(newSourceId, this.#cleanSourceConfig({
-            ...sourceConfig,
-            id: newSourceId
-          }));
-
-          // 3. Add new layers
-          const layers = this.#map.getStyle().layers;
-          const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
-
-          parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
-            const newLayerId = `${this.#commonLayersPrefix}${layerConfig.id}_${randomSuffix}`;
-            this.#map.addLayer({
-              ...layerConfig,
-              id: newLayerId,
-              source: newSourceId
-            } as AddLayerObject, uFirstLabelsLayer?.id);
-          });
-
-          // Cleanup on interrupt
-          return E.sync(() => this.#map.off('sourcedata', onSourceData));
-        });
-
-        // Chain: wait (with timeout) → cleanup old stuff
-        return waitForLoad.pipe(
-          E.timeout(Duration.millis(500)),
-          E.catchAll(() => {
-            timedOut = true;
-            return E.succeed(undefined);  // timeout is OK, proceed to cleanup
-          }),
-          E.tap(() => {
-            if (timedOut) {
-              this.#emitLayerStatus(Timeout(info));
-            }
-            this.#rmLayerConfigs(parameterizedLayer, (l) =>
-              'source' in l && oldSourceIds.includes(l.source as string));
-            oldSourceIds.forEach(srcId => {
-              if (this.#map.getSource(srcId)) {
-                this.#map.removeSource(srcId);
-              }
-            });
-          }),
-          E.as(undefined)
-        );
-      })
+      }, (sourceConfig, parameterizedLayer) =>
+        // Both raster and vector swap tiles by double-buffering: add the new
+        // tiles on top and only drop the old ones once the new have loaded, so
+        // the imagery never goes blank. Imagery loads slower than vector tiles,
+        // so give it longer before falling back to a hard swap.
+        this.#doubleBufferedTileUpdate(
+          sourceConfig,
+          parameterizedLayer,
+          sourceConfig._tag === "RasterTiles" ? 5000 : 500
+        ))
       .otherwise(() => E.fail(new Error("Unknown layer type")));
   }
+
+  // Swap a tile source's data with no blank gap: add a second buffered
+  // source + layers carrying the new tiles on top of the current ones, wait for
+  // the new tiles to load, then remove the old source. Used for both raster and
+  // vector tiles — the only per-type difference is how long to keep the old
+  // tiles around before giving up (timeoutMs).
+  #doubleBufferedTileUpdate = (
+    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
+    parameterizedLayer: LayerResourceDescriptor,
+    timeoutMs: number
+  ) => {
+    const randomSuffix = crypto.randomUUID();
+    const newSourceId = `${sourceConfig.id}_${randomSuffix}`;
+    const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
+    this.#emitLayerStatus(Loading(info));
+
+    // Capture old sources BEFORE any changes. Matches both the un-suffixed
+    // source a layer starts life with (first swap) and prior buffered sources.
+    const oldSourceIds = Object.keys(this.#map.getStyle().sources)
+      .filter(id => id === sourceConfig.id || id.startsWith(`${sourceConfig.id}_`));
+
+    // Preserve any runtime opacity set on the outgoing layers (e.g. via the
+    // imagery opacity control) so the freshly-added buffer doesn't reset it.
+    const preservedOpacity = new Map<string, [string, unknown][]>();
+    parameterizedLayer.orderedLayerConfigs.forEach(cfg => {
+      const oldLayerId = this.#map.getStyle().layers
+        .map(l => l.id)
+        .find(id => id.startsWith(`${this.#commonLayersPrefix}${cfg.id}`));
+      if (!oldLayerId) return;
+      const type = this.#map.getLayer(oldLayerId)?.type;
+      const captured = (type ? this.#opacityPaintProps[type] ?? [] : [])
+        .map(prop => [prop, this.#map.getPaintProperty(oldLayerId, prop)] as [string, unknown])
+        .filter(([, v]) => v !== undefined);
+      if (captured.length) preservedOpacity.set(cfg.id, captured);
+    });
+
+    // E.async body runs synchronously - register listener, add source/layers, then wait
+    let timedOut = false;
+    const waitForLoad = E.async<undefined, never>((cb) => {
+      const onSourceData = (e: MapSourceDataEvent) => {
+        if (e.sourceId === newSourceId && e.isSourceLoaded) {
+          this.#map.off('sourcedata', onSourceData);
+          this.#emitLayerStatus(Loaded(info));
+          cb(E.succeed(undefined));
+        }
+      };
+
+      // 1. Register listener FIRST
+      this.#map.on('sourcedata', onSourceData);
+
+      // 2. Add new (buffered) source
+      this.#map.addSource(newSourceId, this.#cleanSourceConfig({
+        ...sourceConfig,
+        id: newSourceId
+      }));
+
+      // 3. Add new layers on top of the old ones, re-applying preserved opacity
+      const layers = this.#map.getStyle().layers;
+      const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
+
+      parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
+        const newLayerId = `${this.#commonLayersPrefix}${layerConfig.id}_${randomSuffix}`;
+        this.#map.addLayer({
+          ...layerConfig,
+          id: newLayerId,
+          source: newSourceId
+        } as AddLayerObject, uFirstLabelsLayer?.id);
+        preservedOpacity.get(layerConfig.id)?.forEach(([prop, val]) =>
+          this.#map.setPaintProperty(newLayerId, prop, val));
+      });
+
+      // Cleanup on interrupt
+      return E.sync(() => this.#map.off('sourcedata', onSourceData));
+    });
+
+    // Chain: wait (with timeout) → cleanup old stuff
+    return waitForLoad.pipe(
+      E.timeout(Duration.millis(timeoutMs)),
+      E.catchAll(() => {
+        timedOut = true;
+        return E.succeed(undefined);  // timeout is OK, proceed to cleanup
+      }),
+      E.tap(() => {
+        if (timedOut) {
+          this.#emitLayerStatus(Timeout(info));
+        }
+        this.#rmLayerConfigs(parameterizedLayer, (l) =>
+          'source' in l && oldSourceIds.includes(l.source as string));
+        oldSourceIds.forEach(srcId => {
+          if (this.#map.getSource(srcId)) {
+            this.#map.removeSource(srcId);
+          }
+        });
+      }),
+      E.as(undefined)
+    );
+  };
 
   updateSourceParams = (layers: LayerType[]) =>
     // Reversing because layers are sent in L to R = Top to Bottom order
