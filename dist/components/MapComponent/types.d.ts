@@ -1,3 +1,4 @@
+import { Data as D } from 'effect';
 export interface MapSettings {
     zoom?: number;
     center?: [number, number];
@@ -112,6 +113,51 @@ export interface BasemapFallbackOptions {
     onBasemapFallback?: (info: BasemapFallbackInfo) => void;
     solidColorFallback?: string;
 }
+export type LayerLoadStatus = D.TaggedEnum<{
+    Loading: {
+        layerId: string;
+        layerName: string;
+    };
+    Loaded: {
+        layerId: string;
+        layerName: string;
+    };
+    Empty: {
+        layerId: string;
+        layerName: string;
+    };
+    LoadError: {
+        layerId: string;
+        layerName: string;
+        error: Error;
+    };
+    Timeout: {
+        layerId: string;
+        layerName: string;
+    };
+}>;
+export declare const Loading: D.Case.Constructor<{
+    readonly _tag: "Loading";
+    readonly layerId: string;
+    readonly layerName: string;
+}, "_tag">, Loaded: D.Case.Constructor<{
+    readonly _tag: "Loaded";
+    readonly layerId: string;
+    readonly layerName: string;
+}, "_tag">, Empty: D.Case.Constructor<{
+    readonly _tag: "Empty";
+    readonly layerId: string;
+    readonly layerName: string;
+}, "_tag">, LoadError: D.Case.Constructor<{
+    readonly _tag: "LoadError";
+    readonly layerId: string;
+    readonly layerName: string;
+    readonly error: Error;
+}, "_tag">, Timeout: D.Case.Constructor<{
+    readonly _tag: "Timeout";
+    readonly layerId: string;
+    readonly layerName: string;
+}, "_tag">;
 export interface MapOperations {
     addLayer: (layer: Layer, above?: string) => Promise<void>;
     removeLayer: (layerId: string) => Promise<void>;

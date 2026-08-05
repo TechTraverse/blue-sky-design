@@ -1,7 +1,7 @@
 import { Effect as E, Context, Layer, Data as D } from 'effect';
 import { default as maplibregl, AddLayerObject, Map as MapLibreMap, MapOptions, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl';
 import { Subscription } from 'rxjs';
-import { BasemapFallbackOptions } from './types';
+import { BasemapFallbackOptions, LayerLoadStatus } from './types';
 /**
  * Creates a MapLibre style with a solid background color and no external dependencies.
  * Used as the final fallback when basemap loading fails.
@@ -249,6 +249,10 @@ export declare class MapClassWrapper {
      * Set callback for sourcedata loaded events (for marker registry, etc.)
      */
     setOnSourceDataLoaded: (callback: (map: MapLibreMap) => void) => void;
+    /**
+     * Set callback for layer load status events (loading, loaded, empty, error, timeout)
+     */
+    setOnLayerLoadStatus: (callback: (status: LayerLoadStatus) => void) => void;
     static resetInstance: () => void;
     static make(basemapConfig: string | {
         style?: StyleSpecification;
