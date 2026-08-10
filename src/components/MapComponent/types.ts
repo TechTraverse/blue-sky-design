@@ -124,6 +124,12 @@ export interface BasemapFallbackOptions {
   onBasemapFallback?: (info: BasemapFallbackInfo) => void;
   // Solid color to use as final fallback (default: '#1a365d' dark blue)
   solidColorFallback?: string;
+  // How long to wait for the primary style to load before giving up and applying
+  // the fallback as a last resort (default: 8000ms). Real auth/network errors
+  // trigger the fallback immediately via the error handler regardless of this;
+  // this only bounds the silent-hang case (e.g. a wedged connection that never
+  // errors), so keep it generous to avoid replacing a slow-but-valid basemap.
+  loadTimeoutMs?: number;
 }
 
 // Layer load status (emitted via callback during layer lifecycle)
