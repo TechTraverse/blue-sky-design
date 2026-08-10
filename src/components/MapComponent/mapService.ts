@@ -441,19 +441,18 @@ export class MapClassWrapper {
     return this.#instance;
   }
 
-  updateMapOptions = (mapOptions: Pick<MapOptions, "zoom" | "center">) => {
-    if (mapOptions.center) {
-      this.#map.setCenter(mapOptions.center);
-    }
-    if (mapOptions.zoom) {
-      this.#map.setZoom(mapOptions.zoom);
-    }
-
-    return E.succeed(undefined);
-  }
+  updateMapOptions = (mapOptions: Pick<MapOptions, "zoom" | "center">) =>
+    E.sync(() => {
+      if (mapOptions.center) {
+        this.#map.setCenter(mapOptions.center);
+      }
+      if (mapOptions.zoom) {
+        this.#map.setZoom(mapOptions.zoom);
+      }
+    })
 
   registerEventHandler = (evtName: string, f: (e: unknown, map: MapLibreMap) => void) =>
-    E.succeed(
+    E.sync(() =>
       fromEvent(this.#map, evtName).pipe(
         takeUntil(this.#mapRemoved$))
         .subscribe((e: MapLibreEvent) => {
@@ -518,27 +517,28 @@ export class MapClassWrapper {
     if (parameterizedLayer._tag !== "Labels") {
       return E.fail(new Error("addLabelsLayer called with non-labels layer"));
     }
-    this.#map.setStyle(parameterizedLayer.resourceUrl, {
-      transformStyle: (previousStyle, nextStyle) => {
-        const taggedNextLayers = nextStyle.layers.map((l) => ({
-          ...l,
-          id: `${this.#labelsPrefix}${l.id}`
-        })) as AddLayerObject[];
+    return E.sync(() => {
+      this.#map.setStyle(parameterizedLayer.resourceUrl, {
+        transformStyle: (previousStyle, nextStyle) => {
+          const taggedNextLayers = nextStyle.layers.map((l) => ({
+            ...l,
+            id: `${this.#labelsPrefix}${l.id}`
+          })) as AddLayerObject[];
 
-        return {
-          ...nextStyle,
-          sources: {
-            ...previousStyle?.sources,
-            ...nextStyle.sources,
-          },
-          layers: [
-            ...(previousStyle?.layers ?? []),
-            ...taggedNextLayers
-          ]
-        } as maplibregl.StyleSpecification;
-      }
-    })
-    return E.succeed(undefined);
+          return {
+            ...nextStyle,
+            sources: {
+              ...previousStyle?.sources,
+              ...nextStyle.sources,
+            },
+            layers: [
+              ...(previousStyle?.layers ?? []),
+              ...taggedNextLayers
+            ]
+          } as maplibregl.StyleSpecification;
+        }
+      });
+    });
   }
 
   #setStyleByResourceUrl = (resourceUrl: string, diff: boolean = true, validate: boolean = true) => {
@@ -699,14 +699,15 @@ export class MapClassWrapper {
     if (l._tag === "Labels" || l._tag === "Basemap") {
       return E.fail(new Error("addToTopOfCommonLayers called with non-common layer"));
     }
-    // Add the source first before adding layers
-    this.#mapAddSource(l.sourceConfig);
+    return E.sync(() => {
+      // Add the source first before adding layers
+      this.#mapAddSource(l.sourceConfig);
 
-    const layers = this.#map.getStyle().layers;
-    const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
-    this.#addLayerConfigs(l, uFirstLabelsLayer?.id, hidden);
-    this.#emitAddLayerStatus(l);
-    return E.succeed(undefined);
+      const layers = this.#map.getStyle().layers;
+      const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
+      this.#addLayerConfigs(l, uFirstLabelsLayer?.id, hidden);
+      this.#emitAddLayerStatus(l);
+    });
   }
 
   #getSnapshotOfCurrentMapLayers = (uLayerAbove: LayerType | undefined) => {
@@ -773,12 +774,11 @@ export class MapClassWrapper {
       .with([{
         _tag: this.#nonBasemapLabelsLayersUnion,
         enabled: { _tag: "LayerEnabled" }
-      }, { commonLayersPresent: false }], ([l]) => {
+      }, { commonLayersPresent: false }], ([l]) => E.sync(() => {
         this.#mapAddSource(l.sourceConfig);
         this.#addLayerConfigs(l, undefined, hidden);
         this.#emitAddLayerStatus(l);
-        return E.succeed(undefined);
-      })
+      }))
       .with([P.select("l", {
         _tag: this.#nonBasemapLabelsLayersUnion,
         enabled: {
@@ -786,12 +786,11 @@ export class MapClassWrapper {
         }
       }), {
         mMaplibreLayerAbove: { value: P.select("layerAbove") },
-      }], ({ l, layerAbove }) => {
+      }], ({ l, layerAbove }) => E.sync(() => {
         this.#mapAddSource(l.sourceConfig);
         this.#addLayerConfigs(l, layerAbove, hidden);
         this.#emitAddLayerStatus(l);
-        return E.succeed(undefined);
-      })
+      }))
       .with([P.select("l", {
         _tag: this.#nonBasemapLabelsLayersUnion,
         enabled: {
@@ -809,11 +808,12 @@ export class MapClassWrapper {
         .map(layer => layer.id);
     });
 
-  setLayerVisibility = (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => {
-    this.#getMapLayerIds(l).forEach(id =>
-      this.#map.setLayoutProperty(id, 'visibility', visibility));
-    return E.succeed(undefined);
-  }
+  setLayerVisibility = (l: LayerResourceDescriptor, visibility: 'visible' | 'none') =>
+    E.sync(() => {
+      this.#getMapLayerIds(l).forEach(id =>
+        this.#map.setLayoutProperty(id, 'visibility', visibility));
+      return undefined;
+    })
 
   // Opacity paint properties keyed by layer type. Shared by setLayerOpacity
   // and the buffered tile swap (which preserves opacity across the swap).
@@ -826,15 +826,16 @@ export class MapClassWrapper {
     'fill-extrusion': ['fill-extrusion-opacity'],
   };
 
-  setLayerOpacity = (l: LayerResourceDescriptor, opacity: number) => {
-    this.#getMapLayerIds(l).forEach(id => {
-      const layer = this.#map.getLayer(id);
-      if (!layer) return;
-      const props = this.#opacityPaintProps[layer.type] || [];
-      props.forEach(prop => this.#map.setPaintProperty(id, prop, opacity));
-    });
-    return E.succeed(undefined);
-  }
+  setLayerOpacity = (l: LayerResourceDescriptor, opacity: number) =>
+    E.sync(() => {
+      this.#getMapLayerIds(l).forEach(id => {
+        const layer = this.#map.getLayer(id);
+        if (!layer) return;
+        const props = this.#opacityPaintProps[layer.type] || [];
+        props.forEach(prop => this.#map.setPaintProperty(id, prop, opacity));
+      });
+      return undefined;
+    })
 
   #rmLayerConfigs = (l: LayerResourceDescriptor, pred?: (l: maplibregl.LayerSpecification) => boolean) => {
     l.orderedLayerConfigs.forEach(x => {
@@ -853,7 +854,7 @@ export class MapClassWrapper {
   rmLayer = (l: LayerType) =>
     match(l)
       .with({ _tag: P.union("Basemap", "Labels") }, () => E.fail(new Error("Layer remove handling not implemented")))
-      .otherwise((l) => {
+      .otherwise((l) => E.sync(() => {
         this.#rmLayerConfigs(l);
 
         // Remove all sources that start with this ID (handles random-suffix sources)
@@ -863,35 +864,34 @@ export class MapClassWrapper {
             this.#map.removeSource(sourceId);
           }
         });
+      }));
 
-        return E.succeed(undefined);
-      });
+  moveLayer = (l: LayerType, uLayerAbove: LayerType | undefined) =>
+    E.sync(() => {
+      const layerSnapshot = this.#getSnapshotOfCurrentMapLayers(uLayerAbove);
+      match([l, layerSnapshot])
+        .with([P.select("l", { _tag: P.union("Basemap", "Labels") }), P._], () => E.fail(new Error("Layer move handling not implemented")))
+        .with([{ _tag: this.#nonBasemapLabelsLayersUnion }, P._],
+          ([l, layerSnapshot]) => {
+            const layerAbove = O.isSome(layerSnapshot.mMaplibreLayerAbove) ? layerSnapshot.mMaplibreLayerAbove.value : undefined;
+            this.#mapAddSource(l.sourceConfig);
+            l.orderedLayerConfigs.forEach((layerConfig) => {
+              const layerIdWithPrefix = `${this.#commonLayersPrefix}${layerConfig.id}`;
+              if (this.#map.getLayer(layerIdWithPrefix)) {
+                this.#map.removeLayer(layerIdWithPrefix);
+              }
+            });
+            let lastId = layerAbove;
+            l.orderedLayerConfigs.forEach(x => {
+              this.#mapAddLayer(x, lastId);
+              const newLastId = `${this.#commonLayersPrefix}${x.id}`;
+              lastId = newLastId;
+            });
 
-  moveLayer = (l: LayerType, uLayerAbove: LayerType | undefined) => {
-    const layerSnapshot = this.#getSnapshotOfCurrentMapLayers(uLayerAbove);
-    match([l, layerSnapshot])
-      .with([P.select("l", { _tag: P.union("Basemap", "Labels") }), P._], () => E.fail(new Error("Layer move handling not implemented")))
-      .with([{ _tag: this.#nonBasemapLabelsLayersUnion }, P._],
-        ([l, layerSnapshot]) => {
-          const layerAbove = O.isSome(layerSnapshot.mMaplibreLayerAbove) ? layerSnapshot.mMaplibreLayerAbove.value : undefined;
-          this.#mapAddSource(l.sourceConfig);
-          l.orderedLayerConfigs.forEach((layerConfig) => {
-            const layerIdWithPrefix = `${this.#commonLayersPrefix}${layerConfig.id}`;
-            if (this.#map.getLayer(layerIdWithPrefix)) {
-              this.#map.removeLayer(layerIdWithPrefix);
-            }
-          });
-          let lastId = layerAbove;
-          l.orderedLayerConfigs.forEach(x => {
-            this.#mapAddLayer(x, lastId);
-            const newLastId = `${this.#commonLayersPrefix}${x.id}`;
-            lastId = newLastId;
-          });
-
-        })
-      .otherwise((x) => console.error("Unknown layer type", x));
-    return E.succeed(undefined);
-  }
+          })
+        .otherwise((x) => console.error("Unknown layer type", x));
+      return undefined;
+    })
 
   #tileOrDataUpdate = (l: LayerType) => {
     return match(this.#parameterizeLayerUrls(l))
@@ -935,7 +935,7 @@ export class MapClassWrapper {
     sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
     parameterizedLayer: LayerResourceDescriptor,
     timeoutMs: number
-  ) => {
+  ) => E.suspend(() => {
     const randomSuffix = crypto.randomUUID();
     const newSourceId = `${sourceConfig.id}_${randomSuffix}`;
     const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
@@ -1021,7 +1021,7 @@ export class MapClassWrapper {
       }),
       E.as(undefined)
     );
-  };
+  });
 
   updateSourceParams = (layers: LayerType[]) =>
     // Reversing because layers are sent in L to R = Top to Bottom order
@@ -1034,10 +1034,10 @@ export class MapClassWrapper {
       undefined, () => undefined);
 
 
-  log = () => {
-    console.log("MapService: Map instance", this.#map);
-    return E.succeed(undefined);
-  }
+  log = () =>
+    E.sync(() => {
+      console.log("MapService: Map instance", this.#map);
+    })
 
   getMapInstance = () => this.#map;
 }
