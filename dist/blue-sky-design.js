@@ -33052,13 +33052,13 @@ const NO = (e = "#1a365d") => ({
         const u = typeof l == "object" && l !== null && "features" in l && Array.isArray(l.features) && l.features.length === 0;
         Z(this, jn).call(this, u ? MO(i) : za(i));
       }).otherwise(() => Z(this, jn).call(this, za(i)));
-    }), on(this, "updateMapOptions", (a) => (a.center && Z(this, Ce).setCenter(a.center), a.zoom && Z(this, Ce).setZoom(a.zoom), $e.succeed(void 0))), on(this, "registerEventHandler", (a, i) => $e.succeed(
-      jo(Z(this, Ce), a).pipe(
-        kO(Z(this, Gs))
-      ).subscribe((l) => {
-        i(l, Z(this, Ce));
-      })
-    )), ct(this, qs, (a) => (
+    }), on(this, "updateMapOptions", (a) => $e.sync(() => {
+      a.center && Z(this, Ce).setCenter(a.center), a.zoom && Z(this, Ce).setZoom(a.zoom);
+    })), on(this, "registerEventHandler", (a, i) => $e.sync(() => jo(Z(this, Ce), a).pipe(
+      kO(Z(this, Gs))
+    ).subscribe((l) => {
+      i(l, Z(this, Ce));
+    }))), ct(this, qs, (a) => (
       // Remove any internal tags
       Object.fromEntries(Object.entries(a).filter(([i]) => !i.startsWith("_") && i !== "id"))
     )), ct(this, Lo, (a) => (Z(this, Ce).getSource(a.id) || Z(this, Ce).addSource(a.id, {
@@ -33091,25 +33091,27 @@ const NO = (e = "#1a365d") => ({
       }
     })).otherwise(() => a)), ct(this, Nd, (a) => {
       const i = Z(this, ei).call(this, a);
-      return i._tag !== "Labels" ? $e.fail(new Error("addLabelsLayer called with non-labels layer")) : (Z(this, Ce).setStyle(i.resourceUrl, {
-        transformStyle: (l, u) => {
-          const c = u.layers.map((d) => ({
-            ...d,
-            id: `${Z(this, lr)}${d.id}`
-          }));
-          return {
-            ...u,
-            sources: {
-              ...l?.sources,
-              ...u.sources
-            },
-            layers: [
-              ...l?.layers ?? [],
-              ...c
-            ]
-          };
-        }
-      }), $e.succeed(void 0));
+      return i._tag !== "Labels" ? $e.fail(new Error("addLabelsLayer called with non-labels layer")) : $e.sync(() => {
+        Z(this, Ce).setStyle(i.resourceUrl, {
+          transformStyle: (l, u) => {
+            const c = u.layers.map((d) => ({
+              ...d,
+              id: `${Z(this, lr)}${d.id}`
+            }));
+            return {
+              ...u,
+              sources: {
+                ...l?.sources,
+                ...u.sources
+              },
+              layers: [
+                ...l?.layers ?? [],
+                ...c
+              ]
+            };
+          }
+        });
+      });
     }), ct(this, Zs, (a, i = !0, l = !0) => a === Z(this, qa) ? (console.warn("Duplicate resource url detected, skipping style update"), $e.succeed(void 0)) : $e.async((u) => {
       setTimeout(() => {
         u($e.succeed(!1));
@@ -33193,13 +33195,11 @@ const NO = (e = "#1a365d") => ({
           $e.flatMap(() => (Z(this, jn).call(this, za(i)), Z(this, Zs).call(this, a.resourceUrl, !1, !1)))
         );
       }
-    }), ct(this, Ld, (a, i) => {
-      if (a._tag === "Labels" || a._tag === "Basemap")
-        return $e.fail(new Error("addToTopOfCommonLayers called with non-common layer"));
+    }), ct(this, Ld, (a, i) => a._tag === "Labels" || a._tag === "Basemap" ? $e.fail(new Error("addToTopOfCommonLayers called with non-common layer")) : $e.sync(() => {
       Z(this, Lo).call(this, a.sourceConfig);
       const u = Z(this, Ce).getStyle().layers.find((c) => c.id.startsWith(Z(this, lr)));
-      return Z(this, ti).call(this, a, u?.id, i), Z(this, Ja).call(this, a), $e.succeed(void 0);
-    }), ct(this, Xs, (a) => {
+      Z(this, ti).call(this, a, u?.id, i), Z(this, Ja).call(this, a);
+    })), ct(this, Xs, (a) => {
       const i = Z(this, Ce).getStyle();
       if (!i || !i.layers)
         return {
@@ -33244,14 +33244,18 @@ const NO = (e = "#1a365d") => ({
       return ft([l, u]).with([{ _tag: "Basemap" }, Oe._], ([d]) => Z(this, Fd).call(this, d)).with([{ _tag: "Labels" }, Oe._], ([d]) => Z(this, Nd).call(this, d)).with([{
         _tag: Z(this, Jr),
         enabled: { _tag: "LayerEnabled" }
-      }, { commonLayersPresent: !1 }], ([d]) => (Z(this, Lo).call(this, d.sourceConfig), Z(this, ti).call(this, d, void 0, c), Z(this, Ja).call(this, d), $e.succeed(void 0))).with([Oe.select("l", {
+      }, { commonLayersPresent: !1 }], ([d]) => $e.sync(() => {
+        Z(this, Lo).call(this, d.sourceConfig), Z(this, ti).call(this, d, void 0, c), Z(this, Ja).call(this, d);
+      })).with([Oe.select("l", {
         _tag: Z(this, Jr),
         enabled: {
           _tag: "LayerEnabled"
         }
       }), {
         mMaplibreLayerAbove: { value: Oe.select("layerAbove") }
-      }], ({ l: d, layerAbove: p }) => (Z(this, Lo).call(this, d.sourceConfig), Z(this, ti).call(this, d, p, c), Z(this, Ja).call(this, d), $e.succeed(void 0))).with([Oe.select("l", {
+      }], ({ l: d, layerAbove: p }) => $e.sync(() => {
+        Z(this, Lo).call(this, d.sourceConfig), Z(this, ti).call(this, d, p, c), Z(this, Ja).call(this, d);
+      })).with([Oe.select("l", {
         _tag: Z(this, Jr),
         enabled: {
           _tag: "LayerEnabled"
@@ -33260,33 +33264,37 @@ const NO = (e = "#1a365d") => ({
     }), ct(this, Js, (a) => a.orderedLayerConfigs.flatMap((i) => {
       const l = `${Z(this, an)}${i.id}`;
       return Z(this, Ce).getStyle().layers.filter((u) => u.id.startsWith(l)).map((u) => u.id);
-    })), on(this, "setLayerVisibility", (a, i) => (Z(this, Js).call(this, a).forEach((l) => Z(this, Ce).setLayoutProperty(l, "visibility", i)), $e.succeed(void 0))), ct(this, Qs, {
+    })), on(this, "setLayerVisibility", (a, i) => $e.sync(() => {
+      Z(this, Js).call(this, a).forEach((l) => Z(this, Ce).setLayoutProperty(l, "visibility", i));
+    })), ct(this, Qs, {
       fill: ["fill-opacity"],
       line: ["line-opacity"],
       circle: ["circle-opacity"],
       raster: ["raster-opacity"],
       symbol: ["icon-opacity", "text-opacity"],
       "fill-extrusion": ["fill-extrusion-opacity"]
-    }), on(this, "setLayerOpacity", (a, i) => (Z(this, Js).call(this, a).forEach((l) => {
-      const u = Z(this, Ce).getLayer(l);
-      if (!u) return;
-      (Z(this, Qs)[u.type] || []).forEach((d) => Z(this, Ce).setPaintProperty(l, d, i));
-    }), $e.succeed(void 0))), ct(this, el, (a, i) => {
+    }), on(this, "setLayerOpacity", (a, i) => $e.sync(() => {
+      Z(this, Js).call(this, a).forEach((l) => {
+        const u = Z(this, Ce).getLayer(l);
+        if (!u) return;
+        (Z(this, Qs)[u.type] || []).forEach((d) => Z(this, Ce).setPaintProperty(l, d, i));
+      });
+    })), ct(this, el, (a, i) => {
       a.orderedLayerConfigs.forEach((l) => {
         const u = `${Z(this, an)}${l.id}`;
         Z(this, Ce).getStyle().layers.forEach((d) => {
           d.id.startsWith(u) && (!i || i(d)) && Z(this, Ce).removeLayer(d.id);
         });
       });
-    }), on(this, "rmLayer", (a) => ft(a).with({ _tag: Oe.union("Basemap", "Labels") }, () => $e.fail(new Error("Layer remove handling not implemented"))).otherwise((i) => {
+    }), on(this, "rmLayer", (a) => ft(a).with({ _tag: Oe.union("Basemap", "Labels") }, () => $e.fail(new Error("Layer remove handling not implemented"))).otherwise((i) => $e.sync(() => {
       Z(this, el).call(this, i);
       const l = Z(this, Ce).getStyle().sources;
-      return Object.keys(l).forEach((u) => {
+      Object.keys(l).forEach((u) => {
         u.startsWith(i.sourceConfig.id) && Z(this, Ce).removeSource(u);
-      }), $e.succeed(void 0);
-    })), on(this, "moveLayer", (a, i) => {
+      });
+    }))), on(this, "moveLayer", (a, i) => $e.sync(() => {
       const l = Z(this, Xs).call(this, i);
-      return ft([a, l]).with([Oe.select("l", { _tag: Oe.union("Basemap", "Labels") }), Oe._], () => $e.fail(new Error("Layer move handling not implemented"))).with(
+      ft([a, l]).with([Oe.select("l", { _tag: Oe.union("Basemap", "Labels") }), Oe._], () => $e.fail(new Error("Layer move handling not implemented"))).with(
         [{ _tag: Z(this, Jr) }, Oe._],
         ([u, c]) => {
           const d = sr.isSome(c.mMaplibreLayerAbove) ? c.mMaplibreLayerAbove.value : void 0;
@@ -33299,8 +33307,8 @@ const NO = (e = "#1a365d") => ({
             Z(this, Qa).call(this, m, p), p = `${Z(this, an)}${m.id}`;
           });
         }
-      ).otherwise((u) => console.error("Unknown layer type", u)), $e.succeed(void 0);
-    }), ct(this, Vd, (a) => ft(Z(this, ei).call(this, a)).with({
+      ).otherwise((u) => console.error("Unknown layer type", u));
+    })), ct(this, Vd, (a) => ft(Z(this, ei).call(this, a)).with({
       sourceConfig: Oe.select({
         _tag: "GeoJsonData"
       })
@@ -33318,7 +33326,7 @@ const NO = (e = "#1a365d") => ({
       // the imagery never goes blank. Imagery loads slower than vector tiles,
       // so give it longer before falling back to a hard swap.
       Z(this, _d).call(this, i, l, i._tag === "RasterTiles" ? 5e3 : 500)
-    )).otherwise(() => $e.fail(new Error("Unknown layer type")))), ct(this, _d, (a, i, l) => {
+    )).otherwise(() => $e.fail(new Error("Unknown layer type")))), ct(this, _d, (a, i, l) => $e.suspend(() => {
       const u = crypto.randomUUID(), c = `${a.id}_${u}`, d = { layerId: i.id, layerName: i.humanReadableName };
       Z(this, jn).call(this, xg(d));
       const p = Object.keys(Z(this, Ce).getStyle().sources).filter((f) => f === a.id || f.startsWith(`${a.id}_`)), m = /* @__PURE__ */ new Map();
@@ -33356,7 +33364,7 @@ const NO = (e = "#1a365d") => ({
         }),
         $e.as(void 0)
       );
-    }), on(this, "updateSourceParams", (a) => (
+    })), on(this, "updateSourceParams", (a) => (
       // Reversing because layers are sent in L to R = Top to Bottom order
       // Which is the opposite of how they need to be updated
       $e.mergeAll(
@@ -33365,7 +33373,9 @@ const NO = (e = "#1a365d") => ({
         () => {
         }
       )
-    )), on(this, "log", () => (console.log("MapService: Map instance", Z(this, Ce)), $e.succeed(void 0))), on(this, "getMapInstance", () => Z(this, Ce)), Or(this, Ce, t), Or(this, qa, n);
+    )), on(this, "log", () => $e.sync(() => {
+      console.log("MapService: Map instance", Z(this, Ce));
+    })), on(this, "getMapInstance", () => Z(this, Ce)), Or(this, Ce, t), Or(this, qa, n);
     const o = r ?? { navigation: !0, fullscreen: !0, geolocate: !0, scale: !0 };
     o.navigation !== !1 && Z(this, Ce).addControl(new Ca.NavigationControl(), "bottom-right"), o.fullscreen !== !1 && typeof window < "u" && window.innerWidth > 768 && Z(this, Ce).addControl(new Ca.FullscreenControl(), "bottom-right"), o.geolocate !== !1 && Z(this, Ce).addControl(new Ca.GeolocateControl({
       positionOptions: {
