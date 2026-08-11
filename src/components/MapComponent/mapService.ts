@@ -3,8 +3,8 @@ import maplibregl from "maplibre-gl";
 import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
 import { firstValueFrom, fromEvent, interval, raceWith, map, Observable, shareReplay, take, Subscription, takeUntil } from "rxjs";
-import type { BasemapConfig, BasemapFallbackOptions, BasemapFallbackReason, LayerLoadStatus } from "./types";
-import { Loading, Loaded, Empty, LoadError, Timeout } from "./types";
+import type { BasemapFallbackOptions, BasemapFallbackReason, LayerLoadStatus } from "./types";
+import { Loading, Loaded, Empty, Timeout } from "./types";
 import {
   collectBasemapDomains,
   isBasemapAuthError as checkBasemapAuthError,
