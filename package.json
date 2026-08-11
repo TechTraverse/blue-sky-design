@@ -6,19 +6,24 @@
   "main": "./dist/blue-sky-design.js",
   "module": "./dist/blue-sky-design.js",
   "types": "./dist/lib.d.ts",
+  "//exports": "Dual-mode: consumers get the compiled `dist` by default (isolated, no lib-source compilation). The `source` condition resolves to raw `src/lib.ts` for consumers that opt in via `resolve.conditions: ['source']` (or a path alias) to iterate on the library without rebuilding dist. `src` is included in `files` so the source entry is present when packed.",
   "exports": {
     ".": {
-      "import": "./dist/blue-sky-design.js",
-      "types": "./dist/lib.d.ts"
+      "source": "./src/lib.ts",
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/blue-sky-design.js"
     },
+    "./source": "./src/lib.ts",
     "./src/lib": {
-      "import": "./dist/blue-sky-design.js",
-      "types": "./dist/lib.d.ts"
+      "source": "./src/lib.ts",
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/blue-sky-design.js"
     },
     "./src/components/LayerControl/LayerControl.css": "./dist/lib.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "dev": "vite",
