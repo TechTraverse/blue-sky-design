@@ -441,7 +441,10 @@ export class MapClassWrapper {
         if (m.isStyleLoaded()) {
           m.setStyle(nextStyle, { transformStyle: transformStylePreserveOverlays });
         } else {
-          basemapFallbackApplied = true;
+          // Only an auth failure proves the Basemap Styles API is inaccessible, so only
+          // then disable the Esri labels layer. A timeout may be a slow-but-valid token,
+          // and disabling labels for that would be a false positive.
+          if (reason.type === 'auth_error') basemapFallbackApplied = true;
           m.setStyle(nextStyle);
         }
       };
@@ -471,13 +474,20 @@ export class MapClassWrapper {
       });
     }
 
-    const loadOrTimeout$ = fromEvent(m, "load").pipe(raceWith(interval(2000)))
+    // Real auth/network failures trigger the fallback immediately via the error
+    // handler above; this race only unblocks construction if the map neither loads
+    // nor errors (a silent hang). Keep the timeout generous so a slow-but-valid
+    // basemap isn't mistaken for a failure.
+    const loadTimeoutMs = fallbackOptions?.loadTimeoutMs ?? 8000;
+    const loadOrTimeout$ = fromEvent(m, "load").pipe(raceWith(interval(loadTimeoutMs)))
     const loadedMap = await firstValueFrom(loadOrTimeout$.pipe(map(() => m)));
 
     if (applyBasemapFallback && !loadedMap.isStyleLoaded()) {
+      // Last-resort fallback after a silent hang. Report it as a timeout — not a
+      // synthetic auth error — so consumers can tell "slow/unreachable" apart from
+      // "bad credentials", and so Esri labels aren't disabled on a maybe-valid token.
       applyBasemapFallback({
-        type: 'auth_error',
-        status: 403,
+        type: 'timeout',
         url: basemapUrl,
       });
     }
