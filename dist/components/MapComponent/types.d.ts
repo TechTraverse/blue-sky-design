@@ -92,7 +92,7 @@ export interface BasemapConfig {
 }
 export type BasemapFallbackReason = {
     type: 'auth_error';
-    status: 401 | 403;
+    status: 401 | 403 | 0;
     url: string;
 } | {
     type: 'load_error';
@@ -112,6 +112,7 @@ export interface BasemapFallbackOptions {
     fallbackBasemap?: string | BasemapConfig;
     onBasemapFallback?: (info: BasemapFallbackInfo) => void;
     solidColorFallback?: string;
+    loadTimeoutMs?: number;
 }
 export type LayerLoadStatus = D.TaggedEnum<{
     Loading: {

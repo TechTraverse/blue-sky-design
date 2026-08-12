@@ -14,6 +14,10 @@ export default defineConfig({
   esbuild: {
     target: 'es2020',
   },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+  },
   build: {
     target: 'es2020',
     copyPublicDir: false,

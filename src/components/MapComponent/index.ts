@@ -55,6 +55,13 @@ export {
   COMMON_PREFIX,
   extractLayerResourceId,
   getParamaterizedUrl,
+  // Basemap fallback helpers
+  isTileTemplateUrl,
+  extractHostname,
+  collectBasemapDomains,
+  collectDomainsFromStylesheet,
+  isBasemapAuthError,
+  mergeStylesheetDomains,
   // Tagged enum constructors
   VectorTiles,
   RasterTiles,
