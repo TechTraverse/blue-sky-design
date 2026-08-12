@@ -112,6 +112,7 @@ export interface BasemapFallbackOptions {
     fallbackBasemap?: string | BasemapConfig;
     onBasemapFallback?: (info: BasemapFallbackInfo) => void;
     solidColorFallback?: string;
+    loadTimeoutMs?: number;
 }
 export type LayerLoadStatus = D.TaggedEnum<{
     Loading: {

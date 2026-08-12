@@ -263,15 +263,15 @@ export declare class MapClassWrapper {
         minZoom?: number;
         maxZoom?: number;
     }, mapSettings?: MapSettings, controls?: MapControlsConfig, containerId?: string, fallbackOptions?: BasemapFallbackOptions): Promise<MapClassWrapper>;
-    updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<undefined, never, never>;
+    updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, never, never>;
     registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription, never, never>;
     addLayer: (l: LayerType, uLayerAbove?: LayerType | undefined) => E.Effect<undefined, Error, void>;
     setLayerVisibility: (l: LayerResourceDescriptor, visibility: "visible" | "none") => E.Effect<undefined, never, never>;
     setLayerOpacity: (l: LayerResourceDescriptor, opacity: number) => E.Effect<undefined, never, never>;
-    rmLayer: (l: LayerType) => E.Effect<undefined, never, never> | E.Effect<never, Error, never>;
+    rmLayer: (l: LayerType) => E.Effect<void, never, never> | E.Effect<never, Error, never>;
     moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, never, never>;
     updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>;
-    log: () => E.Effect<undefined, never, never>;
+    log: () => E.Effect<void, never, never>;
     getMapInstance: () => maplibregl.Map;
 }
 export type MapServiceImpl = {
