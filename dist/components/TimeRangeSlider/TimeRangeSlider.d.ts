@@ -1,5 +1,6 @@
 import { RangeValue } from '@react-types/shared';
 import { AnimationOrStepMode, AnimationRequestFrequency, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
+import { FrameAdvance } from './animationFrame';
 /**
  * Local types for state, actions, and props
  */
@@ -30,8 +31,14 @@ export interface TimeRangeSliderProps {
     onTrackLatestChange?: (enabled: boolean) => void;
     /** Initial tracking state (default false) */
     initialTrackLatest?: boolean;
+    /**
+     * How the animation clock advances between frames. Omit for the default
+     * fixed-rate behavior; pass `{ mode: 'backpressure', onFrameSettled }` to gate
+     * advancement on tile loads (see {@link FrameAdvance}).
+     */
+    frameAdvance?: FrameAdvance;
 }
 /**
  * Exported component
  */
-export declare const TimeRangeSlider: ({ dateRange, dateRangeForReset, availableDateRange, onDateRangeSelect, getLatestDateRange, animationRequestFrequency, className, theme, timeZone, onTimeZoneChange, onAnimationOrStepModeChange, increment, hideAnimationToggle, disabledAnimationTooltip, hideDatePicker, pollingInterval, onNewDataAvailable, onTrackLatestChange, initialTrackLatest, }: TimeRangeSliderProps) => import("react/jsx-runtime").JSX.Element;
+export declare const TimeRangeSlider: ({ dateRange, dateRangeForReset, availableDateRange, onDateRangeSelect, getLatestDateRange, animationRequestFrequency, className, theme, timeZone, onTimeZoneChange, onAnimationOrStepModeChange, increment, hideAnimationToggle, disabledAnimationTooltip, hideDatePicker, pollingInterval, onNewDataAvailable, onTrackLatestChange, initialTrackLatest, frameAdvance, }: TimeRangeSliderProps) => import("react/jsx-runtime").JSX.Element;

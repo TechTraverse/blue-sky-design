@@ -7,6 +7,7 @@ export type { HeaderProps } from './components/Header';
 export { Page } from './components/Page';
 export { TimeRangeSlider } from './components/TimeRangeSlider/TimeRangeSlider';
 export type { TimeRangeSliderProps } from './components/TimeRangeSlider/TimeRangeSlider';
+export type { FrameAdvance, FrameInfo } from './components/TimeRangeSlider/animationFrame';
 export { TimeDuration, Theme, TimeZone, AnimationOrStepMode } from './components/TimeRangeSlider/timeSliderTypes';
 export { MapComponent, MapComponentEffect } from './components/MapComponent';
 export type { MapComponentProps, MapComponentRef, MapComponentEffectProps, MapComponentEffectRef, MapSettings, Layer, LayerConfig, SourceConfig, MapEvent, MapEventHandlers, MapControls, MapOperations, BasemapConfig, LayerLoadStatus, ExtendedLayer, VectorSourceConfig, RasterSourceConfig, GeoJSONSourceConfig, LayerTypes, TypedLayerConfig, MapTheme, MapStyleConfig, AnimationOptions, TransitionOptions, AdvancedMapOperations, } from './components/MapComponent';
