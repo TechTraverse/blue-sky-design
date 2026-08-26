@@ -1,4 +1,4 @@
-import { Effect as E, Option as O, Context, Layer, Data as D, Duration } from "effect"
+import { Effect as E, Option as O, Context, Layer, Data as D, Duration, Deferred } from "effect"
 import maplibregl from "maplibre-gl";
 import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
@@ -228,6 +228,21 @@ export class MapClassWrapper {
   // Callback for layer load status changes
   #onLayerLoadStatus?: (status: LayerLoadStatus) => void;
   #basemapFallbackApplied: boolean;
+
+  // Per-source scheduling state for double-buffered tile swaps. Guarantees at
+  // most one swap is in flight per source id; a newer frame arriving mid-swap
+  // overwrites the single `pending` slot (coalesce — drop intermediate frames,
+  // jump to the newest) rather than piling up overlapping swaps. A short-lived
+  // daemon drains the pending slot when the in-flight swap settles.
+  #swapState = new Map<string, {
+    draining: boolean;
+    pending?: {
+      sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>;
+      parameterizedLayer: LayerResourceDescriptor;
+      timeoutMs: number;
+      deferred: Deferred.Deferred<void>;
+    };
+  }>();
 
   constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig, basemapFallbackApplied = false) {
     this.#map = m;
@@ -986,12 +1001,13 @@ export class MapClassWrapper {
       .otherwise(() => E.fail(new Error("Unknown layer type")));
   }
 
-  // Swap a tile source's data with no blank gap: add a second buffered
-  // source + layers carrying the new tiles on top of the current ones, wait for
-  // the new tiles to load, then remove the old source. Used for both raster and
-  // vector tiles — the only per-type difference is how long to keep the old
-  // tiles around before giving up (timeoutMs).
-  #doubleBufferedTileUpdate = (
+  // Perform one double-buffered tile swap with no blank gap: add a second
+  // buffered source + layers carrying the new tiles on top of the current ones,
+  // wait for the new tiles to load, then remove the old source. Used for both
+  // raster and vector tiles — the only per-type difference is how long to keep
+  // the old tiles around before giving up (timeoutMs). Only ever invoked by
+  // #drain, so #emitLayerStatus stays 1:1 with an actually-applied frame.
+  #runBufferedSwap = (
     sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
     parameterizedLayer: LayerResourceDescriptor,
     timeoutMs: number
@@ -1082,6 +1098,67 @@ export class MapClassWrapper {
       E.as(undefined)
     );
   });
+
+  // Scheduler in front of #runBufferedSwap. Coalesces overlapping swaps per
+  // source so animation frames never pile up: registers this frame as the
+  // newest `pending` (completing any frame it supersedes immediately, since it
+  // was dropped), starts a drain daemon if none is running, then resolves when
+  // this frame settles. The returned Effect still completes on settle, so
+  // callers awaiting `updateSourceParams` keep their contract.
+  #doubleBufferedTileUpdate = (
+    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
+    parameterizedLayer: LayerResourceDescriptor,
+    timeoutMs: number
+  ) => E.gen(this, function* () {
+    const id = sourceConfig.id;
+    const deferred = yield* Deferred.make<void>();
+
+    // Atomic read-modify-write: overwrite pending + decide whether to fork the
+    // drain in a single synchronous callback so no fiber can preempt mid-way.
+    const decision = yield* E.sync(() => {
+      const st = this.#swapState.get(id) ?? { draining: false, pending: undefined };
+      const superseded = st.pending?.deferred;
+      st.pending = { sourceConfig, parameterizedLayer, timeoutMs, deferred };
+      const shouldFork = !st.draining;
+      if (shouldFork) st.draining = true;
+      this.#swapState.set(id, st);
+      return { superseded, shouldFork };
+    });
+
+    // A dropped (superseded) frame resolves right away — it was never applied.
+    if (decision.superseded) yield* Deferred.succeed(decision.superseded, undefined);
+    // forkDaemon (not fork) escapes the caller's scope, so the drain survives
+    // after this call's runPromise resolves and keeps applying later frames.
+    if (decision.shouldFork) yield* E.forkDaemon(this.#drain(id));
+
+    yield* Deferred.await(deferred);
+  });
+
+  // Drains the per-source `pending` slot: claim the newest pending frame, apply
+  // it, then signal its waiter on settle and loop. Claim-or-exit is one
+  // synchronous block — either it takes the pending frame, or (slot empty) it
+  // clears `draining` and stops. Because the scheduler's enqueue-and-fork
+  // decision is likewise a single synchronous block, the two can't interleave,
+  // so a frame enqueued right as the drain exits always re-forks a fresh drain
+  // and is never orphaned.
+  #drain = (id: string) =>
+    E.gen(this, function* () {
+      for (;;) {
+        const next = yield* E.sync(() => {
+          const st = this.#swapState.get(id);
+          const pending = st?.pending;
+          if (pending) {
+            st!.pending = undefined; // claim it so newer frames land in a fresh slot
+          } else if (st) {
+            st.draining = false; // slot empty → stop draining
+          }
+          return pending;
+        });
+        if (!next) return;
+        yield* this.#runBufferedSwap(next.sourceConfig, next.parameterizedLayer, next.timeoutMs);
+        yield* Deferred.succeed(next.deferred, undefined);
+      }
+    });
 
   updateSourceParams = (layers: LayerType[]) =>
     // Reversing because layers are sent in L to R = Top to Bottom order
