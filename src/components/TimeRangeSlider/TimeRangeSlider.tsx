@@ -7,6 +7,8 @@ import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
+import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
+import type { FrameAdvance } from './animationFrame';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider, IconButton, Tooltip } from '@mui/material';
 import { MdMyLocation, MdFastForward } from 'react-icons/md';
@@ -43,6 +45,12 @@ export interface TimeRangeSliderProps {
   onTrackLatestChange?: (enabled: boolean) => void;
   /** Initial tracking state (default false) */
   initialTrackLatest?: boolean;
+  /**
+   * How the animation clock advances between frames. Omit for the default
+   * fixed-rate behavior; pass `{ mode: 'backpressure', onFrameSettled }` to gate
+   * advancement on tile loads (see {@link FrameAdvance}).
+   */
+  frameAdvance?: FrameAdvance;
 }
 
 enum UpdateSource {
@@ -525,6 +533,7 @@ export const TimeRangeSlider = ({
   onNewDataAvailable,
   onTrackLatestChange,
   initialTrackLatest = false,
+  frameAdvance,
 }: TimeRangeSliderProps) => {
 
   const viewIncrement = increment;
@@ -990,10 +999,14 @@ export const TimeRangeSlider = ({
   }, [increment]);
 
   /**
-   * Animation auto-increment logic
-   * Automatically advances the selection when in Animation mode and playing
+   * Animation auto-increment logic (fixed-rate / default path)
+   * Automatically advances the selection when in Animation mode and playing.
+   * Back-pressure mode is handled by the gated Effect loop below instead.
    */
   useEffect(() => {
+    if (frameAdvance?.mode === 'backpressure') {
+      return; // gated loop below owns advancement in this mode
+    }
     if (s.animationOrStepMode !== AnimationOrStepMode.Animation ||
       s.animationPlayMode !== PlayMode.Play) {
       return;
@@ -1005,37 +1018,76 @@ export const TimeRangeSlider = ({
     const advanceMs = (animationSpeed * frameMs) / 1000; // ms to advance per frame
 
     const intervalId = setInterval(() => {
-      const currentState = stateRef.current;
-      const newStart = DateTime.addDuration(
-        currentState.selectedStartDateTime,
-        Duration.millis(advanceMs)
-      );
-      const newEnd = DateTime.addDuration(newStart, currentState.selectedDuration);
-      const animationEnd = DateTime.addDuration(
-        currentState.animationStartDateTime,
-        currentState.animationDuration
-      );
-
-      // Check if we've reached the end of the animation range
-      if (DateTime.greaterThan(newEnd, animationEnd)) {
-        // Loop back to the start
-        const newLoopStart = currentState.animationStartDateTime;
-        d(SetSelectedStartDateTime({
-          selectedStartDateTime: newLoopStart,
-          updateSource: UpdateSource.UserInteraction
-        }));
-      } else {
-        // Normal increment
-        d(SetSelectedStartDateTime({
-          selectedStartDateTime: newStart,
-          updateSource: UpdateSource.UserInteraction
-        }));
-      }
+      const { nextStart } = computeNextAnimationFrame(stateRef.current, advanceMs);
+      d(SetSelectedStartDateTime({
+        selectedStartDateTime: nextStart,
+        updateSource: UpdateSource.UserInteraction
+      }));
     }, frameMs);
 
     return () => clearInterval(intervalId);
-  }, [s.animationOrStepMode, s.animationPlayMode, s.animationSpeed,
+  }, [frameAdvance?.mode, s.animationOrStepMode, s.animationPlayMode, s.animationSpeed,
     animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
+
+  /**
+   * Animation auto-increment logic (back-pressure path)
+   * When `frameAdvance.mode === 'backpressure'`, drive advancement from an
+   * interruptible Effect fiber whose period is max(frameMs, onFrameSettled) so
+   * playback slows to tile-load speed instead of flashing. Mirrors the
+   * track-latest polling fiber lifecycle below.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const animationFiberRef = useRef<Fiber.RuntimeFiber<any, any> | null>(null);
+  // Read the (object-identity-unstable) frameAdvance prop through a ref so the
+  // fiber effect below doesn't tear down and restart on every parent render.
+  const frameAdvanceRef = useRef(frameAdvance);
+  frameAdvanceRef.current = frameAdvance;
+
+  useEffect(() => {
+    // Clean up any existing fiber
+    if (animationFiberRef.current) {
+      Effect.runFork(Fiber.interrupt(animationFiberRef.current));
+      animationFiberRef.current = null;
+    }
+
+    if (frameAdvance?.mode !== 'backpressure') return;
+    if (s.animationOrStepMode !== AnimationOrStepMode.Animation ||
+      s.animationPlayMode !== PlayMode.Play) {
+      return;
+    }
+
+    const frameMs = animationRequestFrequency;
+    const advanceMs = (s.animationSpeed * frameMs) / 1000;
+
+    const loop = makeAnimationLoopEffect({
+      readState: () => stateRef.current,
+      advanceMs,
+      frameMs,
+      dispatchFrame: (nextStart) => d(SetSelectedStartDateTime({
+        selectedStartDateTime: nextStart,
+        updateSource: UpdateSource.UserInteraction
+      })),
+      onFrameSettled: (frame) => {
+        const fa = frameAdvanceRef.current;
+        return fa?.mode === 'backpressure' ? fa.onFrameSettled(frame) : Promise.resolve();
+      },
+      maxWaitMs: frameAdvance.maxWaitMs ?? DEFAULT_MAX_WAIT_MS,
+    });
+
+    animationFiberRef.current = Effect.runFork(loop);
+
+    return () => {
+      if (animationFiberRef.current) {
+        Effect.runFork(Fiber.interrupt(animationFiberRef.current));
+        animationFiberRef.current = null;
+      }
+    };
+    // onFrameSettled/maxWaitMs are read via frameAdvanceRef (Correction 5), so
+    // only stable primitives gate the fiber lifecycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameAdvance?.mode, frameAdvance?.mode === 'backpressure' ? frameAdvance.maxWaitMs : undefined,
+    s.animationOrStepMode, s.animationPlayMode,
+    s.animationSpeed, animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
 
   /**
    * Track-latest polling logic using Effect Schedule
