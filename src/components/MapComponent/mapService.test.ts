@@ -46,7 +46,7 @@ const mutationSeq = (calls: Call[]) =>
  * a Proxy auto-stubs every other method as a recording no-op, so the test does
  * not silently break when the wrapper's map usage changes.
  */
-const makeRecordingMap = () => {
+const makeRecordingMap = ({ autoSettle = true }: { autoSettle?: boolean } = {}) => {
   const calls: Call[] = [];
   const listeners: Record<string, Array<(e: unknown) => void>> = {};
   let layers: StubLayer[] = [
@@ -102,10 +102,13 @@ const makeRecordingMap = () => {
       };
       // Simulate the new tiles finishing load so the double-buffer swap proceeds
       // to drop the old source. The wrapper registers its listener before
-      // calling addSource, so a microtask is enough.
-      queueMicrotask(() =>
-        proxy.fire("sourcedata", { sourceId: id, isSourceLoaded: true }),
-      );
+      // calling addSource, so a microtask is enough. When autoSettle is off,
+      // the test drives loading explicitly via settle() to exercise coalescing.
+      if (autoSettle) {
+        queueMicrotask(() =>
+          proxy.fire("sourcedata", { sourceId: id, isSourceLoaded: true }),
+        );
+      }
     },
     removeSource(id: string) {
       rec("removeSource", id);
@@ -144,7 +147,18 @@ const makeRecordingMap = () => {
     },
   }) as unknown as { addSource: (id: string, cfg: Record<string, unknown>) => void };
 
-  return { map: proxy, calls };
+  // Fire `sourcedata`/isSourceLoaded for every currently-present source whose id
+  // starts with `prefix` (covers the random `_<uuid>` buffer suffix), settling
+  // whichever buffered swap is waiting on it.
+  const settle = (prefix: string) => {
+    Object.keys(sources)
+      .filter((id) => id.startsWith(prefix))
+      .forEach((id) =>
+        proxy.fire("sourcedata", { sourceId: id, isSourceLoaded: true }),
+      );
+  };
+
+  return { map: proxy, calls, settle, sources };
 };
 
 const rasterImageryLayer = (): LayerType =>
@@ -210,9 +224,28 @@ const windowLayer = (): LayerType =>
     enabled: LayerEnabled({ visible: LayerVisible(), order: 3 }),
   });
 
+/** A raster imagery layer whose tiles URL carries `tag`, so overlapping swap
+ *  frames can be told apart by the source config the swap ends up applying. */
+const rasterFrame = (tag: string): LayerType =>
+  LargeScaleImagery({
+    id: "RASTER_IMG",
+    humanReadableName: "Raster Imagery",
+    sourceConfig: RasterTiles({
+      id: "RASTER_IMG",
+      type: "raster",
+      tiles: [`https://tiles.example/raster/{z}/{x}/{y}.png?d=${tag}`],
+      tileSize: 256,
+    }),
+    orderedLayerConfigs: [
+      { id: "RASTER_IMG-raster", type: "raster", source: "RASTER_IMG" },
+    ],
+    paramKeyVals: { d: tag },
+    enabled: LayerEnabled({ visible: LayerVisible(), order: 1 }),
+  });
+
 /** Build a wrapper over a fresh recording map with the three layers added. */
-const setup = async () => {
-  const { map, calls } = makeRecordingMap();
+const setup = async (opts?: { autoSettle?: boolean }) => {
+  const { map, calls, settle, sources } = makeRecordingMap(opts);
   const wrapper = new MapClassWrapper(
     map as never,
     "https://basemap.example",
@@ -228,8 +261,11 @@ const setup = async () => {
   await E.runPromise(wrapper.addLayer(winLayer));
 
   calls.length = 0; // only characterize what the date change does
-  return { wrapper, calls, map, raster, vector, winLayer };
+  return { wrapper, calls, map, settle, sources, raster, vector, winLayer };
 };
+
+/** Flush pending microtasks + macrotasks so queued Effect fibers can run. */
+const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("MapClassWrapper date change", () => {
   it("A: produces addSource/addLayer/removeLayer/removeSource per tile layer then setLayoutProperty for the excluded window layer, in order", async () => {
@@ -293,5 +329,59 @@ describe("MapClassWrapper date change", () => {
       .map((c) => c.args[0]);
     expect(removedSources).toContain("RASTER_IMG");
     expect(removedSources).toContain("RASTER_IMG_stale");
+  });
+
+  it("D: overlapping swaps for one source coalesce to the newest frame", async () => {
+    const { wrapper, calls, settle, sources } = await setup({ autoSettle: false });
+    calls.length = 0;
+
+    // Four frames fired back-to-back without settling: the in-flight swap holds
+    // and later frames overwrite a single pending slot, so intermediates drop.
+    const ps = ["A", "B", "C", "D"].map((t) =>
+      E.runPromise(wrapper.updateSourceParams([rasterFrame(t)])),
+    );
+    await tick(); // let all four register their pending target (newest = D)
+
+    // Settle the in-flight buffer → drain applies it, then picks up the newest
+    // pending (frame D), settled on the next round.
+    settle("RASTER_IMG");
+    await tick();
+    settle("RASTER_IMG");
+    await Promise.all(ps);
+
+    // Coalesced: far fewer swaps than frames (not one per frame).
+    const addSourceCount = calls.filter((c) => c.method === "addSource").length;
+    expect(addSourceCount).toBeGreaterThanOrEqual(1);
+    expect(addSourceCount).toBeLessThanOrEqual(2);
+
+    // The single surviving buffer carries the newest frame's tiles.
+    const survivors = Object.keys(sources).filter((id) => id.startsWith("RASTER_IMG_"));
+    expect(survivors).toHaveLength(1);
+    const surviving = sources[survivors[0]] as { tiles?: string[] };
+    expect(surviving.tiles?.[0]).toContain("d=D");
+  });
+
+  it("E: layer-load status fires once per applied frame, never for dropped frames", async () => {
+    const { wrapper, calls, settle } = await setup({ autoSettle: false });
+    const tags: string[] = [];
+    wrapper.setOnLayerLoadStatus((st) => tags.push(st._tag));
+    calls.length = 0;
+
+    const ps = ["A", "B", "C", "D"].map((t) =>
+      E.runPromise(wrapper.updateSourceParams([rasterFrame(t)])),
+    );
+    await tick();
+    settle("RASTER_IMG");
+    await tick();
+    settle("RASTER_IMG");
+    await Promise.all(ps);
+
+    const applied = calls.filter((c) => c.method === "addSource").length;
+    const loading = tags.filter((t) => t === "Loading").length;
+    const loaded = tags.filter((t) => t === "Loaded").length;
+    // Status is emitted exactly once per applied frame — dropped frames are silent.
+    expect(loading).toBe(applied);
+    expect(loaded).toBe(applied);
+    expect(loading).toBeLessThan(4);
   });
 });
