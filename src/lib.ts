@@ -10,7 +10,8 @@ export type { HeaderProps } from './components/Header';
 export { Page } from './components/Page';
 
 export { TimeRangeSlider } from './components/TimeRangeSlider/TimeRangeSlider';
-export type { TimeRangeSliderProps } from './components/TimeRangeSlider/TimeRangeSlider';
+export type { TimeRangeSliderProps, StepRequest } from './components/TimeRangeSlider/TimeRangeSlider';
+export type { StepDirection, StepResolution } from './components/TimeRangeSlider/stepping';
 export type { FrameAdvance, FrameInfo } from './components/TimeRangeSlider/animationFrame';
 export { TimeDuration, Theme, TimeZone, AnimationOrStepMode } from './components/TimeRangeSlider/timeSliderTypes';
 

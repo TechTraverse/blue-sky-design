@@ -8,7 +8,8 @@ import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
 import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
-import { acceptsTrackLatestRebase, makeStepLattice, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
+import { acceptsTrackLatestRebase, makeStepLattice, normalizeStepPositions, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
+import type { StepDirection, StepResolution } from './stepping';
 import {
   DEFAULT_ANIMATION_DURATION,
   ExtSetIncrement,
@@ -44,6 +45,16 @@ import { TimeZoneDisplayProvider } from '../../contexts/TimeZoneDisplayContext';
 /**
  * Local types for state, actions, and props
  */
+
+/** Reported on every step button press, including one refused by a clamp. */
+export interface StepRequest {
+  direction: StepDirection;
+  from: Date;
+  /** Where the step landed, or null when a clamp refused it. */
+  to: Date | null;
+  /** Whether an observed frame or the lattice produced the destination. */
+  resolvedBy: StepResolution;
+}
 
 export interface TimeRangeSliderProps {
   dateRange?: RangeValue<Date>;
@@ -82,6 +93,15 @@ export interface TimeRangeSliderProps {
    * fall on a round-minute grid, so the phase cannot be derived from a clock.
    */
   stepPhaseMs?: number;
+  /**
+   * Observed frame instants for the current view, pushed down by the consumer's
+   * frame index. Inside this span steps land on real frames; beyond it they fall
+   * back to the lattice. Order does not matter. Stepping never fetches.
+   * Memoise it: a new array each render re-normalises the list.
+   */
+  stepPositions?: readonly Date[];
+  /** Called on every step press, including one a clamp refused. */
+  onStepRequest?: (request: StepRequest) => void;
   hideAnimationToggle?: boolean;
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string;
@@ -144,6 +164,8 @@ export const TimeRangeSlider = ({
   stepSizeMs,
   stepAnchor,
   stepPhaseMs,
+  stepPositions,
+  onStepRequest,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
   hideDatePicker = false,
@@ -791,12 +813,49 @@ export const TimeRangeSlider = ({
     () => resolveStepMs(stepSizeMs, s.selectedDuration),
     [stepSizeMs, s.selectedDuration]);
 
+  /** Observed frames the step buttons prefer, ascending. */
+  const positions = useMemo(
+    () => normalizeStepPositions(stepPositions), [stepPositions]);
+
   /** Lattice the step buttons walk. Undefined means free-running steps. */
   const stepLattice = useMemo(
     () => makeStepLattice(stepAnchor, stepPhaseMs, stepMs),
     // Date identity is unstable across parent renders; key on the instant.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stepAnchor?.getTime(), stepPhaseMs, stepMs]);
+
+  /**
+   * One step press. Resolves the destination synchronously — from the pushed
+   * frames inside the index, from the lattice beyond it — and never fetches.
+   */
+  const requestStep = useCallback((direction: StepDirection) => {
+    const from = sequenceCursor(s.stepCursor, s.selectedStartDateTime);
+    const { start, end, resolvedBy } = stepSelection(
+      from, stepMs, direction, s.selectedDuration, stepLattice, positions);
+
+    const blocked = availableDateRange
+      ? (direction === 1
+        ? DateTime.greaterThan(end, DateTime.unsafeFromDate(availableDateRange.end))
+        : DateTime.lessThan(start, DateTime.unsafeFromDate(availableDateRange.start)))
+      // Legacy: dateRangeForReset.start is read as a maximum in both directions.
+      : dateRangeForReset
+        ? DateTime.greaterThan(end, DateTime.unsafeFromDate(dateRangeForReset.start))
+        : false;
+
+    onStepRequest?.({
+      direction,
+      from: DateTime.toDate(from),
+      to: blocked ? null : DateTime.toDate(start),
+      resolvedBy,
+    });
+    if (blocked) return;
+
+    d(SetSelectedStartDateTime({
+      selectedStartDateTime: start,
+      updateSource: UpdateSource.Step
+    }));
+  }, [s.stepCursor, s.selectedStartDateTime, s.selectedDuration, stepMs, stepLattice,
+    positions, availableDateRange, dateRangeForReset, onStepRequest]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
@@ -1131,57 +1190,8 @@ export const TimeRangeSlider = ({
           )}
           <AnimateAndStepControls
             /* Step controls */
-            incrementStartDateTime={() => {
-              const { start: newStartDateTime, end: newEndDateTime } = stepSelection(
-                sequenceCursor(s.stepCursor, s.selectedStartDateTime),
-                stepMs, 1, s.selectedDuration, stepLattice);
-
-              // Check if the new end time would exceed availableDateRange.end
-              if (availableDateRange) {
-                const maxAllowedDateTime = DateTime.unsafeFromDate(availableDateRange.end);
-                if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
-                  return; // Don't increment if it would exceed the limit
-                }
-              } else if (dateRangeForReset) {
-                // Fallback to legacy dateRangeForReset behavior
-                const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-                if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
-                  return; // Don't increment if it would exceed the limit
-                }
-              }
-
-              d(SetSelectedStartDateTime({
-                selectedStartDateTime: newStartDateTime,
-                updateSource: UpdateSource.Step
-              }));
-            }}
-            decrementStartDateTime={() => {
-              const { start: newStartDateTime } = stepSelection(
-                sequenceCursor(s.stepCursor, s.selectedStartDateTime),
-                stepMs, -1, s.selectedDuration, stepLattice);
-
-              // Check if new start time would be before availableDateRange.start
-              if (availableDateRange) {
-                const minAllowedDateTime = DateTime.unsafeFromDate(availableDateRange.start);
-                if (DateTime.lessThan(newStartDateTime, minAllowedDateTime)) {
-                  return; // Don't decrement if it would go before the minimum
-                }
-              }
-
-              // Also check max constraint (legacy dateRangeForReset behavior)
-              if (!availableDateRange && dateRangeForReset) {
-                const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
-                const maxAllowedDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
-                if (DateTime.greaterThan(newEndDateTime, maxAllowedDateTime)) {
-                  return; // Don't decrement if it would still exceed the limit
-                }
-              }
-
-              d(SetSelectedStartDateTime({
-                selectedStartDateTime: newStartDateTime,
-                updateSource: UpdateSource.Step
-              }));
-            }}
+            incrementStartDateTime={() => requestStep(1)}
+            decrementStartDateTime={() => requestStep(-1)}
 
             /* Feature toggle */
             hideAnimationToggle={hideAnimationToggle}

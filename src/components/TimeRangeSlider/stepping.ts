@@ -94,10 +94,58 @@ export const stepSelection = (
   stepMs: number,
   direction: StepDirection,
   width: Duration.Duration,
-  lattice?: StepLattice
-): { start: DateTime.DateTime; end: DateTime.DateTime } => {
-  const start = nextStepPosition(from, stepMs, direction, lattice);
-  return { start, end: DateTime.addDuration(start, width) };
+  lattice?: StepLattice,
+  positions?: readonly number[]
+): { start: DateTime.DateTime; end: DateTime.DateTime; resolvedBy: StepResolution } => {
+  const observed = positions && adjacentPosition(from, positions, direction);
+  const start = observed ?? nextStepPosition(from, stepMs, direction, lattice);
+  return {
+    start,
+    end: DateTime.addDuration(start, width),
+    resolvedBy: observed ? 'positions' : 'lattice',
+  };
+};
+
+/** How a step's destination was determined. */
+export type StepResolution = 'positions' | 'lattice';
+
+/**
+ * Normalise the frame instants pushed down by the consumer: valid, unique and
+ * ascending epoch millis. Undefined when there is nothing usable to step along.
+ */
+export const normalizeStepPositions = (
+  positions: readonly Date[] | undefined
+): number[] | undefined => {
+  if (!positions?.length) return undefined;
+  const ms = positions
+    .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+    .map((d) => d.getTime())
+    .sort((a, b) => a - b)
+    .filter((v, i, all) => i === 0 || v !== all[i - 1]);
+  return ms.length ? ms : undefined;
+};
+
+/**
+ * The observed frame adjacent to `from`, or undefined when `from` sits outside
+ * the pushed span — beyond it there is no list, so the lattice takes over.
+ */
+export const adjacentPosition = (
+  from: DateTime.DateTime,
+  positions: readonly number[],
+  direction: StepDirection
+): DateTime.DateTime | undefined => {
+  const fromMs = DateTime.toEpochMillis(from);
+  if (fromMs < positions[0] || fromMs > positions[positions.length - 1]) return undefined;
+
+  // Binary search for the first entry strictly greater than the cursor.
+  let lo = 0;
+  let hi = positions.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (positions[mid] > fromMs) hi = mid; else lo = mid + 1;
+  }
+  const index = direction === 1 ? lo : lo - (positions[lo - 1] === fromMs ? 2 : 1);
+  return index >= 0 && index < positions.length ? DateTime.unsafeMake(positions[index]) : undefined;
 };
 
 /**
