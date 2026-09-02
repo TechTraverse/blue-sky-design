@@ -397,6 +397,10 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
     SetAnimationOrStepMode: (x) => ({
       ...state,
       animationOrStepMode: x.animationOrStepMode,
+      // Entering a repeatable mode ends any live step sequence, so a track-latest
+      // re-base is no longer refused. The snap onto the lattice stays silent:
+      // the selection is not rewritten, the first step absorbs it.
+      stepCursor: null,
     }),
 
     SetAnimationStartDateTime: (x) => ({
