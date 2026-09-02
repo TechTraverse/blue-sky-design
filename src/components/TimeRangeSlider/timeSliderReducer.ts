@@ -10,8 +10,48 @@ export enum UpdateSource {
   UserInteraction,
   TrackLatestUpdate,
   /** A step button press. Distinct from a scrub: it continues a step sequence. */
-  Step
+  Step,
+  /** A frame from the animation clock, fixed-rate or back-pressure. */
+  Animation
 }
+
+/**
+ * Why the selection changed, as reported to `onDateRangeSelect`. Goal #1 of the
+ * datetime work is stated in terms of *why* a date moved, so a poll-driven
+ * re-base must not reach the consumer looking like a user scrub.
+ *
+ * `'external'` is not emitted today: a change arriving on the `dateRange` prop
+ * is not echoed back to the consumer that sent it.
+ */
+export type DateUpdateSource =
+  | 'external'
+  | 'user'
+  | 'step'
+  | 'animation'
+  | 'track-latest';
+
+// Record, not a ts-pattern match: it is the only total mapping a numeric enum
+// gets, so adding an UpdateSource without a public name fails to compile.
+const DATE_UPDATE_SOURCE: Record<UpdateSource, DateUpdateSource> = {
+  [UpdateSource.ExternalProp]: 'external',
+  [UpdateSource.UserInteraction]: 'user',
+  [UpdateSource.Step]: 'step',
+  [UpdateSource.Animation]: 'animation',
+  [UpdateSource.TrackLatestUpdate]: 'track-latest',
+};
+
+export const toDateUpdateSource = (source: UpdateSource): DateUpdateSource =>
+  DATE_UPDATE_SOURCE[source];
+
+// Also a Record, for the same reason: a new source must state whether it counts
+// as the user taking over, rather than inheriting an answer from a denylist.
+const DISABLES_TRACKING: Record<UpdateSource, boolean> = {
+  [UpdateSource.ExternalProp]: false,
+  [UpdateSource.UserInteraction]: true,
+  [UpdateSource.Step]: true,
+  [UpdateSource.Animation]: true,
+  [UpdateSource.TrackLatestUpdate]: false,
+};
 
 export type State = {
   timeZone: TimeZone;
@@ -230,9 +270,8 @@ const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: 
     ? optimalViewStart
     : state.viewStartDateTime;
 
-  // Auto-disable tracking on user interaction
-  const shouldDisableTracking = state.isTrackingLatest &&
-    (x.updateSource === UpdateSource.UserInteraction || x.updateSource === UpdateSource.Step);
+  // Auto-disable tracking when the user takes over
+  const shouldDisableTracking = state.isTrackingLatest && DISABLES_TRACKING[x.updateSource];
 
   return {
     ...state,
@@ -258,8 +297,8 @@ const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateT
     roundingFn
   );
 
-  // Auto-disable tracking on user interaction
-  const shouldDisableTracking = x.updateSource === UpdateSource.UserInteraction && state.isTrackingLatest;
+  // Auto-disable tracking when the user takes over
+  const shouldDisableTracking = state.isTrackingLatest && DISABLES_TRACKING[x.updateSource];
 
   return {
     ...state,
@@ -419,7 +458,7 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
 
 export function withMiddleware(
   reducer: (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime) => State,
-  onDateRangeSelect: (rv: RangeValue<Date>) => void,
+  onDateRangeSelect: (rv: RangeValue<Date>, source: DateUpdateSource) => void,
   roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
   onTimeZoneChange?: (timeZone: TimeZone) => void,
   onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void,
@@ -431,8 +470,8 @@ export function withMiddleware(
     const newState = reducer(oldState, action, roundingFn);
 
     // Handle callbacks
-    match(action._tag)
-      .with(P.union("SetSelectedStartDateTime", "SetSelectedDuration"), () => {
+    match(action)
+      .with({ _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration") }, (a) => {
         const start = newState.selectedStartDateTime;
         const end = DateTime.addDuration(start, newState.selectedDuration);
 
@@ -443,7 +482,7 @@ export function withMiddleware(
           onDateRangeSelect({
             start: DateTime.toDate(start),
             end: DateTime.toDate(end)
-          });
+          }, toDateUpdateSource(a.updateSource));
         }
 
         // Notify when tracking was auto-disabled due to user interaction
@@ -451,15 +490,15 @@ export function withMiddleware(
           onTrackLatestChange?.(false);
         }
       })
-      .with("SetTrackingLatest", () => {
+      .with({ _tag: "SetTrackingLatest" }, () => {
         if (oldState.isTrackingLatest !== newState.isTrackingLatest) {
           onTrackLatestChange?.(newState.isTrackingLatest);
         }
       })
-      .with("SetTimeZone", () => (newState.timeZone !== oldState.timeZone),
+      .with({ _tag: "SetTimeZone" }, () => (newState.timeZone !== oldState.timeZone),
         () => onTimeZoneChange?.(newState.timeZone)
       )
-      .with("SetAnimationOrStepMode", () => (newState.animationOrStepMode !== oldState.animationOrStepMode),
+      .with({ _tag: "SetAnimationOrStepMode" }, () => (newState.animationOrStepMode !== oldState.animationOrStepMode),
         () => onAnimationOrStepModeChange?.(newState.animationOrStepMode)
       )
     return newState;

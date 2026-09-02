@@ -36,6 +36,7 @@ import {
   reducer,
   withMiddleware,
 } from './timeSliderReducer';
+import type { DateUpdateSource } from './timeSliderReducer';
 import type { FrameAdvance } from './animationFrame';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider, IconButton, Tooltip } from '@mui/material';
@@ -61,7 +62,8 @@ export interface TimeRangeSliderProps {
   dateRangeForReset?: RangeValue<Date>;
   /** Constrains the selectable date range. start = earliest allowed, end = latest allowed. */
   availableDateRange?: RangeValue<Date>;
-  onDateRangeSelect: (rv: RangeValue<Date>) => void;
+  /** Called when the selection changes, with why it changed. */
+  onDateRangeSelect: (rv: RangeValue<Date>, source: DateUpdateSource) => void;
   getLatestDateRange?: () => Promise<Date>;
   animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
@@ -662,7 +664,7 @@ export const TimeRangeSlider = ({
       const { nextStart } = computeNextAnimationFrame(stateRef.current, advanceMs);
       d(SetSelectedStartDateTime({
         selectedStartDateTime: nextStart,
-        updateSource: UpdateSource.UserInteraction
+        updateSource: UpdateSource.Animation
       }));
     }, frameMs);
 
@@ -706,7 +708,7 @@ export const TimeRangeSlider = ({
       frameMs,
       dispatchFrame: (nextStart) => d(SetSelectedStartDateTime({
         selectedStartDateTime: nextStart,
-        updateSource: UpdateSource.UserInteraction
+        updateSource: UpdateSource.Animation
       })),
       onFrameSettled: (frame) => {
         const fa = frameAdvanceRef.current;
