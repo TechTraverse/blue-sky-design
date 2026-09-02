@@ -17,6 +17,8 @@ export const AnimateAndStepControls = ({
   setAnimationDuration,
   incrementStartDateTime,
   decrementStartDateTime,
+  disableStepForward = false,
+  disableStepBackward = false,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   incrementAnimationSpeed,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -34,6 +36,9 @@ export const AnimateAndStepControls = ({
   setAnimationDuration?: (duration: Duration.Duration) => void,
   incrementStartDateTime?: () => void,
   decrementStartDateTime?: () => void,
+  /** Step is at the end of the selectable range; the button reads as disabled. */
+  disableStepForward?: boolean,
+  disableStepBackward?: boolean,
   incrementAnimationSpeed?: () => void,
   decrementAnimationSpeed?: () => void,
   hideAnimationToggle?: boolean,
@@ -101,6 +106,7 @@ export const AnimateAndStepControls = ({
             <Button
               variant="contained"
               onClick={() => decrementStartDateTime?.()}
+              disabled={disableStepBackward}
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
@@ -141,6 +147,7 @@ export const AnimateAndStepControls = ({
             <Button
               variant="contained"
               onClick={() => incrementStartDateTime?.()}
+              disabled={disableStepForward}
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode

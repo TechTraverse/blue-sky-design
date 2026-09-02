@@ -161,3 +161,26 @@ export const sequenceCursor = (
 /** A track-latest re-base is only allowed to move the selection between step sequences. */
 export const acceptsTrackLatestRebase = (stepCursor: DateTime.DateTime | null): boolean =>
   stepCursor === null;
+
+/** The bounds a selection may not cross. Undefined when unconstrained. */
+export interface SelectableRange {
+  min: DateTime.DateTime;
+  max: DateTime.DateTime;
+}
+
+/**
+ * Whether a stepped selection leaves the selectable range. Only the bound in the
+ * direction of travel applies, so a selection already outside the range can still
+ * be stepped back into it.
+ */
+export const isStepBlocked = (
+  start: DateTime.DateTime,
+  end: DateTime.DateTime,
+  direction: StepDirection,
+  range: SelectableRange | undefined
+): boolean => {
+  if (!range) return false;
+  return direction === 1
+    ? DateTime.greaterThan(end, range.max)
+    : DateTime.lessThan(start, range.min);
+};

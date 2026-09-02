@@ -8,7 +8,7 @@ import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
 import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
-import { acceptsTrackLatestRebase, makeStepLattice, normalizeStepPositions, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
+import { acceptsTrackLatestRebase, isStepBlocked, makeStepLattice, normalizeStepPositions, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
 import type { StepDirection, StepResolution } from './stepping';
 import {
   DEFAULT_ANIMATION_DURATION,
@@ -47,7 +47,8 @@ import { TimeZoneDisplayProvider } from '../../contexts/TimeZoneDisplayContext';
  * Local types for state, actions, and props
  */
 
-/** Reported on every step button press, including one refused by a clamp. */
+/** Reported on every step press. The button is disabled at the ends, so `to` is
+ * null only if a clamp refused a press that got through anyway. */
 export interface StepRequest {
   direction: StepDirection;
   from: Date;
@@ -59,8 +60,12 @@ export interface StepRequest {
 
 export interface TimeRangeSliderProps {
   dateRange?: RangeValue<Date>;
+  /** The range the reset control returns to. Not a constraint on the selection. */
   dateRangeForReset?: RangeValue<Date>;
-  /** Constrains the selectable date range. start = earliest allowed, end = latest allowed. */
+  /**
+   * The only constraint on the selection: start = earliest allowed instant,
+   * end = latest. Omit to leave the selection unconstrained.
+   */
   availableDateRange?: RangeValue<Date>;
   /** Called when the selection changes, with why it changed. */
   onDateRangeSelect: (rv: RangeValue<Date>, source: DateUpdateSource) => void;
@@ -815,6 +820,15 @@ export const TimeRangeSlider = ({
     () => resolveStepMs(stepSizeMs, s.selectedDuration),
     [stepSizeMs, s.selectedDuration]);
 
+  /** The one bound on the selection; both ends come from availableDateRange. */
+  const selectableRange = useMemo(
+    () => availableDateRange && {
+      min: DateTime.unsafeFromDate(availableDateRange.start),
+      max: DateTime.unsafeFromDate(availableDateRange.end),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [availableDateRange?.start?.getTime(), availableDateRange?.end?.getTime()]);
+
   /** Observed frames the step buttons prefer, ascending. */
   const positions = useMemo(
     () => normalizeStepPositions(stepPositions), [stepPositions]);
@@ -827,22 +841,23 @@ export const TimeRangeSlider = ({
     [stepAnchor?.getTime(), stepPhaseMs, stepMs]);
 
   /**
-   * One step press. Resolves the destination synchronously — from the pushed
-   * frames inside the index, from the lattice beyond it — and never fetches.
+   * Both step destinations, resolved synchronously — from the pushed frames
+   * inside the index, from the lattice beyond it. Never fetches.
    */
-  const requestStep = useCallback((direction: StepDirection) => {
-    const from = sequenceCursor(s.stepCursor, s.selectedStartDateTime);
-    const { start, end, resolvedBy } = stepSelection(
-      from, stepMs, direction, s.selectedDuration, stepLattice, positions);
+  const stepTargets = useMemo(() => {
+    const preview = (direction: StepDirection) => {
+      const from = sequenceCursor(s.stepCursor, s.selectedStartDateTime);
+      const { start, end, resolvedBy } = stepSelection(
+        from, stepMs, direction, s.selectedDuration, stepLattice, positions);
+      return { from, start, end, resolvedBy, blocked: isStepBlocked(start, end, direction, selectableRange) };
+    };
+    return { backward: preview(-1), forward: preview(1) };
+  }, [s.stepCursor, s.selectedStartDateTime, s.selectedDuration, stepMs, stepLattice,
+    positions, selectableRange]);
 
-    const blocked = availableDateRange
-      ? (direction === 1
-        ? DateTime.greaterThan(end, DateTime.unsafeFromDate(availableDateRange.end))
-        : DateTime.lessThan(start, DateTime.unsafeFromDate(availableDateRange.start)))
-      // Legacy: dateRangeForReset.start is read as a maximum in both directions.
-      : dateRangeForReset
-        ? DateTime.greaterThan(end, DateTime.unsafeFromDate(dateRangeForReset.start))
-        : false;
+  const requestStep = useCallback((direction: StepDirection) => {
+    const { from, start, resolvedBy, blocked } =
+      direction === 1 ? stepTargets.forward : stepTargets.backward;
 
     onStepRequest?.({
       direction,
@@ -856,8 +871,7 @@ export const TimeRangeSlider = ({
       selectedStartDateTime: start,
       updateSource: UpdateSource.Step
     }));
-  }, [s.stepCursor, s.selectedStartDateTime, s.selectedDuration, stepMs, stepLattice,
-    positions, availableDateRange, dateRangeForReset, onStepRequest]);
+  }, [stepTargets, onStepRequest]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
@@ -893,15 +907,9 @@ export const TimeRangeSlider = ({
     start?: DateTime.DateTime;
     end?: DateTime.DateTime;
   }) => {
-    // Enforce min/max constraints from availableDateRange (with dateRangeForReset fallback)
-    const maxAllowedDateTime = availableDateRange
-      ? DateTime.unsafeFromDate(availableDateRange.end)
-      : dateRangeForReset
-        ? DateTime.unsafeFromDate(dateRangeForReset.start)
-        : undefined;
-    const minAllowedDateTime = availableDateRange
-      ? DateTime.unsafeFromDate(availableDateRange.start)
-      : undefined;
+    // Enforce the selectable range on the animation bounds
+    const maxAllowedDateTime = selectableRange?.max;
+    const minAllowedDateTime = selectableRange?.min;
 
     if (r.start) {
       let newStart = r.start;
@@ -934,7 +942,7 @@ export const TimeRangeSlider = ({
       const newDuration = DateTime.distanceDuration(start, newEnd);
       d(SetAnimationDuration({ animationDuration: newDuration }));
     }
-  }, [s.animationDuration, s.animationStartDateTime, availableDateRange, dateRangeForReset]);
+  }, [s.animationDuration, s.animationStartDateTime, selectableRange]);
 
   const limitedRangeHC = useMemo(() => {
     if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
@@ -970,18 +978,8 @@ export const TimeRangeSlider = ({
               primaryRange={primaryRangeHC}
               limitedRange={limitedRangeHC}
               viewRange={viewRangeHC}
-              earliestValidDateTime={
-                availableDateRange
-                  ? DateTime.unsafeFromDate(availableDateRange.start)
-                  : undefined
-              }
-              latestValidDateTime={
-                availableDateRange
-                  ? DateTime.unsafeFromDate(availableDateRange.end)
-                  : dateRangeForReset
-                    ? DateTime.unsafeFromDate(dateRangeForReset.start)
-                    : undefined
-              }
+              earliestValidDateTime={selectableRange?.min}
+              latestValidDateTime={selectableRange?.max}
               timeZone={s.timeZone}
               increment={s.increment}
               theme={theme}
@@ -1142,15 +1140,8 @@ export const TimeRangeSlider = ({
                         newAnimationEnd = selectedEnd;
                       }
 
-                      // Enforce availableDateRange constraints (with dateRangeForReset fallback)
-                      const maxAllowedDateTime = availableDateRange
-                        ? DateTime.unsafeFromDate(availableDateRange.end)
-                        : dateRangeForReset
-                          ? DateTime.unsafeFromDate(dateRangeForReset.start)
-                          : undefined;
-                      const minAllowedDateTime = availableDateRange
-                        ? DateTime.unsafeFromDate(availableDateRange.start)
-                        : undefined;
+                      const maxAllowedDateTime = selectableRange?.max;
+                      const minAllowedDateTime = selectableRange?.min;
 
                       if (maxAllowedDateTime && DateTime.greaterThan(newAnimationEnd, maxAllowedDateTime)) {
                         newAnimationEnd = maxAllowedDateTime;
@@ -1184,7 +1175,6 @@ export const TimeRangeSlider = ({
                       updateSource: UpdateSource.UserInteraction
                     }))
                 }
-                dateRangeForReset={dateRangeForReset}
                 availableDateRange={availableDateRange}
               />
               <Divider variant="middle" orientation={"vertical"} flexItem />
@@ -1194,6 +1184,8 @@ export const TimeRangeSlider = ({
             /* Step controls */
             incrementStartDateTime={() => requestStep(1)}
             decrementStartDateTime={() => requestStep(-1)}
+            disableStepForward={stepTargets.forward.blocked}
+            disableStepBackward={stepTargets.backward.blocked}
 
             /* Feature toggle */
             hideAnimationToggle={hideAnimationToggle}
@@ -1212,14 +1204,8 @@ export const TimeRangeSlider = ({
                 let needsStartUpdate = false;
 
                 // Determine max/min constraints
-                const maxAllowedDateTime = availableDateRange
-                  ? DateTime.unsafeFromDate(availableDateRange.end)
-                  : dateRangeForReset
-                    ? DateTime.unsafeFromDate(dateRangeForReset.start)
-                    : undefined;
-                const minAllowedDateTime = availableDateRange
-                  ? DateTime.unsafeFromDate(availableDateRange.start)
-                  : undefined;
+                const maxAllowedDateTime = selectableRange?.max;
+                const minAllowedDateTime = selectableRange?.min;
 
                 // Check if animation range would exceed max
                 if (maxAllowedDateTime) {
@@ -1273,14 +1259,8 @@ export const TimeRangeSlider = ({
             animationDuration={s.animationDuration}
             setAnimationDuration={(duration: Duration.Duration) => {
               // Determine max/min constraints
-              const maxAllowedDateTime = availableDateRange
-                ? DateTime.unsafeFromDate(availableDateRange.end)
-                : dateRangeForReset
-                  ? DateTime.unsafeFromDate(dateRangeForReset.start)
-                  : undefined;
-              const minAllowedDateTime = availableDateRange
-                ? DateTime.unsafeFromDate(availableDateRange.start)
-                : undefined;
+              const maxAllowedDateTime = selectableRange?.max;
+              const minAllowedDateTime = selectableRange?.min;
 
               // Check if new duration would cause animation to exceed constraints
               if (s.animationOrStepMode === AnimationOrStepMode.Animation) {

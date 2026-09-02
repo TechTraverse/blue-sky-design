@@ -107,6 +107,12 @@
   left: 84px;
 }
 
+/* A step button at the end of the selectable range must still read as a button. */
+.playback-button-container .MuiButton-root.Mui-disabled {
+  background-color: rgba(0, 0, 0, 0.10);
+  color: rgba(0, 0, 0, 0.38);
+}
+
 .playback-button-container.animation-mode {
   width: 160px;
   min-width: 160px;
@@ -478,6 +484,12 @@
 
 .dark-theme .control-settings-inline {
   border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* MUI's default disabled contained button darkens into the dark panel. */
+.dark-theme .playback-button-container .MuiButton-root.Mui-disabled {
+  background-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .dark-theme .playback-button-container {

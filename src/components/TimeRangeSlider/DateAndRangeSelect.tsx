@@ -23,7 +23,6 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   returnToDefaultDateTime?: () => void;
   rangeValue?: TimeDuration;
   setRange?: (timeDuration: TimeDuration) => void;
-  dateRangeForReset?: RangeValue<Date>;
   availableDateRange?: RangeValue<Date>;
 }
 
@@ -43,7 +42,7 @@ function FieldsetBox({
 
 const SliderDatePicker = <T extends DateValue>(
   { label, description, firstDayOfWeek,
-    rangeValue, setRange, dateRangeForReset, availableDateRange, ...props }:
+    rangeValue, setRange, availableDateRange, ...props }:
     LocalDatePickerProps<T>
 ) => {
   const { toDisplay } = useTimeZoneDisplay();
@@ -68,35 +67,15 @@ const SliderDatePicker = <T extends DateValue>(
     return calendarDate;
   };
 
-  // Calculate max allowed date from availableDateRange or dateRangeForReset
+  // Calculate max allowed date from the selectable range
   const getMaxValue = () => {
-    // Prefer availableDateRange.end if available
-    if (availableDateRange) {
-      const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
-      const displayMaxDateTime = toDisplay(maxDateTime);
-      const parts = DateTime.toParts(displayMaxDateTime);
+    if (!availableDateRange) return undefined;
 
-      return new CalendarDateTime(
-        parts.year,
-        parts.month,
-        parts.day,
-        parts.hours,
-        parts.minutes,
-        parts.seconds,
-        (parts as { millis?: number }).millis ?? 0
-      );
-    }
-
-    // Fallback to legacy dateRangeForReset behavior
-    if (!dateRangeForReset) return undefined;
-
-    // dateRangeForReset.start is actually the max allowed datetime
-    // Convert to display timezone first
-    const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
+    const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
     const displayMaxDateTime = toDisplay(maxDateTime);
     const parts = DateTime.toParts(displayMaxDateTime);
 
-    const calendarDate = new CalendarDateTime(
+    return new CalendarDateTime(
       parts.year,
       parts.month,
       parts.day,
@@ -105,7 +84,6 @@ const SliderDatePicker = <T extends DateValue>(
       parts.seconds,
       (parts as { millis?: number }).millis ?? 0
     );
-    return calendarDate;
   };
   return (
     <DatePicker
@@ -208,14 +186,12 @@ export const DateAndRangeSelect = ({
   setStartDateTime,
   rangeValue,
   setRange,
-  dateRangeForReset,
   availableDateRange,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
-  dateRangeForReset?: RangeValue<Date>,
   availableDateRange?: RangeValue<Date>,
   returnToDefaultDateTime?: () => void,
   timeZone?: TimeZone,
@@ -263,7 +239,7 @@ export const DateAndRangeSelect = ({
     // Convert from display timezone back to UTC
     const utcDt = fromDisplay(displayDateTime);
 
-    // Enforce constraints from availableDateRange (with dateRangeForReset fallback)
+    // Enforce the selectable range
     if (availableDateRange) {
       const minDateTime = DateTime.unsafeFromDate(availableDateRange.start);
       const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
@@ -271,13 +247,6 @@ export const DateAndRangeSelect = ({
         console.warn("Selected date is before minimum allowed date");
         return;
       }
-      if (DateTime.greaterThan(utcDt, maxDateTime)) {
-        console.warn("Selected date exceeds maximum allowed date");
-        return;
-      }
-    } else if (dateRangeForReset) {
-      // Legacy fallback - dateRangeForReset.start is actually the max
-      const maxDateTime = DateTime.unsafeFromDate(dateRangeForReset.start);
       if (DateTime.greaterThan(utcDt, maxDateTime)) {
         console.warn("Selected date exceeds maximum allowed date");
         return;
@@ -298,7 +267,6 @@ export const DateAndRangeSelect = ({
         firstDayOfWeek={"sun"}
         rangeValue={rangeValue}
         setRange={setRange}
-        dateRangeForReset={dateRangeForReset}
         availableDateRange={availableDateRange}
       />
     </div>);
