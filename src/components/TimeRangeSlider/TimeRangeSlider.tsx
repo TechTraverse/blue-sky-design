@@ -1,14 +1,40 @@
 import './timeRangeSlider.css';
 import { useEffect, useReducer, useRef, useMemo, useCallback, useState } from 'react';
 import type { RangeValue } from "@react-types/shared";
-import { DateTime, Data as D, Duration, Effect, Schedule, Fiber } from 'effect';
+import { DateTime, Duration, Effect, Schedule, Fiber } from 'effect';
 import { PrevDateButton, NextDateButton } from "./NewArrowButtons";
 import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
 import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
-import { resolveStepMs, stepSelection } from './stepping';
+import { acceptsTrackLatestRebase, makeStepLattice, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
+import {
+  DEFAULT_ANIMATION_DURATION,
+  ExtSetIncrement,
+  ExtSetSelectedDuration,
+  ExtSetSelectedStartDateTime,
+  ExtSetTimeZone,
+  HandleResize,
+  ResetAll,
+  SetAnimationDuration,
+  SetAnimationOrStepMode,
+  SetAnimationPlayMode,
+  SetAnimationSpeed,
+  SetAnimationStartDateTime,
+  SetLastKnownLatestDate,
+  SetResetDuration,
+  SetResetStartDateTime,
+  SetSelectedDuration,
+  SetSelectedStartDateTime,
+  SetTimeZone,
+  SetTrackingLatest,
+  SetViewDuration,
+  SetViewStartDateTime,
+  UpdateSource,
+  reducer,
+  withMiddleware,
+} from './timeSliderReducer';
 import type { FrameAdvance } from './animationFrame';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider, IconButton, Tooltip } from '@mui/material';
@@ -35,11 +61,27 @@ export interface TimeRangeSliderProps {
   increment?: TimeDuration;
   /**
    * Distance in milliseconds the step buttons move the selection. Independent
-   * of the selection width, so a 5-minute window can step 30 seconds. Falls back
-   * to the selection width when omitted or not a positive finite number.
+   * of the selection width, so a 5-minute window can step 30 seconds. Whole
+   * milliseconds; falls back to the selection width when omitted or not a
+   * positive finite number.
    * Does not affect drag snapping, which follows `increment`.
    */
   stepSizeMs?: number;
+  /**
+   * Origin of the step lattice, owned by the consumer's datetime service. Steps
+   * land on `stepAnchor + stepPhaseMs + k * stepSizeMs`. Omit for free-running
+   * `cursor ± stepSizeMs` steps.
+   *
+   * A step sequence is anchored until something other than a step moves the
+   * selection, so the consumer must echo `dateRange` back unchanged from
+   * `onDateRangeSelect`; a rewritten value reads as a fresh external selection.
+   */
+  stepAnchor?: Date;
+  /**
+   * Offset of the lattice from `stepAnchor`, in milliseconds. Frame times do not
+   * fall on a round-minute grid, so the phase cannot be derived from a clock.
+   */
+  stepPhaseMs?: number;
   hideAnimationToggle?: boolean;
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string;
@@ -60,138 +102,6 @@ export interface TimeRangeSliderProps {
    */
   frameAdvance?: FrameAdvance;
 }
-
-enum UpdateSource {
-  ExternalProp,
-  UserInteraction,
-  TrackLatestUpdate
-}
-
-type State = {
-  timeZone: TimeZone;
-  increment: TimeDuration;
-  // The current viewable range of dates
-  viewStartDateTime: DateTime.DateTime;
-  viewDuration: Duration.Duration;
-
-  // Default date and duration to reset to
-  resetStartDateTime: DateTime.DateTime;
-  resetDuration: Duration.Duration;
-
-  // User-selected date range
-  selectedStartDateTime: DateTime.DateTime;
-  selectedDuration: Duration.Duration;
-
-  // Two modes: animation or step
-  animationOrStepMode: AnimationOrStepMode;
-
-  // Animation state for the calendar
-  resetAnimationSpeed: AnimationSpeed;
-  resetAnimationDuration: Duration.Duration;
-  animationStartDateTime: DateTime.DateTime;
-  animationDuration: Duration.Duration;
-  animationRequestFrequency: AnimationRequestFrequency;
-  animationPlayMode: PlayMode;
-  animationSpeed: AnimationSpeed;
-
-  // Track latest state
-  isTrackingLatest: boolean;
-  lastKnownLatestDate: DateTime.DateTime | null;
-};
-
-/**
- * Actions for reducer
- */
-
-type Action = D.TaggedEnum<{
-  SetTimeZone: { timeZone: TimeZone; };
-  ExtSetTimeZone: { timeZone: TimeZone; };
-  SetIncrement: { increment: TimeDuration; };
-  ExtSetIncrement: { increment: TimeDuration; };
-
-  SetViewStartDateTime: { viewStartDateTime: DateTime.DateTime; };
-  SetViewDuration: { viewDuration: Duration.Duration; };
-  HandleResize: {
-    newViewDuration: Duration.Duration;
-    shouldCenter: boolean;
-  };
-
-  SetResetStartDateTime:
-  { resetStartDateTime: DateTime.DateTime; };
-  SetResetDuration: { resetDuration: Duration.Duration; };
-
-  ExtSetSelectedStartDateTime: {
-    selectedStartDateTime: DateTime.DateTime;
-    updateSource: UpdateSource;
-  };
-  SetSelectedStartDateTime: {
-    selectedStartDateTime: DateTime.DateTime;
-    updateSource: UpdateSource;
-  };
-  SetSelectedDuration: {
-    selectedDuration: Duration.Duration;
-    updateSource: UpdateSource;
-  };
-  ExtSetSelectedDuration: {
-    selectedDuration: Duration.Duration;
-    updateSource: UpdateSource;
-  };
-
-  SetAnimationOrStepMode:
-  { animationOrStepMode: AnimationOrStepMode; };
-
-  SetAnimationStartDateTime:
-  { animationStartDateTime: DateTime.DateTime; };
-  SetAnimationDuration: { animationDuration: Duration.Duration; };
-  SetAnimationRequestFrequency:
-  { animationRequestFrequency: AnimationRequestFrequency; };
-  SetAnimationPlayMode: { playMode: PlayMode; };
-  SetAnimationSpeed:
-  { animationSpeed: AnimationSpeed; };
-  SetResetAnimationSpeed:
-  { resetAnimationSpeed: AnimationSpeed; };
-
-  SetTrackingLatest: { isTrackingLatest: boolean; };
-  SetLastKnownLatestDate: { lastKnownLatestDate: DateTime.DateTime | null; };
-
-  ResetAll: object;
-}>;
-
-const {
-  $match: $actionMatch,
-
-  SetTimeZone,
-  ExtSetTimeZone,
-  ExtSetIncrement,
-  SetViewStartDateTime,
-  SetViewDuration,
-  HandleResize,
-
-  SetResetStartDateTime,
-  SetResetDuration,
-
-  SetSelectedStartDateTime,
-  ExtSetSelectedStartDateTime,
-  SetSelectedDuration,
-  ExtSetSelectedDuration,
-
-  SetAnimationOrStepMode,
-
-  SetAnimationStartDateTime,
-  SetAnimationDuration,
-  SetAnimationPlayMode,
-  SetAnimationSpeed,
-  SetTrackingLatest,
-  SetLastKnownLatestDate,
-  ResetAll } = D.taggedEnum<Action>();
-
-
-/**
- * Constants
- */
-
-const DEFAULT_ANIMATION_DURATION = Duration.hours(2);
-
 
 /**
  * Helper functions
@@ -214,309 +124,6 @@ const widthToDuration: (width: number) => Duration.Duration = (width) => match(w
   .with(P.number.lt(2200), () => Duration.hours(12))
   .otherwise(() => Duration.hours(21));
 
-const calculateOptimalViewStart = (
-  _pStart: DateTime.DateTime,
-  nStart: DateTime.DateTime,
-  nDuration: Duration.Duration,
-  cViewStart: DateTime.DateTime,
-  cViewDuration: Duration.Duration,
-  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime
-): DateTime.DateTime => {
-  // Check if new selection is outside current view
-  const nEnd = DateTime.addDuration(nStart, nDuration);
-  const cViewEnd = DateTime.addDuration(cViewStart, cViewDuration);
-  const isOutsideView = DateTime.lessThan(nStart, cViewStart) || DateTime.greaterThan(nEnd, cViewEnd);
-
-  if (isOutsideView) {
-    // Center the selection in the view
-    const selectionMidpoint = DateTime.addDuration(nStart, Duration.millis(Duration.toMillis(nDuration) / 2));
-    const unroundedViewStart = DateTime.subtractDuration(selectionMidpoint, Duration.millis(Duration.toMillis(cViewDuration) / 2));
-    return roundingFn(unroundedViewStart);
-  }
-
-  // Selection is within view, keep current view
-  return cViewStart;
-};
-
-const calculateCenteredViewStart = (
-  selectedStart: DateTime.DateTime,
-  selectedDuration: Duration.Duration,
-  viewDuration: Duration.Duration,
-  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime
-): DateTime.DateTime => {
-  // Always center the selection in the view
-  const selectionMidpoint = DateTime.addDuration(
-    selectedStart,
-    Duration.millis(Duration.toMillis(selectedDuration) / 2)
-  );
-  const unroundedViewStart = DateTime.subtractDuration(
-    selectionMidpoint,
-    Duration.millis(Duration.toMillis(viewDuration) / 2)
-  );
-  return roundingFn(unroundedViewStart);
-};
-
-/**
- * State management: reducer
- */
-
-const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
-  selectedStartDateTime: DateTime.DateTime;
-  updateSource: UpdateSource;
-}) => {
-  const start = x.selectedStartDateTime;
-
-  // Calculate optimal view range with 5-minute alignment and padding
-  const optimalViewStart = calculateOptimalViewStart(
-    state.selectedStartDateTime, // Old start
-    start,
-    state.selectedDuration,
-    state.viewStartDateTime,
-    state.viewDuration,
-    roundingFn
-  );
-
-  // Only update view range if selected date + duration goes outside current view range
-  // Check if the selection is outside the current view
-  const selectedEnd = DateTime.addDuration(start, state.selectedDuration);
-  const currentViewEnd = DateTime.addDuration(state.viewStartDateTime, state.viewDuration);
-
-  const selectionStartOutsideView = DateTime.lessThan(start, state.viewStartDateTime);
-  const selectionEndOutsideView = DateTime.greaterThan(selectedEnd, currentViewEnd);
-
-  // Only adjust view if selection is actually outside the current view
-  const viewStartDateTime = (selectionStartOutsideView || selectionEndOutsideView)
-    ? optimalViewStart
-    : state.viewStartDateTime;
-
-  // Auto-disable tracking on user interaction
-  const shouldDisableTracking = x.updateSource === UpdateSource.UserInteraction && state.isTrackingLatest;
-
-  return {
-    ...state,
-    viewStartDateTime,
-    selectedStartDateTime: start,
-    ...(shouldDisableTracking ? { isTrackingLatest: false } : {}),
-  }
-}
-
-const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
-  selectedDuration: Duration.Duration;
-  updateSource: UpdateSource;
-}) => {
-  // Calculate optimal view range with new duration
-  const viewStartDateTime = calculateOptimalViewStart(
-    state.selectedStartDateTime,
-    state.selectedStartDateTime,
-    x.selectedDuration,
-    state.viewStartDateTime,
-    state.viewDuration,
-    roundingFn
-  );
-
-  // Auto-disable tracking on user interaction
-  const shouldDisableTracking = x.updateSource === UpdateSource.UserInteraction && state.isTrackingLatest;
-
-  return {
-    ...state,
-    viewStartDateTime,
-    selectedDuration: x.selectedDuration,
-    ...(shouldDisableTracking ? { isTrackingLatest: false } : {}),
-  };
-}
-
-const reducer = (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime): State => {
-  // Default rounding function for 5-minute increments
-  const defaultRounding = (dateTime: DateTime.DateTime): DateTime.DateTime => dateTime.pipe(
-    DateTime.toParts,
-    (parts) => {
-      const roundedToFiveFloorMins = Math.floor(parts.minutes / 5) * 5;
-      return DateTime.unsafeMake({
-        ...parts,
-        minutes: roundedToFiveFloorMins,
-        seconds: 0,
-        milliseconds: 0,
-      });
-    });
-
-  const actualRoundingFn = roundingFn || defaultRounding;
-
-  return $actionMatch({
-    SetTimeZone: (x) => {
-
-      return {
-        ...state,
-        timeZone: x.timeZone,
-      }
-    },
-    ExtSetTimeZone: (x) => ({
-      ...state,
-      timeZone: x.timeZone,
-    }),
-    SetIncrement: (x) => ({
-      ...state,
-      increment: x.increment,
-    }),
-    ExtSetIncrement: (x) => ({
-      ...state,
-      increment: x.increment,
-    }),
-
-    SetViewStartDateTime: (x) => ({
-      ...state,
-      viewStartDateTime:
-        actualRoundingFn(x.viewStartDateTime),
-    }),
-    SetViewDuration: (x) => ({
-      ...state,
-      viewDuration: x.viewDuration,
-    }),
-    HandleResize: (x) => {
-      const newState = {
-        ...state,
-        viewDuration: x.newViewDuration,
-      };
-
-      if (x.shouldCenter) {
-        const centeredViewStart = calculateCenteredViewStart(
-          state.selectedStartDateTime,
-          state.selectedDuration,
-          x.newViewDuration,
-          actualRoundingFn
-        );
-        return {
-          ...newState,
-          viewStartDateTime: centeredViewStart,
-        };
-      }
-
-      return newState;
-    },
-
-    SetResetStartDateTime: (x) => ({
-      ...state,
-      resetStartDateTime: x.resetStartDateTime,
-    }),
-    SetResetDuration: (x) => ({
-      ...state,
-      resetDuration: x.resetDuration,
-    }),
-
-    SetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state, actualRoundingFn),
-    ExtSetSelectedStartDateTime: getSetSelectedStartDateTimeAction(state, actualRoundingFn),
-
-    SetSelectedDuration: getSetSelectedDurationAction(state, actualRoundingFn),
-    ExtSetSelectedDuration: getSetSelectedDurationAction(state, actualRoundingFn),
-
-    SetAnimationOrStepMode: (x) => ({
-      ...state,
-      animationOrStepMode: x.animationOrStepMode,
-    }),
-
-    SetAnimationStartDateTime: (x) => ({
-      ...state,
-      animationStartDateTime: x.animationStartDateTime,
-    }),
-    SetAnimationDuration: (x) => ({
-      ...state,
-      animationDuration: x.animationDuration,
-    }),
-    SetAnimationRequestFrequency: (x) => ({
-      ...state,
-      animationRequestFrequency: x.animationRequestFrequency,
-    }),
-    SetAnimationPlayMode: (x) => ({
-      ...state,
-      animationPlayMode: x.playMode,
-    }),
-    SetAnimationSpeed: (x) => ({
-      ...state,
-      animationSpeed: x.animationSpeed,
-    }),
-    SetResetAnimationSpeed: (x) => ({
-      ...state,
-      resetAnimationSpeed: x.resetAnimationSpeed,
-    }),
-
-    SetTrackingLatest: (x) => ({
-      ...state,
-      isTrackingLatest: x.isTrackingLatest,
-    }),
-    SetLastKnownLatestDate: (x) => ({
-      ...state,
-      lastKnownLatestDate: x.lastKnownLatestDate,
-    }),
-
-    ResetAll: () => ({
-      ...state,
-      viewStartDateTime: state.resetStartDateTime,
-      viewDuration: state.resetDuration,
-      selectedStartDateTime: state.resetStartDateTime,
-      selectedDuration: state.resetDuration,
-      animationOrStepMode: AnimationOrStepMode.Step,
-      animationDuration: state.resetAnimationDuration,
-      animationPlayMode: PlayMode.Pause,
-      animationSpeed: state.resetAnimationSpeed,
-      isTrackingLatest: false,
-    }),
-  })(action);
-}
-
-
-/**
- * Middleware for executing external side-effects
- */
-
-function withMiddleware(
-  reducer: (state: State, action: Action, roundingFn?: (dateTime: DateTime.DateTime) => DateTime.DateTime) => State,
-  onDateRangeSelect: (rv: RangeValue<Date>) => void,
-  roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
-  onTimeZoneChange?: (timeZone: TimeZone) => void,
-  onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void,
-  onTrackLatestChange?: (enabled: boolean) => void
-): (state: State, action: Action) => State {
-  return (oldState, action) => {
-
-    // Determine latest state
-    const newState = reducer(oldState, action, roundingFn);
-
-    // Handle callbacks
-    match(action._tag)
-      .with(P.union("SetSelectedStartDateTime", "SetSelectedDuration"), () => {
-        const start = newState.selectedStartDateTime;
-        const end = DateTime.addDuration(start, newState.selectedDuration);
-
-        const startChanged = DateTime.distance(oldState.selectedStartDateTime, newState.selectedStartDateTime) !== 0;
-        const durationChanged = Duration.toMillis(oldState.selectedDuration) !== Duration.toMillis(newState.selectedDuration);
-
-        if (startChanged || durationChanged) {
-          onDateRangeSelect({
-            start: DateTime.toDate(start),
-            end: DateTime.toDate(end)
-          });
-        }
-
-        // Notify when tracking was auto-disabled due to user interaction
-        if (oldState.isTrackingLatest && !newState.isTrackingLatest) {
-          onTrackLatestChange?.(false);
-        }
-      })
-      .with("SetTrackingLatest", () => {
-        if (oldState.isTrackingLatest !== newState.isTrackingLatest) {
-          onTrackLatestChange?.(newState.isTrackingLatest);
-        }
-      })
-      .with("SetTimeZone", () => (newState.timeZone !== oldState.timeZone),
-        () => onTimeZoneChange?.(newState.timeZone)
-      )
-      .with("SetAnimationOrStepMode", () => (newState.animationOrStepMode !== oldState.animationOrStepMode),
-        () => onAnimationOrStepModeChange?.(newState.animationOrStepMode)
-      )
-    return newState;
-  };
-}
-
-
 /**
  * Exported component
  */
@@ -535,6 +142,8 @@ export const TimeRangeSlider = ({
   onAnimationOrStepModeChange,
   increment = TimeDuration["5m"],
   stepSizeMs,
+  stepAnchor,
+  stepPhaseMs,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
   hideDatePicker = false,
@@ -693,6 +302,7 @@ export const TimeRangeSlider = ({
 
       selectedStartDateTime,
       selectedDuration,
+      stepCursor: null,
 
       animationOrStepMode,
 
@@ -1132,8 +742,9 @@ export const TimeRangeSlider = ({
         // Always notify when new data is available
         onNewDataAvailable?.(latestDate, DateTime.toDate(currentSelectionEnd));
 
-        // If tracking is enabled, also update selection
-        if (currentState.isTrackingLatest) {
+        // If tracking is enabled, also update selection. An active step sequence
+        // holds the selection and the view still, so the poll cannot re-base it.
+        if (currentState.isTrackingLatest && acceptsTrackLatestRebase(currentState.stepCursor)) {
           const newStart = DateTime.subtractDuration(latestDateTime, currentState.selectedDuration);
           d(SetSelectedStartDateTime({
             selectedStartDateTime: newStart,
@@ -1179,6 +790,13 @@ export const TimeRangeSlider = ({
   const stepMs = useMemo(
     () => resolveStepMs(stepSizeMs, s.selectedDuration),
     [stepSizeMs, s.selectedDuration]);
+
+  /** Lattice the step buttons walk. Undefined means free-running steps. */
+  const stepLattice = useMemo(
+    () => makeStepLattice(stepAnchor, stepPhaseMs, stepMs),
+    // Date identity is unstable across parent renders; key on the instant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stepAnchor?.getTime(), stepPhaseMs, stepMs]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
@@ -1364,6 +982,10 @@ export const TimeRangeSlider = ({
                           const latestDate = await getLatestDateRange();
                           const latestDateTime = DateTime.unsafeFromDate(latestDate);
 
+                          // Enable first: this also ends any step sequence, so the
+                          // jump-to-latest writes below are not refused as re-bases.
+                          d(SetTrackingLatest({ isTrackingLatest: true }));
+
                           if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
                             // In animation mode: position animation range to end at latest date
                             // and move primary range to start of animation range
@@ -1406,9 +1028,6 @@ export const TimeRangeSlider = ({
                             );
                             d(SetViewStartDateTime({ viewStartDateTime: optimalViewStart }));
                           }
-
-                          // Enable tracking
-                          d(SetTrackingLatest({ isTrackingLatest: true }));
                         } catch (error) {
                           console.error('Failed to enable track latest:', error);
                         }
@@ -1513,8 +1132,9 @@ export const TimeRangeSlider = ({
           <AnimateAndStepControls
             /* Step controls */
             incrementStartDateTime={() => {
-              const { start: newStartDateTime, end: newEndDateTime } =
-                stepSelection(s.selectedStartDateTime, stepMs, 1, s.selectedDuration);
+              const { start: newStartDateTime, end: newEndDateTime } = stepSelection(
+                sequenceCursor(s.stepCursor, s.selectedStartDateTime),
+                stepMs, 1, s.selectedDuration, stepLattice);
 
               // Check if the new end time would exceed availableDateRange.end
               if (availableDateRange) {
@@ -1532,12 +1152,13 @@ export const TimeRangeSlider = ({
 
               d(SetSelectedStartDateTime({
                 selectedStartDateTime: newStartDateTime,
-                updateSource: UpdateSource.UserInteraction
+                updateSource: UpdateSource.Step
               }));
             }}
             decrementStartDateTime={() => {
-              const { start: newStartDateTime } =
-                stepSelection(s.selectedStartDateTime, stepMs, -1, s.selectedDuration);
+              const { start: newStartDateTime } = stepSelection(
+                sequenceCursor(s.stepCursor, s.selectedStartDateTime),
+                stepMs, -1, s.selectedDuration, stepLattice);
 
               // Check if new start time would be before availableDateRange.start
               if (availableDateRange) {
@@ -1558,7 +1179,7 @@ export const TimeRangeSlider = ({
 
               d(SetSelectedStartDateTime({
                 selectedStartDateTime: newStartDateTime,
-                updateSource: UpdateSource.UserInteraction
+                updateSource: UpdateSource.Step
               }));
             }}
 
