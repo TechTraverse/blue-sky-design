@@ -8,6 +8,7 @@ import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
 import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
+import { resolveStepMs, stepSelection } from './stepping';
 import type { FrameAdvance } from './animationFrame';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider, IconButton, Tooltip } from '@mui/material';
@@ -32,6 +33,13 @@ export interface TimeRangeSliderProps {
   onTimeZoneChange?: (timeZone: TimeZone) => void;
   onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void;
   increment?: TimeDuration;
+  /**
+   * Distance in milliseconds the step buttons move the selection. Independent
+   * of the selection width, so a 5-minute window can step 30 seconds. Falls back
+   * to the selection width when omitted or not a positive finite number.
+   * Does not affect drag snapping, which follows `increment`.
+   */
+  stepSizeMs?: number;
   hideAnimationToggle?: boolean;
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string;
@@ -526,6 +534,7 @@ export const TimeRangeSlider = ({
   onTimeZoneChange,
   onAnimationOrStepModeChange,
   increment = TimeDuration["5m"],
+  stepSizeMs,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
   hideDatePicker = false,
@@ -1166,6 +1175,11 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getLatestDateRange, pollingInterval, onNewDataAvailable]);
 
+  /** Step distance, decoupled from the selection width. */
+  const stepMs = useMemo(
+    () => resolveStepMs(stepSizeMs, s.selectedDuration),
+    [stepSizeMs, s.selectedDuration]);
+
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
   /**
@@ -1499,8 +1513,8 @@ export const TimeRangeSlider = ({
           <AnimateAndStepControls
             /* Step controls */
             incrementStartDateTime={() => {
-              const newStartDateTime = DateTime.addDuration(s.selectedStartDateTime, s.selectedDuration);
-              const newEndDateTime = DateTime.addDuration(newStartDateTime, s.selectedDuration);
+              const { start: newStartDateTime, end: newEndDateTime } =
+                stepSelection(s.selectedStartDateTime, stepMs, 1, s.selectedDuration);
 
               // Check if the new end time would exceed availableDateRange.end
               if (availableDateRange) {
@@ -1522,7 +1536,8 @@ export const TimeRangeSlider = ({
               }));
             }}
             decrementStartDateTime={() => {
-              const newStartDateTime = DateTime.subtractDuration(s.selectedStartDateTime, s.selectedDuration);
+              const { start: newStartDateTime } =
+                stepSelection(s.selectedStartDateTime, stepMs, -1, s.selectedDuration);
 
               // Check if new start time would be before availableDateRange.start
               if (availableDateRange) {
