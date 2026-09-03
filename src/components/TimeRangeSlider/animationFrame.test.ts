@@ -42,6 +42,35 @@ describe("computeNextAnimationFrame", () => {
     expect(DateTime.toEpochMillis(frame.start)).toBe(0);
     expect(DateTime.toEpochMillis(frame.end)).toBe(100);
   });
+
+  // Regression: `Duration` is unsigned, so `Duration.millis(-500)` is zero and a
+  // negative `AnimationSpeed` used to leave the clock standing still.
+  it("runs the clock backwards for a negative advanceMs", () => {
+    const { nextStart, frame } = computeNextAnimationFrame(
+      mkState(1000, 100, 0, 100000),
+      -500,
+    );
+    expect(DateTime.toEpochMillis(nextStart)).toBe(500);
+    expect(DateTime.toEpochMillis(frame.start)).toBe(500);
+    expect(DateTime.toEpochMillis(frame.end)).toBe(600);
+  });
+
+  it("loops back to the range end once a reverse frame passes the range start", () => {
+    // newStart=-50 < animStart=0 → wrap to the last frame that fits:
+    // animEnd(1000) - selectedDuration(100) = 900.
+    const { nextStart, frame } = computeNextAnimationFrame(
+      mkState(50, 100, 0, 1000),
+      -100,
+    );
+    expect(DateTime.toEpochMillis(nextStart)).toBe(900);
+    expect(DateTime.toEpochMillis(frame.start)).toBe(900);
+    expect(DateTime.toEpochMillis(frame.end)).toBe(1000);
+  });
+
+  it("does not wrap a reverse frame that lands exactly on the range start", () => {
+    const { nextStart } = computeNextAnimationFrame(mkState(100, 100, 0, 1000), -100);
+    expect(DateTime.toEpochMillis(nextStart)).toBe(0);
+  });
 });
 
 describe("makeAnimationLoopEffect (back-pressure)", () => {
@@ -77,6 +106,37 @@ describe("makeAnimationLoopEffect (back-pressure)", () => {
 
     Effect.runFork(Fiber.interrupt(fiber));
     await tick();
+  });
+
+  it("dispatches receding frames when the speed is negative", async () => {
+    const dispatches: number[] = [];
+    const resolvers: Array<() => void> = [];
+    // The fiber re-reads state each iteration; feed it back the last dispatch so
+    // successive frames compound instead of restarting from the same instant.
+    let start = 10_000;
+    const loop = makeAnimationLoopEffect({
+      readState: () => mkState(start, 100, 0, 10_000_000),
+      advanceMs: -100,
+      frameMs: 0,
+      dispatchFrame: (nextStart) => {
+        start = DateTime.toEpochMillis(nextStart);
+        dispatches.push(start);
+      },
+      onFrameSettled: () => new Promise<void>((res) => resolvers.push(res)),
+      maxWaitMs: 1_000_000,
+    });
+
+    const fiber = Effect.runFork(loop);
+    await tick();
+    resolvers[0]();
+    await tick();
+    resolvers[1]();
+    await tick();
+
+    Effect.runFork(Fiber.interrupt(fiber));
+    await tick();
+
+    expect(dispatches.slice(0, 3)).toEqual([9900, 9800, 9700]);
   });
 
   it("maxWaitMs caps a stalled onFrameSettled so playback still advances", async () => {

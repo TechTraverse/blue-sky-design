@@ -41,26 +41,43 @@ export interface AnimationFrameState {
 
 /**
  * Pure next-frame computation shared by the fixed-timer and back-pressure paths.
- * Advances `selectedStartDateTime` by `advanceMs`, looping back to
- * `animationStartDateTime` once the frame's end passes the animation range end.
+ * Advances `selectedStartDateTime` by `advanceMs` — forwards for a positive
+ * speed, backwards for a negative one — wrapping around at whichever end of the
+ * animation range playback is travelling towards: forwards past the range end
+ * loops to `animationStartDateTime`, backwards past the range start loops to the
+ * last frame that fits inside the range.
  */
 export const computeNextAnimationFrame = (
   currentState: AnimationFrameState,
   advanceMs: number
 ): { nextStart: DateTime.DateTime; frame: FrameInfo } => {
-  const newStart = DateTime.addDuration(
-    currentState.selectedStartDateTime,
-    Duration.millis(advanceMs)
-  );
-  const newEnd = DateTime.addDuration(newStart, currentState.selectedDuration);
+  const reverse = advanceMs < 0;
+  // Duration is unsigned (`Duration.millis(-1)` is zero), so a reverse frame
+  // subtracts the magnitude rather than adding a negative — the same treatment
+  // `stepFrom` gives a backwards step.
+  const step = Duration.millis(Math.abs(advanceMs));
+  const newStart = reverse
+    ? DateTime.subtractDuration(currentState.selectedStartDateTime, step)
+    : DateTime.addDuration(currentState.selectedStartDateTime, step);
   const animationEnd = DateTime.addDuration(
     currentState.animationStartDateTime,
     currentState.animationDuration
   );
-  // Reached the end of the animation range → loop back to the start.
-  const nextStart = DateTime.greaterThan(newEnd, animationEnd)
-    ? currentState.animationStartDateTime
-    : newStart;
+  // Reached the end of the animation range in the direction of travel → loop
+  // back to the far end. Running forwards that is the first frame that fits
+  // (the range start); running backwards it is the last one (range end minus
+  // the selection width), so the wrapped frame stays inside the range.
+  let nextStart: DateTime.DateTime;
+  if (reverse) {
+    nextStart = DateTime.lessThan(newStart, currentState.animationStartDateTime)
+      ? DateTime.subtractDuration(animationEnd, currentState.selectedDuration)
+      : newStart;
+  } else {
+    const newEnd = DateTime.addDuration(newStart, currentState.selectedDuration);
+    nextStart = DateTime.greaterThan(newEnd, animationEnd)
+      ? currentState.animationStartDateTime
+      : newStart;
+  }
   const end = DateTime.addDuration(nextStart, currentState.selectedDuration);
   return { nextStart, frame: { start: nextStart, end } };
 };
