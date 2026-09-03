@@ -98,8 +98,8 @@ export type {
 } from './components/MapComponent';
 
 // LayerControl exports
-export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './components/LayerControl';
-export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
+export { LayerControl, SimplifiedLayerControl, LayerList, LayerItemComponent } from './components/LayerControl';
+export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
 
 // SidePanel exports
 export { SidePanel } from './components/SidePanel';

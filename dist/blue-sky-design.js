@@ -37889,7 +37889,7 @@ export {
   e9 as LayerDisabled,
   Zd as LayerEnabled,
   ZA as LayerHidden,
-  dA as LayerItem,
+  dA as LayerItemComponent,
   kp as LayerList,
   M3 as LayerRow,
   JA as LayerSelectable,

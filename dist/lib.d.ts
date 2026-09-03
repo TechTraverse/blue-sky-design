@@ -16,8 +16,8 @@ export type { MapComponentProps, MapComponentRef, MapComponentEffectProps, MapCo
 export { Loading, Loaded, Empty, LoadError, Timeout } from './components/MapComponent';
 export { MapService, MapServiceLayer, MapClassWrapper, MapServiceAdapter, createMapServiceEffect, BASEMAP_PREFIX, LABELS_PREFIX, COMMON_PREFIX, extractLayerResourceId, getParamaterizedUrl, VectorTiles, RasterTiles, GeoJsonData, LayerVisible, LayerHidden, LayerDimmed, LayerSelectable, LayerUnselectable, LayerEnabled, LayerDisabled, Basemap, Labels, LargeScaleVector, SmallScaleVector, LargeScaleImagery, SmallScaleImagery, CustomOrder, } from './components/MapComponent';
 export type { MapServiceEffect, LayerType, MapServiceSettings, MapControlsConfig, SourcePropsType, SourceProps, LayerVisibility, LayerSelectability, LayerEnabledOptions, LayerDisabledOptions, LayerEnabledState, LayerResourceDescriptor, ExtStyle, } from './components/MapComponent';
-export { LayerControl, SimplifiedLayerControl, LayerList, LayerItem } from './components/LayerControl';
-export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem as LayerItemType, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
+export { LayerControl, SimplifiedLayerControl, LayerList, LayerItemComponent } from './components/LayerControl';
+export type { LayerControlProps, SimplifiedLayerControlProps, LayerItem, LayerListProps, LayerItemComponentProps, LayerGroup } from './components/LayerControl';
 export { SidePanel } from './components/SidePanel';
 export type { SidePanelProps } from './components/SidePanel';
 export { LayerRow } from './components/LayerRow';
