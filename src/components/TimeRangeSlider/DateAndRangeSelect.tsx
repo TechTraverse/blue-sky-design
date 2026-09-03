@@ -23,7 +23,7 @@ interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
   returnToDefaultDateTime?: () => void;
   rangeValue?: TimeDuration;
   setRange?: (timeDuration: TimeDuration) => void;
-  availableDateRange?: RangeValue<Date>;
+  availableDateRange?: Partial<RangeValue<Date>>;
 }
 
 function FieldsetBox({
@@ -47,9 +47,9 @@ const SliderDatePicker = <T extends DateValue>(
 ) => {
   const { toDisplay } = useTimeZoneDisplay();
 
-  // Calculate min allowed date from availableDateRange
+  // Calculate min allowed date from availableDateRange. Either end may be open.
   const getMinValue = () => {
-    if (!availableDateRange) return undefined;
+    if (!availableDateRange?.start) return undefined;
 
     const minDateTime = DateTime.unsafeFromDate(availableDateRange.start);
     const displayMinDateTime = toDisplay(minDateTime);
@@ -69,7 +69,7 @@ const SliderDatePicker = <T extends DateValue>(
 
   // Calculate max allowed date from the selectable range
   const getMaxValue = () => {
-    if (!availableDateRange) return undefined;
+    if (!availableDateRange?.end) return undefined;
 
     const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
     const displayMaxDateTime = toDisplay(maxDateTime);
@@ -192,7 +192,7 @@ export const DateAndRangeSelect = ({
   setStartDateTime?: (date: DateTime.DateTime) => void,
   rangeValue?: TimeDuration,
   setRange?: (timeDuration: TimeDuration) => void,
-  availableDateRange?: RangeValue<Date>,
+  availableDateRange?: Partial<RangeValue<Date>>,
   returnToDefaultDateTime?: () => void,
   timeZone?: TimeZone,
   onTimeZoneChange?: (tz: TimeZone) => void,
@@ -239,18 +239,16 @@ export const DateAndRangeSelect = ({
     // Convert from display timezone back to UTC
     const utcDt = fromDisplay(displayDateTime);
 
-    // Enforce the selectable range
-    if (availableDateRange) {
-      const minDateTime = DateTime.unsafeFromDate(availableDateRange.start);
-      const maxDateTime = DateTime.unsafeFromDate(availableDateRange.end);
-      if (DateTime.lessThan(utcDt, minDateTime)) {
-        console.warn("Selected date is before minimum allowed date");
-        return;
-      }
-      if (DateTime.greaterThan(utcDt, maxDateTime)) {
-        console.warn("Selected date exceeds maximum allowed date");
-        return;
-      }
+    // Enforce whichever ends of the selectable range are closed
+    if (availableDateRange?.start &&
+      DateTime.lessThan(utcDt, DateTime.unsafeFromDate(availableDateRange.start))) {
+      console.warn("Selected date is before minimum allowed date");
+      return;
+    }
+    if (availableDateRange?.end &&
+      DateTime.greaterThan(utcDt, DateTime.unsafeFromDate(availableDateRange.end))) {
+      console.warn("Selected date exceeds maximum allowed date");
+      return;
     }
 
     setStartDateTime(utcDt);

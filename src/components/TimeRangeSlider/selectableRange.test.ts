@@ -65,4 +65,23 @@ describe('isStepBlocked', () => {
       const { start, end } = stepSelection(at(LATEST), stepMs, direction, width, lattice);
       expect(isStepBlocked(start, end, direction, undefined)).toBe(false);
     });
+
+  it('caps the ceiling with the floor left open', () => {
+    // History has no known archive start, so a consumer may close only one end.
+    const ceilingOnly = { max: at(LATEST) };
+    const forward = stepSelection(at('2026-08-22T13:00:31Z'), stepMs, 1, width, lattice);
+    expect(isStepBlocked(forward.start, forward.end, 1, ceilingOnly)).toBe(true);
+
+    const backward = stepSelection(at('1996-01-01T00:00:31Z'), stepMs, -1, width, lattice);
+    expect(isStepBlocked(backward.start, backward.end, -1, ceilingOnly)).toBe(false);
+  });
+
+  it('holds the floor with the ceiling left open', () => {
+    const floorOnly = { min: at('2026-08-22T12:00:31Z') };
+    const backward = stepSelection(at('2026-08-22T12:00:31Z'), stepMs, -1, width, lattice);
+    expect(isStepBlocked(backward.start, backward.end, -1, floorOnly)).toBe(true);
+
+    const forward = stepSelection(at('2036-01-01T00:00:31Z'), stepMs, 1, width, lattice);
+    expect(isStepBlocked(forward.start, forward.end, 1, floorOnly)).toBe(false);
+  });
 });

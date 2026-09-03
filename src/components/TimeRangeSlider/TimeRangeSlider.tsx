@@ -64,9 +64,10 @@ export interface TimeRangeSliderProps {
   dateRangeForReset?: RangeValue<Date>;
   /**
    * The only constraint on the selection: start = earliest allowed instant,
-   * end = latest. Omit to leave the selection unconstrained.
+   * end = latest. Either end may be omitted to leave that side open, and the
+   * whole prop omitted to leave the selection unconstrained.
    */
-  availableDateRange?: RangeValue<Date>;
+  availableDateRange?: Partial<RangeValue<Date>>;
   /** Called when the selection changes, with why it changed. */
   onDateRangeSelect: (rv: RangeValue<Date>, source: DateUpdateSource) => void;
   getLatestDateRange?: () => Promise<Date>;
@@ -820,11 +821,12 @@ export const TimeRangeSlider = ({
     () => resolveStepMs(stepSizeMs, s.selectedDuration),
     [stepSizeMs, s.selectedDuration]);
 
-  /** The one bound on the selection; both ends come from availableDateRange. */
+  /** The one bound on the selection. Either end may be open. */
   const selectableRange = useMemo(
-    () => availableDateRange && {
-      min: DateTime.unsafeFromDate(availableDateRange.start),
-      max: DateTime.unsafeFromDate(availableDateRange.end),
+    () => {
+      const min = availableDateRange?.start && DateTime.unsafeFromDate(availableDateRange.start);
+      const max = availableDateRange?.end && DateTime.unsafeFromDate(availableDateRange.end);
+      return min || max ? { min, max } : undefined;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [availableDateRange?.start?.getTime(), availableDateRange?.end?.getTime()]);

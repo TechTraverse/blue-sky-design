@@ -162,10 +162,14 @@ export const sequenceCursor = (
 export const acceptsTrackLatestRebase = (stepCursor: DateTime.DateTime | null): boolean =>
   stepCursor === null;
 
-/** The bounds a selection may not cross. Undefined when unconstrained. */
+/**
+ * The bounds a selection may not cross. Either end may be open: history has no
+ * known archive start, so a consumer capping the ceiling should not have to
+ * invent a floor. Undefined when both ends are open.
+ */
 export interface SelectableRange {
-  min: DateTime.DateTime;
-  max: DateTime.DateTime;
+  min?: DateTime.DateTime;
+  max?: DateTime.DateTime;
 }
 
 /**
@@ -181,6 +185,6 @@ export const isStepBlocked = (
 ): boolean => {
   if (!range) return false;
   return direction === 1
-    ? DateTime.greaterThan(end, range.max)
-    : DateTime.lessThan(start, range.min);
+    ? range.max !== undefined && DateTime.greaterThan(end, range.max)
+    : range.min !== undefined && DateTime.lessThan(start, range.min);
 };
