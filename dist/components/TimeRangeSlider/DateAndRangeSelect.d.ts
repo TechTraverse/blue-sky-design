@@ -4,13 +4,12 @@ type RangeValue<T> = {
     start: T;
     end: T;
 };
-export declare const DateAndRangeSelect: ({ startDateTime, setStartDateTime, rangeValue, setRange, dateRangeForReset, availableDateRange, }: {
+export declare const DateAndRangeSelect: ({ startDateTime, setStartDateTime, rangeValue, setRange, availableDateRange, }: {
     startDateTime?: DateTime.DateTime;
     setStartDateTime?: (date: DateTime.DateTime) => void;
     rangeValue?: TimeDuration;
     setRange?: (timeDuration: TimeDuration) => void;
-    dateRangeForReset?: RangeValue<Date>;
-    availableDateRange?: RangeValue<Date>;
+    availableDateRange?: Partial<RangeValue<Date>>;
     returnToDefaultDateTime?: () => void;
     timeZone?: TimeZone;
     onTimeZoneChange?: (tz: TimeZone) => void;

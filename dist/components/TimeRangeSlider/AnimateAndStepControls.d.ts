@@ -1,6 +1,6 @@
 import { AnimationSpeed, PlayMode } from './timeSliderTypes';
 import { Duration } from 'effect';
-export declare const AnimateAndStepControls: ({ animationEnabled, setAnimationEnabled, playMode, setPlayMode, animationSpeed, setAnimationSpeed, animationDuration, setAnimationDuration, incrementStartDateTime, decrementStartDateTime, incrementAnimationSpeed, decrementAnimationSpeed, hideAnimationToggle, disabledAnimationTooltip, }: {
+export declare const AnimateAndStepControls: ({ animationEnabled, setAnimationEnabled, playMode, setPlayMode, animationSpeed, setAnimationSpeed, animationDuration, setAnimationDuration, incrementStartDateTime, decrementStartDateTime, disableStepForward, disableStepBackward, incrementAnimationSpeed, decrementAnimationSpeed, hideAnimationToggle, disabledAnimationTooltip, }: {
     animationEnabled?: boolean;
     setAnimationEnabled?: (enabled: boolean) => void;
     playMode?: PlayMode;
@@ -11,6 +11,9 @@ export declare const AnimateAndStepControls: ({ animationEnabled, setAnimationEn
     setAnimationDuration?: (duration: Duration.Duration) => void;
     incrementStartDateTime?: () => void;
     decrementStartDateTime?: () => void;
+    /** Step is at the end of the selectable range; the button reads as disabled. */
+    disableStepForward?: boolean;
+    disableStepBackward?: boolean;
     incrementAnimationSpeed?: () => void;
     decrementAnimationSpeed?: () => void;
     hideAnimationToggle?: boolean;
