@@ -200,9 +200,9 @@ const vectorSceneLayer = (): LayerType =>
   });
 
 // A TimeHandlingWindow layer, from the map's perspective, is just a common data
-// layer whose visibility is toggled when the new date falls outside its validity
-// window. The window/validity logic itself lives in wlfs-client; here we model
-// the "excluded" outcome as setLayerVisibility(none).
+// layer that is either wholly hidden or filtered down to the features valid at the
+// cursor. The window/validity logic itself lives in wlfs-client; here we model both
+// outcomes — setLayerVisibility(none) and setFilter(expr).
 const windowLayer = (): LayerType =>
   SmallScaleVector({
     id: "WINDOW_LAYER",
@@ -383,5 +383,40 @@ describe("MapClassWrapper date change", () => {
     expect(loading).toBe(applied);
     expect(loaded).toBe(applied);
     expect(loading).toBeLessThan(4);
+  });
+
+  it("F: setFilter applies the expression to every map layer id the descriptor owns", async () => {
+    const { wrapper, calls, map, winLayer } = await setup();
+
+    // A swap can leave a suffixed sibling behind, and #getMapLayerIds matches by
+    // prefix — so the filter must reach that one too, not just the exact id.
+    (map as unknown as { addLayer: (l: StubLayer) => void }).addLayer({
+      id: "COMMON-WINDOW_LAYER-fill_abc123",
+      type: "fill",
+      source: "WINDOW_LAYER",
+    });
+    calls.length = 0;
+
+    const expr = ["all", [">=", ["get", "End_"], 1756400000000]];
+    await E.runPromise(wrapper.setFilter(winLayer as never, expr as never));
+
+    expect(calls.filter((c) => c.method === "setFilter").map((c) => c.args)).toEqual([
+      ["COMMON-WINDOW_LAYER-fill", expr],
+      ["COMMON-WINDOW_LAYER-fill_abc123", expr],
+    ]);
+  });
+
+  it("G: setFilter is lazy, and null clears the filter", async () => {
+    const { wrapper, calls, winLayer } = await setup();
+
+    const effect = wrapper.setFilter(winLayer as never, null);
+    // Same referential-transparency contract as case B.
+    expect(calls.filter((c) => c.method === "setFilter")).toEqual([]);
+
+    await E.runPromise(effect);
+    // `undefined` is what MapLibre reads as "no filter"; null must not reach it.
+    expect(calls.filter((c) => c.method === "setFilter").map((c) => c.args)).toEqual([
+      ["COMMON-WINDOW_LAYER-fill", undefined],
+    ]);
   });
 });

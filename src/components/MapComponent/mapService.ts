@@ -1,6 +1,6 @@
 import { Effect as E, Option as O, Context, Layer, Data as D, Duration, Deferred } from "effect"
 import maplibregl from "maplibre-gl";
-import type { AddLayerObject, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
+import type { AddLayerObject, FilterSpecification, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
 import { firstValueFrom, fromEvent, interval, raceWith, map, Observable, shareReplay, take, Subscription, takeUntil } from "rxjs";
 import type { BasemapFallbackOptions, BasemapFallbackReason, LayerLoadStatus } from "./types";
@@ -887,6 +887,14 @@ export class MapClassWrapper {
     E.sync(() => {
       this.#getMapLayerIds(l).forEach(id =>
         this.#map.setLayoutProperty(id, 'visibility', visibility));
+      return undefined;
+    })
+
+  // Per-feature filtering, for sources whose features carry their own validity bounds.
+  // `null` clears the filter, which is the reset path when a layer stops being filtered.
+  setFilter = (l: LayerResourceDescriptor, filter: FilterSpecification | null) =>
+    E.sync(() => {
+      this.#getMapLayerIds(l).forEach(id => this.#map.setFilter(id, filter ?? undefined));
       return undefined;
     })
 
