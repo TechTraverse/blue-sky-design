@@ -566,7 +566,7 @@ export const TimeRangeSlider = ({
           }));
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange?.start]);
+  }, [dateRange?.start?.getTime()]);
 
   // Update selectedDuration
   useEffect(() => {
@@ -590,7 +590,7 @@ export const TimeRangeSlider = ({
           }));
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange?.start, dateRange?.end]);
+  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
 
   // The same thing but for the reset time and duration
   useEffect(() => {
@@ -607,7 +607,7 @@ export const TimeRangeSlider = ({
           d(SetResetStartDateTime({ resetStartDateTime: DateTime.unsafeFromDate(x) }));
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRangeForReset?.start]);
+  }, [dateRangeForReset?.start?.getTime()]);
 
   useEffect(() => {
     if (!dateRangeForReset?.start || !dateRangeForReset?.end) return;
@@ -629,7 +629,7 @@ export const TimeRangeSlider = ({
           }));
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRangeForReset?.start, dateRangeForReset?.end]);
+  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime()]);
 
   // timeZone prop change
   useEffect(() => {
