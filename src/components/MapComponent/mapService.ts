@@ -981,7 +981,6 @@ export class MapClassWrapper {
               const newLastId = `${this.#commonLayersPrefix}${x.id}`;
               lastId = newLastId;
             });
-
           })
         .otherwise((x) => console.error("Unknown layer type", x));
       return undefined;
@@ -1026,17 +1025,31 @@ export class MapClassWrapper {
   // repeated frame — a selection narrower than the layer's cadence, or the
   // retained frame in an animation wrap gap — resolves to the same tiles and so
   // leaves them untouched instead of reloading and flashing the layer.
+  //
+  // Recording before the swap runs, rather than after it settles, is safe even
+  // though #doubleBufferedTileUpdate coalesces and drops frames. The record is
+  // written in enqueue order, and a frame is only ever dropped by a newer frame
+  // that has already overwritten the record with its own signature — so the
+  // standing record always names the newest enqueued frame, which is by
+  // definition never superseded and is always claimed by #drain. A timeout does
+  // not break this either: #runBufferedSwap keeps the new buffer and drops the
+  // old sources on the timeout path too, so the recorded tiles end up live
+  // whichever way the swap settles. The record is therefore never left naming a
+  // frame that was dropped; re-selecting a dropped frame still swaps.
   #swapChangedTiles = (
     sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
     parameterizedLayer: LayerResourceDescriptor,
     timeoutMs: number
   ) => {
     const signature = sourceConfig.tiles.join("\n");
-    return E.if(E.sync(() => this.#appliedTiles.get(sourceConfig.id) !== signature), {
-      onTrue: () =>
-        E.sync(() => this.#appliedTiles.set(sourceConfig.id, signature)).pipe(
-          E.zipRight(this.#doubleBufferedTileUpdate(sourceConfig, parameterizedLayer, timeoutMs))
-        ),
+    // Check and record in one synchronous step so two frames resolving to the
+    // same tiles cannot both pass the check and both swap.
+    return E.if(E.sync(() => {
+      if (this.#appliedTiles.get(sourceConfig.id) === signature) return false;
+      this.#appliedTiles.set(sourceConfig.id, signature);
+      return true;
+    }), {
+      onTrue: () => this.#doubleBufferedTileUpdate(sourceConfig, parameterizedLayer, timeoutMs),
       onFalse: () => E.void,
     });
   };
