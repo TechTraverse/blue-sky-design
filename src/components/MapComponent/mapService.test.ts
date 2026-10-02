@@ -243,6 +243,28 @@ const rasterFrame = (tag: string): LayerType =>
     enabled: LayerEnabled({ visible: LayerVisible(), order: 1 }),
   });
 
+/** The vector-tile counterpart of `rasterFrame`, for the per-source-id cases. */
+const vectorFrame = (tag: string): LayerType =>
+  LargeScaleVector({
+    id: "VECTOR_SCENE",
+    humanReadableName: "Vector Scene",
+    sourceConfig: VectorTiles({
+      id: "VECTOR_SCENE",
+      type: "vector",
+      tiles: [`https://tiles.example/vector/{z}/{x}/{y}.pbf?d=${tag}`],
+    }),
+    orderedLayerConfigs: [
+      {
+        id: "VECTOR_SCENE-line",
+        type: "line",
+        source: "VECTOR_SCENE",
+        "source-layer": "scene",
+      },
+    ],
+    paramKeyVals: { d: tag },
+    enabled: LayerEnabled({ visible: LayerVisible(), order: 2 }),
+  });
+
 /** Build a wrapper over a fresh recording map with the three layers added. */
 const setup = async (opts?: { autoSettle?: boolean }) => {
   const { map, calls, settle, sources } = makeRecordingMap(opts);
@@ -418,5 +440,112 @@ describe("MapClassWrapper date change", () => {
     expect(calls.filter((c) => c.method === "setFilter").map((c) => c.args)).toEqual([
       ["COMMON-WINDOW_LAYER-fill", undefined],
     ]);
+  });
+
+  it("H: a frame resolving to the tiles already live is skipped, and a changed frame still swaps", async () => {
+    const { wrapper, calls } = await setup();
+
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    expect(mutationSeq(calls).length).toBeGreaterThan(0);
+    calls.length = 0;
+
+    // Same frame again — e.g. a selection narrower than the layer's cadence, or
+    // the retained frame in an animation wrap gap. Nothing should touch the map:
+    // a swap here would reload identical tiles and flash the layer.
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    expect(mutationSeq(calls)).toEqual([]);
+
+    // The guard must not latch: the next genuinely different frame still swaps.
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("B")]));
+    expect(mutationSeq(calls)).toEqual([
+      "addSource",
+      "addLayer",
+      "removeLayer",
+      "removeSource",
+    ]);
+  });
+
+  it("H2: the guard is keyed per source id, so one layer skipping does not block its sibling", async () => {
+    const { wrapper, calls, raster, vector } = await setup();
+
+    await E.runPromise(wrapper.updateSourceParams([raster, vector]));
+    calls.length = 0;
+
+    // Raster repeats its live frame (skip); vector moves to a new one (swap).
+    // A single shared signature instead of a per-source map would either drop
+    // the vector swap or re-run the raster one.
+    await E.runPromise(wrapper.updateSourceParams([raster, vectorFrame("Z")]));
+    const addedSources = calls
+      .filter((c) => c.method === "addSource")
+      .map((c) => String(c.args[0]));
+    expect(addedSources).toHaveLength(1);
+    expect(addedSources[0].startsWith("VECTOR_SCENE_")).toBe(true);
+  });
+
+  it("I: a frame dropped by coalescing can be re-selected and still swaps", async () => {
+    const { wrapper, calls, settle, sources } = await setup({ autoSettle: false });
+    calls.length = 0;
+
+    // A, B, C, D back-to-back: A goes in flight, B and C are dropped by the
+    // coalescer, D survives as the newest pending frame.
+    const ps = ["A", "B", "C", "D"].map((t) =>
+      E.runPromise(wrapper.updateSourceParams([rasterFrame(t)])),
+    );
+    await tick();
+    settle("RASTER_IMG");
+    await tick();
+    settle("RASTER_IMG");
+    await Promise.all(ps);
+
+    const survivors = Object.keys(sources).filter((id) => id.startsWith("RASTER_IMG_"));
+    expect(survivors).toHaveLength(1);
+    expect((sources[survivors[0]] as { tiles?: string[] }).tiles?.[0]).toContain("d=D");
+    calls.length = 0;
+
+    // D is what is actually live, so re-selecting D is correctly skipped.
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("D")]));
+    expect(mutationSeq(calls)).toEqual([]);
+
+    // B was recorded on its way into the pending slot and then dropped. The
+    // record is written in enqueue order and B's entry was overwritten by C and
+    // then D before B was dropped, so the guard never claims B — re-selecting it
+    // swaps rather than leaving D's tiles up.
+    const reselect = E.runPromise(wrapper.updateSourceParams([rasterFrame("B")]));
+    await tick();
+    settle("RASTER_IMG");
+    await reselect;
+
+    expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
+    const after = Object.keys(sources).filter((id) => id.startsWith("RASTER_IMG_"));
+    expect(after).toHaveLength(1);
+    expect((sources[after[0]] as { tiles?: string[] }).tiles?.[0]).toContain("d=B");
+  });
+
+  it("J: rmLayer clears the record, so re-enabling onto the same frame swaps", async () => {
+    const { wrapper, calls, raster } = await setup();
+
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    await E.runPromise(wrapper.rmLayer(raster));
+    await E.runPromise(wrapper.addLayer(raster));
+    calls.length = 0;
+
+    // rmLayer/addLayer rebuilds the source from the un-parameterized config, so
+    // the same frame as before the disable must still be applied.
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
+  });
+
+  it("K: moveLayer clears the record, so the frame live before the move is re-applied", async () => {
+    const { wrapper, calls, raster } = await setup();
+
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    await E.runPromise(wrapper.moveLayer(raster, undefined));
+    calls.length = 0;
+
+    // moveLayer re-adds the source from the un-parameterized config too, so the
+    // guard must not skip frame A against a record that no longer describes the
+    // live tiles.
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
   });
 });
