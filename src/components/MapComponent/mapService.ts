@@ -244,6 +244,13 @@ export class MapClassWrapper {
     };
   }>();
 
+  // Last parameterized tile URLs applied per source id. A swap whose target
+  // equals what is already live is a no-op that would still flash the layer
+  // (add buffer, reload identical tiles, drop old), so #swapChangedTiles gates
+  // the swap on a change against this. Cleared in rmLayer so a re-enable, which
+  // rebuilds the source, is never skipped against a stale entry.
+  #appliedTiles = new Map<string, string>();
+
   constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig, basemapFallbackApplied = false) {
     this.#map = m;
     this.#loadedBasemapUrl = initialBasemapUrl;
@@ -947,6 +954,10 @@ export class MapClassWrapper {
             this.#map.removeSource(sourceId);
           }
         });
+
+        // Drop the applied-tiles record so a later re-enable rebuilds the source
+        // rather than being skipped by the swap-to-identical guard.
+        this.#appliedTiles.delete(l.sourceConfig.id);
       }));
 
   moveLayer = (l: LayerType, uLayerAbove: LayerType | undefined) =>
@@ -1001,13 +1012,34 @@ export class MapClassWrapper {
         // tiles on top and only drop the old ones once the new have loaded, so
         // the imagery never goes blank. Imagery loads slower than vector tiles,
         // so give it longer before falling back to a hard swap.
-        this.#doubleBufferedTileUpdate(
+        this.#swapChangedTiles(
           sourceConfig,
           parameterizedLayer,
           sourceConfig._tag === "RasterTiles" ? 5000 : 500
         ))
       .otherwise(() => E.fail(new Error("Unknown layer type")));
   }
+
+  // Swap-to-identical guard in front of #doubleBufferedTileUpdate: run the swap
+  // only when the parameterized tile URLs differ from what is already live for
+  // this source, recording the new URLs as we commit to applying them. A
+  // repeated frame — a selection narrower than the layer's cadence, or the
+  // retained frame in an animation wrap gap — resolves to the same tiles and so
+  // leaves them untouched instead of reloading and flashing the layer.
+  #swapChangedTiles = (
+    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
+    parameterizedLayer: LayerResourceDescriptor,
+    timeoutMs: number
+  ) => {
+    const signature = sourceConfig.tiles.join("\n");
+    return E.if(E.sync(() => this.#appliedTiles.get(sourceConfig.id) !== signature), {
+      onTrue: () =>
+        E.sync(() => this.#appliedTiles.set(sourceConfig.id, signature)).pipe(
+          E.zipRight(this.#doubleBufferedTileUpdate(sourceConfig, parameterizedLayer, timeoutMs))
+        ),
+      onFalse: () => E.void,
+    });
+  };
 
   // Perform one double-buffered tile swap with no blank gap: add a second
   // buffered source + layers carrying the new tiles on top of the current ones,
