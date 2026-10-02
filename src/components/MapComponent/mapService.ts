@@ -981,6 +981,12 @@ export class MapClassWrapper {
               const newLastId = `${this.#commonLayersPrefix}${x.id}`;
               lastId = newLastId;
             });
+
+            // The re-added source carries the un-parameterized tile URLs, so the
+            // applied-tiles record no longer describes what is live. Drop it, or
+            // re-requesting the frame that was live before the move is skipped by
+            // the swap-to-identical guard and the layer stays on default tiles.
+            this.#appliedTiles.delete(l.sourceConfig.id);
           })
         .otherwise((x) => console.error("Unknown layer type", x));
       return undefined;
