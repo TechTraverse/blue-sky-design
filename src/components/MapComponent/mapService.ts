@@ -968,24 +968,27 @@ export class MapClassWrapper {
         .with([{ _tag: this.#nonBasemapLabelsLayersUnion }, P._],
           ([l, layerSnapshot]) => {
             const layerAbove = O.isSome(layerSnapshot.mMaplibreLayerAbove) ? layerSnapshot.mMaplibreLayerAbove.value : undefined;
-            this.#mapAddSource(l.sourceConfig);
-            l.orderedLayerConfigs.forEach((layerConfig) => {
-              const layerIdWithPrefix = `${this.#commonLayersPrefix}${layerConfig.id}`;
-              if (this.#map.getLayer(layerIdWithPrefix)) {
-                this.#map.removeLayer(layerIdWithPrefix);
-              }
-            });
+
+            // A move only needs to change z-position, so reorder the layers that
+            // are actually live instead of removing and re-adding them. After a
+            // buffered tile swap the live ids are COMMON-<id>_<uuid>, so the
+            // un-suffixed ids this used to remove were already gone and re-adding
+            // them stacked a duplicate layer — on a freshly re-added
+            // un-parameterized source — on top of the real one. #getMapLayerIds
+            // is the same resolution setFilter and setLayerOpacity use, so a
+            // swapped layer and a never-swapped one are both found.
+            //
+            // Each id is moved beneath the one before it, which is the stacking
+            // #addLayerConfigs builds when it threads layerAboveId down the list.
             let lastId = layerAbove;
-            l.orderedLayerConfigs.forEach(x => {
-              this.#mapAddLayer(x, lastId);
-              const newLastId = `${this.#commonLayersPrefix}${x.id}`;
-              lastId = newLastId;
+            this.#getMapLayerIds(l).forEach(id => {
+              this.#map.moveLayer(id, lastId);
+              lastId = id;
             });
 
-            // The re-added source carries the un-parameterized tile URLs, so the
-            // applied-tiles record no longer describes what is live. Drop it, or
-            // re-requesting the frame that was live before the move is skipped by
-            // the swap-to-identical guard and the layer stays on default tiles.
+            // Conservative: a reorder should not change which tiles are live, but
+            // dropping the record costs at most one redundant swap and keeps the
+            // guard honest if this path ever touches the source again.
             this.#appliedTiles.delete(l.sourceConfig.id);
           })
         .otherwise((x) => console.error("Unknown layer type", x));

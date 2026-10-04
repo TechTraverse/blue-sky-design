@@ -542,10 +542,41 @@ describe("MapClassWrapper date change", () => {
     await E.runPromise(wrapper.moveLayer(raster, undefined));
     calls.length = 0;
 
-    // moveLayer re-adds the source from the un-parameterized config too, so the
-    // guard must not skip frame A against a record that no longer describes the
-    // live tiles.
+    // The record clear is deliberately conservative, so frame A is re-applied
+    // after a move rather than skipped against the record left from before it.
     await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
     expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
+  });
+
+  it("L: moveLayer reorders the live layer after a swap instead of duplicating it", async () => {
+    const { wrapper, calls, map, raster } = await setup();
+    const style = () =>
+      (map as unknown as { getStyle: () => { layers: StubLayer[] } }).getStyle();
+
+    // One buffered swap, so the live ids carry the `_<uuid>` buffer suffix and
+    // the un-suffixed ones no longer exist.
+    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
+    const live = style().layers.map((l) => l.id)
+      .filter((id) => id.startsWith("COMMON-RASTER_IMG-raster"));
+    expect(live).toHaveLength(1);
+    expect(live[0]).not.toBe("COMMON-RASTER_IMG-raster");
+    calls.length = 0;
+
+    await E.runPromise(wrapper.moveLayer(raster, undefined));
+
+    // A move must not rebuild anything: re-adding the un-suffixed id left the
+    // real layer in place and stacked a second one, on its own freshly re-added
+    // source, above it.
+    expect(calls.filter((c) => c.method === "addSource")).toEqual([]);
+    expect(calls.filter((c) => c.method === "addLayer")).toEqual([]);
+    expect(
+      style().layers.map((l) => l.id)
+        .filter((id) => id.startsWith("COMMON-RASTER_IMG-raster")),
+    ).toEqual(live);
+
+    // It reorders the id that is actually live, beneath the labels layer.
+    expect(calls.filter((c) => c.method === "moveLayer").map((c) => c.args)).toEqual([
+      [live[0], "LABELS-symbols"],
+    ]);
   });
 });
