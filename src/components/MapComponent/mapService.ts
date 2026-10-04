@@ -1217,7 +1217,20 @@ export class MapClassWrapper {
           return pending;
         });
         if (!next) return;
-        yield* this.#runBufferedSwap(next.sourceConfig, next.parameterizedLayer, next.timeoutMs);
+        // A throw inside the swap — a MapLibre call rejecting the style, say —
+        // reaches here as a defect, and an uncaught one kills this fiber. That
+        // would leave `draining` stuck true, so the source never swaps again,
+        // and leave every waiter's Deferred unresolved, so the promises behind
+        // updateSourceParams never settle. Recover instead: drop the frame, and
+        // let the loop release the flag through its normal claim-or-exit path.
+        yield* this.#runBufferedSwap(next.sourceConfig, next.parameterizedLayer, next.timeoutMs).pipe(
+          E.catchAllDefect((defect) => E.sync(() => {
+            console.error("MapService: tile swap failed, dropping the frame", defect);
+            // The frame was recorded as applied on the way in, which a failed
+            // swap makes untrue. Drop the record so it can be retried.
+            this.#appliedTiles.delete(id);
+          }))
+        );
         yield* Deferred.succeed(next.deferred, undefined);
       }
     });

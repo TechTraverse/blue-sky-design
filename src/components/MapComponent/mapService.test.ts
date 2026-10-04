@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Effect as E } from "effect";
 import {
   MapClassWrapper,
@@ -578,5 +578,44 @@ describe("MapClassWrapper date change", () => {
     expect(calls.filter((c) => c.method === "moveLayer").map((c) => c.args)).toEqual([
       [live[0], "LABELS-symbols"],
     ]);
+  });
+
+  it("M: a throw inside a swap recovers the drain instead of wedging the source", async () => {
+    const { wrapper, sources } = await setup();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // Freezing the stub's source registry makes the assignment its addSource
+    // performs throw, so the throw originates inside the swap's E.async body —
+    // where a MapLibre failure would surface. It is a defect, not a typed
+    // failure, so the swap's own E.catchAll does not see it.
+    Object.freeze(sources);
+
+    const outcome = (l: LayerType) =>
+      Promise.race([
+        E.runPromise(wrapper.updateSourceParams([l])).then(
+          () => "resolved",
+          () => "rejected",
+        ),
+        new Promise((r) => setTimeout(() => r("hung"), 250)),
+      ]);
+
+    // Uncaught, the defect kills the drain fiber with this Deferred unresolved,
+    // and the promise behind updateSourceParams never settles at all.
+    expect(await outcome(rasterFrame("A"))).toBe("resolved");
+    // Dropped, not silently swallowed.
+    expect(errors).toHaveBeenCalledTimes(1);
+
+    // The failed swap had already recorded frame A as applied, which it is not,
+    // so A has to be retried rather than skipped by the swap-to-identical guard.
+    // A skip resolves too, so the error count is what tells them apart — and
+    // this has to come before any other frame overwrites the record.
+    expect(await outcome(rasterFrame("A"))).toBe("resolved");
+    expect(errors).toHaveBeenCalledTimes(2);
+
+    // `draining` has to have been released as well, or this frame lands in the
+    // pending slot of a drain that is never coming back.
+    expect(await outcome(rasterFrame("B"))).toBe("resolved");
+    expect(errors).toHaveBeenCalledTimes(3);
+    errors.mockRestore();
   });
 });
