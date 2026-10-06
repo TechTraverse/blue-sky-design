@@ -1,4 +1,4 @@
-import { Effect as E, Option as O, Context, Layer, Data as D, Duration, Deferred } from "effect"
+import { Effect as E, Option as O, Context, Layer, Data as D, Duration } from "effect"
 import maplibregl from "maplibre-gl";
 import type { AddLayerObject, FilterSpecification, Map as MapLibreMap, MapLibreEvent, MapOptions, MapSourceDataEvent, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import { match, P } from "ts-pattern";
@@ -228,28 +228,6 @@ export class MapClassWrapper {
   // Callback for layer load status changes
   #onLayerLoadStatus?: (status: LayerLoadStatus) => void;
   #basemapFallbackApplied: boolean;
-
-  // Per-source scheduling state for double-buffered tile swaps. Guarantees at
-  // most one swap is in flight per source id; a newer frame arriving mid-swap
-  // overwrites the single `pending` slot (coalesce — drop intermediate frames,
-  // jump to the newest) rather than piling up overlapping swaps. A short-lived
-  // daemon drains the pending slot when the in-flight swap settles.
-  #swapState = new Map<string, {
-    draining: boolean;
-    pending?: {
-      sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>;
-      parameterizedLayer: LayerResourceDescriptor;
-      timeoutMs: number;
-      deferred: Deferred.Deferred<void>;
-    };
-  }>();
-
-  // Last parameterized tile URLs applied per source id. A swap whose target
-  // equals what is already live is a no-op that would still flash the layer
-  // (add buffer, reload identical tiles, drop old), so #swapChangedTiles gates
-  // the swap on a change against this. Cleared in rmLayer so a re-enable, which
-  // rebuilds the source, is never skipped against a stale entry.
-  #appliedTiles = new Map<string, string>();
 
   constructor(m: MapLibreMap, initialBasemapUrl: string, controls?: MapControlsConfig, basemapFallbackApplied = false) {
     this.#map = m;
@@ -954,10 +932,6 @@ export class MapClassWrapper {
             this.#map.removeSource(sourceId);
           }
         });
-
-        // Drop the applied-tiles record so a later re-enable rebuilds the source
-        // rather than being skipped by the swap-to-identical guard.
-        this.#appliedTiles.delete(l.sourceConfig.id);
       }));
 
   moveLayer = (l: LayerType, uLayerAbove: LayerType | undefined) =>
@@ -968,28 +942,20 @@ export class MapClassWrapper {
         .with([{ _tag: this.#nonBasemapLabelsLayersUnion }, P._],
           ([l, layerSnapshot]) => {
             const layerAbove = O.isSome(layerSnapshot.mMaplibreLayerAbove) ? layerSnapshot.mMaplibreLayerAbove.value : undefined;
-
-            // A move only needs to change z-position, so reorder the layers that
-            // are actually live instead of removing and re-adding them. After a
-            // buffered tile swap the live ids are COMMON-<id>_<uuid>, so the
-            // un-suffixed ids this used to remove were already gone and re-adding
-            // them stacked a duplicate layer — on a freshly re-added
-            // un-parameterized source — on top of the real one. #getMapLayerIds
-            // is the same resolution setFilter and setLayerOpacity use, so a
-            // swapped layer and a never-swapped one are both found.
-            //
-            // Each id is moved beneath the one before it, which is the stacking
-            // #addLayerConfigs builds when it threads layerAboveId down the list.
+            this.#mapAddSource(l.sourceConfig);
+            l.orderedLayerConfigs.forEach((layerConfig) => {
+              const layerIdWithPrefix = `${this.#commonLayersPrefix}${layerConfig.id}`;
+              if (this.#map.getLayer(layerIdWithPrefix)) {
+                this.#map.removeLayer(layerIdWithPrefix);
+              }
+            });
             let lastId = layerAbove;
-            this.#getMapLayerIds(l).forEach(id => {
-              this.#map.moveLayer(id, lastId);
-              lastId = id;
+            l.orderedLayerConfigs.forEach(x => {
+              this.#mapAddLayer(x, lastId);
+              const newLastId = `${this.#commonLayersPrefix}${x.id}`;
+              lastId = newLastId;
             });
 
-            // Conservative: a reorder should not change which tiles are live, but
-            // dropping the record costs at most one redundant swap and keeps the
-            // guard honest if this path ever touches the source again.
-            this.#appliedTiles.delete(l.sourceConfig.id);
           })
         .otherwise((x) => console.error("Unknown layer type", x));
       return undefined;
@@ -1020,7 +986,7 @@ export class MapClassWrapper {
         // tiles on top and only drop the old ones once the new have loaded, so
         // the imagery never goes blank. Imagery loads slower than vector tiles,
         // so give it longer before falling back to a hard swap.
-        this.#swapChangedTiles(
+        this.#doubleBufferedTileUpdate(
           sourceConfig,
           parameterizedLayer,
           sourceConfig._tag === "RasterTiles" ? 5000 : 500
@@ -1028,48 +994,12 @@ export class MapClassWrapper {
       .otherwise(() => E.fail(new Error("Unknown layer type")));
   }
 
-  // Swap-to-identical guard in front of #doubleBufferedTileUpdate: run the swap
-  // only when the parameterized tile URLs differ from what is already live for
-  // this source, recording the new URLs as we commit to applying them. A
-  // repeated frame — a selection narrower than the layer's cadence, or the
-  // retained frame in an animation wrap gap — resolves to the same tiles and so
-  // leaves them untouched instead of reloading and flashing the layer.
-  //
-  // Recording before the swap runs, rather than after it settles, is safe even
-  // though #doubleBufferedTileUpdate coalesces and drops frames. The record is
-  // written in enqueue order, and a frame is only ever dropped by a newer frame
-  // that has already overwritten the record with its own signature — so the
-  // standing record always names the newest enqueued frame, which is by
-  // definition never superseded and is always claimed by #drain. A timeout does
-  // not break this either: #runBufferedSwap keeps the new buffer and drops the
-  // old sources on the timeout path too, so the recorded tiles end up live
-  // whichever way the swap settles. The record is therefore never left naming a
-  // frame that was dropped; re-selecting a dropped frame still swaps.
-  #swapChangedTiles = (
-    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
-    parameterizedLayer: LayerResourceDescriptor,
-    timeoutMs: number
-  ) => {
-    const signature = sourceConfig.tiles.join("\n");
-    // Check and record in one synchronous step so two frames resolving to the
-    // same tiles cannot both pass the check and both swap.
-    return E.if(E.sync(() => {
-      if (this.#appliedTiles.get(sourceConfig.id) === signature) return false;
-      this.#appliedTiles.set(sourceConfig.id, signature);
-      return true;
-    }), {
-      onTrue: () => this.#doubleBufferedTileUpdate(sourceConfig, parameterizedLayer, timeoutMs),
-      onFalse: () => E.void,
-    });
-  };
-
-  // Perform one double-buffered tile swap with no blank gap: add a second
-  // buffered source + layers carrying the new tiles on top of the current ones,
-  // wait for the new tiles to load, then remove the old source. Used for both
-  // raster and vector tiles — the only per-type difference is how long to keep
-  // the old tiles around before giving up (timeoutMs). Only ever invoked by
-  // #drain, so #emitLayerStatus stays 1:1 with an actually-applied frame.
-  #runBufferedSwap = (
+  // Swap a tile source's data with no blank gap: add a second buffered
+  // source + layers carrying the new tiles on top of the current ones, wait for
+  // the new tiles to load, then remove the old source. Used for both raster and
+  // vector tiles — the only per-type difference is how long to keep the old
+  // tiles around before giving up (timeoutMs).
+  #doubleBufferedTileUpdate = (
     sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
     parameterizedLayer: LayerResourceDescriptor,
     timeoutMs: number
@@ -1160,80 +1090,6 @@ export class MapClassWrapper {
       E.as(undefined)
     );
   });
-
-  // Scheduler in front of #runBufferedSwap. Coalesces overlapping swaps per
-  // source so animation frames never pile up: registers this frame as the
-  // newest `pending` (completing any frame it supersedes immediately, since it
-  // was dropped), starts a drain daemon if none is running, then resolves when
-  // this frame settles. The returned Effect still completes on settle, so
-  // callers awaiting `updateSourceParams` keep their contract.
-  #doubleBufferedTileUpdate = (
-    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
-    parameterizedLayer: LayerResourceDescriptor,
-    timeoutMs: number
-  ) => E.gen(this, function* () {
-    const id = sourceConfig.id;
-    const deferred = yield* Deferred.make<void>();
-
-    // Atomic read-modify-write: overwrite pending + decide whether to fork the
-    // drain in a single synchronous callback so no fiber can preempt mid-way.
-    const decision = yield* E.sync(() => {
-      const st = this.#swapState.get(id) ?? { draining: false, pending: undefined };
-      const superseded = st.pending?.deferred;
-      st.pending = { sourceConfig, parameterizedLayer, timeoutMs, deferred };
-      const shouldFork = !st.draining;
-      if (shouldFork) st.draining = true;
-      this.#swapState.set(id, st);
-      return { superseded, shouldFork };
-    });
-
-    // A dropped (superseded) frame resolves right away — it was never applied.
-    if (decision.superseded) yield* Deferred.succeed(decision.superseded, undefined);
-    // forkDaemon (not fork) escapes the caller's scope, so the drain survives
-    // after this call's runPromise resolves and keeps applying later frames.
-    if (decision.shouldFork) yield* E.forkDaemon(this.#drain(id));
-
-    yield* Deferred.await(deferred);
-  });
-
-  // Drains the per-source `pending` slot: claim the newest pending frame, apply
-  // it, then signal its waiter on settle and loop. Claim-or-exit is one
-  // synchronous block — either it takes the pending frame, or (slot empty) it
-  // clears `draining` and stops. Because the scheduler's enqueue-and-fork
-  // decision is likewise a single synchronous block, the two can't interleave,
-  // so a frame enqueued right as the drain exits always re-forks a fresh drain
-  // and is never orphaned.
-  #drain = (id: string) =>
-    E.gen(this, function* () {
-      for (;;) {
-        const next = yield* E.sync(() => {
-          const st = this.#swapState.get(id);
-          const pending = st?.pending;
-          if (pending) {
-            st!.pending = undefined; // claim it so newer frames land in a fresh slot
-          } else if (st) {
-            st.draining = false; // slot empty → stop draining
-          }
-          return pending;
-        });
-        if (!next) return;
-        // A throw inside the swap — a MapLibre call rejecting the style, say —
-        // reaches here as a defect, and an uncaught one kills this fiber. That
-        // would leave `draining` stuck true, so the source never swaps again,
-        // and leave every waiter's Deferred unresolved, so the promises behind
-        // updateSourceParams never settle. Recover instead: drop the frame, and
-        // let the loop release the flag through its normal claim-or-exit path.
-        yield* this.#runBufferedSwap(next.sourceConfig, next.parameterizedLayer, next.timeoutMs).pipe(
-          E.catchAllDefect((defect) => E.sync(() => {
-            console.error("MapService: tile swap failed, dropping the frame", defect);
-            // The frame was recorded as applied on the way in, which a failed
-            // swap makes untrue. Drop the record so it can be retried.
-            this.#appliedTiles.delete(id);
-          }))
-        );
-        yield* Deferred.succeed(next.deferred, undefined);
-      }
-    });
 
   updateSourceParams = (layers: LayerType[]) =>
     // Reversing because layers are sent in L to R = Top to Bottom order

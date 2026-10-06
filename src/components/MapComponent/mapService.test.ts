@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Effect as E } from "effect";
 import {
   MapClassWrapper,
@@ -46,7 +46,7 @@ const mutationSeq = (calls: Call[]) =>
  * a Proxy auto-stubs every other method as a recording no-op, so the test does
  * not silently break when the wrapper's map usage changes.
  */
-const makeRecordingMap = ({ autoSettle = true }: { autoSettle?: boolean } = {}) => {
+const makeRecordingMap = () => {
   const calls: Call[] = [];
   const listeners: Record<string, Array<(e: unknown) => void>> = {};
   let layers: StubLayer[] = [
@@ -102,25 +102,18 @@ const makeRecordingMap = ({ autoSettle = true }: { autoSettle?: boolean } = {}) 
       };
       // Simulate the new tiles finishing load so the double-buffer swap proceeds
       // to drop the old source. The wrapper registers its listener before
-      // calling addSource, so a microtask is enough. When autoSettle is off,
-      // the test drives loading explicitly via settle() to exercise coalescing.
-      if (autoSettle) {
-        queueMicrotask(() =>
-          proxy.fire("sourcedata", { sourceId: id, isSourceLoaded: true }),
-        );
-      }
+      // calling addSource, so a microtask is enough.
+      queueMicrotask(() =>
+        proxy.fire("sourcedata", { sourceId: id, isSourceLoaded: true }),
+      );
     },
     removeSource(id: string) {
       rec("removeSource", id);
       delete sources[id];
     },
-    // MapLibre inserts immediately below beforeId; `layers` is ordered bottom→top.
-    addLayer(layer: StubLayer, beforeId?: string) {
-      rec("addLayer", layer.id, beforeId);
-      const entry = { id: layer.id, type: layer.type, source: layer.source };
-      const at = beforeId ? layers.findIndex((l) => l.id === beforeId) : -1;
-      if (at === -1) layers.push(entry);
-      else layers.splice(at, 0, entry);
+    addLayer(layer: StubLayer) {
+      rec("addLayer", layer.id);
+      layers.push({ id: layer.id, type: layer.type, source: layer.source });
     },
     removeLayer(id: string) {
       rec("removeLayer", id);
@@ -151,18 +144,7 @@ const makeRecordingMap = ({ autoSettle = true }: { autoSettle?: boolean } = {}) 
     },
   }) as unknown as { addSource: (id: string, cfg: Record<string, unknown>) => void };
 
-  // Fire `sourcedata`/isSourceLoaded for every currently-present source whose id
-  // starts with `prefix` (covers the random `_<uuid>` buffer suffix), settling
-  // whichever buffered swap is waiting on it.
-  const settle = (prefix: string) => {
-    Object.keys(sources)
-      .filter((id) => id.startsWith(prefix))
-      .forEach((id) =>
-        proxy.fire("sourcedata", { sourceId: id, isSourceLoaded: true }),
-      );
-  };
-
-  return { map: proxy, calls, settle, sources };
+  return { map: proxy, calls };
 };
 
 const rasterImageryLayer = (): LayerType =>
@@ -204,9 +186,9 @@ const vectorSceneLayer = (): LayerType =>
   });
 
 // A TimeHandlingWindow layer, from the map's perspective, is just a common data
-// layer that is either wholly hidden or filtered down to the features valid at the
-// cursor. The window/validity logic itself lives in wlfs-client; here we model both
-// outcomes — setLayerVisibility(none) and setFilter(expr).
+// layer whose visibility is toggled when the new date falls outside its validity
+// window. The window/validity logic itself lives in wlfs-client; here we model
+// the "excluded" outcome as setLayerVisibility(none).
 const windowLayer = (): LayerType =>
   SmallScaleVector({
     id: "WINDOW_LAYER",
@@ -228,50 +210,9 @@ const windowLayer = (): LayerType =>
     enabled: LayerEnabled({ visible: LayerVisible(), order: 3 }),
   });
 
-/** A raster imagery layer whose tiles URL carries `tag`, so overlapping swap
- *  frames can be told apart by the source config the swap ends up applying. */
-const rasterFrame = (tag: string): LayerType =>
-  LargeScaleImagery({
-    id: "RASTER_IMG",
-    humanReadableName: "Raster Imagery",
-    sourceConfig: RasterTiles({
-      id: "RASTER_IMG",
-      type: "raster",
-      tiles: [`https://tiles.example/raster/{z}/{x}/{y}.png?d=${tag}`],
-      tileSize: 256,
-    }),
-    orderedLayerConfigs: [
-      { id: "RASTER_IMG-raster", type: "raster", source: "RASTER_IMG" },
-    ],
-    paramKeyVals: { d: tag },
-    enabled: LayerEnabled({ visible: LayerVisible(), order: 1 }),
-  });
-
-/** The vector-tile counterpart of `rasterFrame`, for the per-source-id cases. */
-const vectorFrame = (tag: string): LayerType =>
-  LargeScaleVector({
-    id: "VECTOR_SCENE",
-    humanReadableName: "Vector Scene",
-    sourceConfig: VectorTiles({
-      id: "VECTOR_SCENE",
-      type: "vector",
-      tiles: [`https://tiles.example/vector/{z}/{x}/{y}.pbf?d=${tag}`],
-    }),
-    orderedLayerConfigs: [
-      {
-        id: "VECTOR_SCENE-line",
-        type: "line",
-        source: "VECTOR_SCENE",
-        "source-layer": "scene",
-      },
-    ],
-    paramKeyVals: { d: tag },
-    enabled: LayerEnabled({ visible: LayerVisible(), order: 2 }),
-  });
-
 /** Build a wrapper over a fresh recording map with the three layers added. */
-const setup = async (opts?: { autoSettle?: boolean }) => {
-  const { map, calls, settle, sources } = makeRecordingMap(opts);
+const setup = async () => {
+  const { map, calls } = makeRecordingMap();
   const wrapper = new MapClassWrapper(
     map as never,
     "https://basemap.example",
@@ -287,11 +228,8 @@ const setup = async (opts?: { autoSettle?: boolean }) => {
   await E.runPromise(wrapper.addLayer(winLayer));
 
   calls.length = 0; // only characterize what the date change does
-  return { wrapper, calls, map, settle, sources, raster, vector, winLayer };
+  return { wrapper, calls, map, raster, vector, winLayer };
 };
-
-/** Flush pending microtasks + macrotasks so queued Effect fibers can run. */
-const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("MapClassWrapper date change", () => {
   it("A: produces addSource/addLayer/removeLayer/removeSource per tile layer then setLayoutProperty for the excluded window layer, in order", async () => {
@@ -357,60 +295,6 @@ describe("MapClassWrapper date change", () => {
     expect(removedSources).toContain("RASTER_IMG_stale");
   });
 
-  it("D: overlapping swaps for one source coalesce to the newest frame", async () => {
-    const { wrapper, calls, settle, sources } = await setup({ autoSettle: false });
-    calls.length = 0;
-
-    // Four frames fired back-to-back without settling: the in-flight swap holds
-    // and later frames overwrite a single pending slot, so intermediates drop.
-    const ps = ["A", "B", "C", "D"].map((t) =>
-      E.runPromise(wrapper.updateSourceParams([rasterFrame(t)])),
-    );
-    await tick(); // let all four register their pending target (newest = D)
-
-    // Settle the in-flight buffer → drain applies it, then picks up the newest
-    // pending (frame D), settled on the next round.
-    settle("RASTER_IMG");
-    await tick();
-    settle("RASTER_IMG");
-    await Promise.all(ps);
-
-    // Coalesced: far fewer swaps than frames (not one per frame).
-    const addSourceCount = calls.filter((c) => c.method === "addSource").length;
-    expect(addSourceCount).toBeGreaterThanOrEqual(1);
-    expect(addSourceCount).toBeLessThanOrEqual(2);
-
-    // The single surviving buffer carries the newest frame's tiles.
-    const survivors = Object.keys(sources).filter((id) => id.startsWith("RASTER_IMG_"));
-    expect(survivors).toHaveLength(1);
-    const surviving = sources[survivors[0]] as { tiles?: string[] };
-    expect(surviving.tiles?.[0]).toContain("d=D");
-  });
-
-  it("E: layer-load status fires once per applied frame, never for dropped frames", async () => {
-    const { wrapper, calls, settle } = await setup({ autoSettle: false });
-    const tags: string[] = [];
-    wrapper.setOnLayerLoadStatus((st) => tags.push(st._tag));
-    calls.length = 0;
-
-    const ps = ["A", "B", "C", "D"].map((t) =>
-      E.runPromise(wrapper.updateSourceParams([rasterFrame(t)])),
-    );
-    await tick();
-    settle("RASTER_IMG");
-    await tick();
-    settle("RASTER_IMG");
-    await Promise.all(ps);
-
-    const applied = calls.filter((c) => c.method === "addSource").length;
-    const loading = tags.filter((t) => t === "Loading").length;
-    const loaded = tags.filter((t) => t === "Loaded").length;
-    // Status is emitted exactly once per applied frame — dropped frames are silent.
-    expect(loading).toBe(applied);
-    expect(loaded).toBe(applied);
-    expect(loading).toBeLessThan(4);
-  });
-
   it("F: setFilter applies the expression to every map layer id the descriptor owns", async () => {
     const { wrapper, calls, map, winLayer } = await setup();
 
@@ -444,182 +328,5 @@ describe("MapClassWrapper date change", () => {
     expect(calls.filter((c) => c.method === "setFilter").map((c) => c.args)).toEqual([
       ["COMMON-WINDOW_LAYER-fill", undefined],
     ]);
-  });
-
-  it("H: a frame resolving to the tiles already live is skipped, and a changed frame still swaps", async () => {
-    const { wrapper, calls } = await setup();
-
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    expect(mutationSeq(calls).length).toBeGreaterThan(0);
-    calls.length = 0;
-
-    // Same frame again — e.g. a selection narrower than the layer's cadence, or
-    // the retained frame in an animation wrap gap. Nothing should touch the map:
-    // a swap here would reload identical tiles and flash the layer.
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    expect(mutationSeq(calls)).toEqual([]);
-
-    // The guard must not latch: the next genuinely different frame still swaps.
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("B")]));
-    expect(mutationSeq(calls)).toEqual([
-      "addSource",
-      "addLayer",
-      "removeLayer",
-      "removeSource",
-    ]);
-  });
-
-  it("H2: the guard is keyed per source id, so one layer skipping does not block its sibling", async () => {
-    const { wrapper, calls, raster, vector } = await setup();
-
-    await E.runPromise(wrapper.updateSourceParams([raster, vector]));
-    calls.length = 0;
-
-    // Raster repeats its live frame (skip); vector moves to a new one (swap).
-    // A single shared signature instead of a per-source map would either drop
-    // the vector swap or re-run the raster one.
-    await E.runPromise(wrapper.updateSourceParams([raster, vectorFrame("Z")]));
-    const addedSources = calls
-      .filter((c) => c.method === "addSource")
-      .map((c) => String(c.args[0]));
-    expect(addedSources).toHaveLength(1);
-    expect(addedSources[0].startsWith("VECTOR_SCENE_")).toBe(true);
-  });
-
-  it("I: a frame dropped by coalescing can be re-selected and still swaps", async () => {
-    const { wrapper, calls, settle, sources } = await setup({ autoSettle: false });
-    calls.length = 0;
-
-    // A, B, C, D back-to-back: A goes in flight, B and C are dropped by the
-    // coalescer, D survives as the newest pending frame.
-    const ps = ["A", "B", "C", "D"].map((t) =>
-      E.runPromise(wrapper.updateSourceParams([rasterFrame(t)])),
-    );
-    await tick();
-    settle("RASTER_IMG");
-    await tick();
-    settle("RASTER_IMG");
-    await Promise.all(ps);
-
-    const survivors = Object.keys(sources).filter((id) => id.startsWith("RASTER_IMG_"));
-    expect(survivors).toHaveLength(1);
-    expect((sources[survivors[0]] as { tiles?: string[] }).tiles?.[0]).toContain("d=D");
-    calls.length = 0;
-
-    // D is what is actually live, so re-selecting D is correctly skipped.
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("D")]));
-    expect(mutationSeq(calls)).toEqual([]);
-
-    // B was recorded on its way into the pending slot and then dropped. The
-    // record is written in enqueue order and B's entry was overwritten by C and
-    // then D before B was dropped, so the guard never claims B — re-selecting it
-    // swaps rather than leaving D's tiles up.
-    const reselect = E.runPromise(wrapper.updateSourceParams([rasterFrame("B")]));
-    await tick();
-    settle("RASTER_IMG");
-    await reselect;
-
-    expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
-    const after = Object.keys(sources).filter((id) => id.startsWith("RASTER_IMG_"));
-    expect(after).toHaveLength(1);
-    expect((sources[after[0]] as { tiles?: string[] }).tiles?.[0]).toContain("d=B");
-  });
-
-  it("J: rmLayer clears the record, so re-enabling onto the same frame swaps", async () => {
-    const { wrapper, calls, raster } = await setup();
-
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    await E.runPromise(wrapper.rmLayer(raster));
-    await E.runPromise(wrapper.addLayer(raster));
-    calls.length = 0;
-
-    // rmLayer/addLayer rebuilds the source from the un-parameterized config, so
-    // the same frame as before the disable must still be applied.
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
-  });
-
-  it("K: moveLayer clears the record, so the frame live before the move is re-applied", async () => {
-    const { wrapper, calls, raster } = await setup();
-
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    await E.runPromise(wrapper.moveLayer(raster, undefined));
-    calls.length = 0;
-
-    // The record clear is deliberately conservative, so frame A is re-applied
-    // after a move rather than skipped against the record left from before it.
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    expect(calls.filter((c) => c.method === "addSource")).toHaveLength(1);
-  });
-
-  it("L: moveLayer reorders the live layer after a swap instead of duplicating it", async () => {
-    const { wrapper, calls, map, raster } = await setup();
-    const style = () =>
-      (map as unknown as { getStyle: () => { layers: StubLayer[] } }).getStyle();
-
-    // One buffered swap, so the live ids carry the `_<uuid>` buffer suffix and
-    // the un-suffixed ones no longer exist.
-    await E.runPromise(wrapper.updateSourceParams([rasterFrame("A")]));
-    const live = style().layers.map((l) => l.id)
-      .filter((id) => id.startsWith("COMMON-RASTER_IMG-raster"));
-    expect(live).toHaveLength(1);
-    expect(live[0]).not.toBe("COMMON-RASTER_IMG-raster");
-    calls.length = 0;
-
-    await E.runPromise(wrapper.moveLayer(raster, undefined));
-
-    // A move must not rebuild anything: re-adding the un-suffixed id left the
-    // real layer in place and stacked a second one, on its own freshly re-added
-    // source, above it.
-    expect(calls.filter((c) => c.method === "addSource")).toEqual([]);
-    expect(calls.filter((c) => c.method === "addLayer")).toEqual([]);
-    expect(
-      style().layers.map((l) => l.id)
-        .filter((id) => id.startsWith("COMMON-RASTER_IMG-raster")),
-    ).toEqual(live);
-
-    // It reorders the id that is actually live, beneath the labels layer.
-    expect(calls.filter((c) => c.method === "moveLayer").map((c) => c.args)).toEqual([
-      [live[0], "LABELS-symbols"],
-    ]);
-  });
-
-  it("M: a throw inside a swap recovers the drain instead of wedging the source", async () => {
-    const { wrapper, sources } = await setup();
-    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    // Freezing the stub's source registry makes the assignment its addSource
-    // performs throw, so the throw originates inside the swap's E.async body —
-    // where a MapLibre failure would surface. It is a defect, not a typed
-    // failure, so the swap's own E.catchAll does not see it.
-    Object.freeze(sources);
-
-    const outcome = (l: LayerType) =>
-      Promise.race([
-        E.runPromise(wrapper.updateSourceParams([l])).then(
-          () => "resolved",
-          () => "rejected",
-        ),
-        new Promise((r) => setTimeout(() => r("hung"), 250)),
-      ]);
-
-    // Uncaught, the defect kills the drain fiber with this Deferred unresolved,
-    // and the promise behind updateSourceParams never settles at all.
-    expect(await outcome(rasterFrame("A"))).toBe("resolved");
-    // Dropped, not silently swallowed.
-    expect(errors).toHaveBeenCalledTimes(1);
-
-    // The failed swap had already recorded frame A as applied, which it is not,
-    // so A has to be retried rather than skipped by the swap-to-identical guard.
-    // A skip resolves too, so the error count is what tells them apart — and
-    // this has to come before any other frame overwrites the record.
-    expect(await outcome(rasterFrame("A"))).toBe("resolved");
-    expect(errors).toHaveBeenCalledTimes(2);
-
-    // `draining` has to have been released as well, or this frame lands in the
-    // pending slot of a drain that is never coming back.
-    expect(await outcome(rasterFrame("B"))).toBe("resolved");
-    expect(errors).toHaveBeenCalledTimes(3);
-    errors.mockRestore();
   });
 });
