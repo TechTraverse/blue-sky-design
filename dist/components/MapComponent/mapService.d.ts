@@ -1,5 +1,5 @@
 import { Effect as E, Context, Layer, Data as D } from 'effect';
-import { default as maplibregl, AddLayerObject, Map as MapLibreMap, MapOptions, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl';
+import { default as maplibregl, AddLayerObject, FilterSpecification, Map as MapLibreMap, MapOptions, GeoJSONSourceSpecification, RasterSourceSpecification, VectorSourceSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl';
 import { Subscription } from 'rxjs';
 import { BasemapFallbackOptions, LayerLoadStatus } from './types';
 export { isTileTemplateUrl, extractHostname, collectBasemapDomains, collectDomainsFromStylesheet, isBasemapAuthError, mergeStylesheetDomains, } from './basemapFallback';
@@ -267,6 +267,7 @@ export declare class MapClassWrapper {
     registerEventHandler: (evtName: string, f: (e: unknown, map: MapLibreMap) => void) => E.Effect<Subscription, never, never>;
     addLayer: (l: LayerType, uLayerAbove?: LayerType | undefined) => E.Effect<undefined, Error, void>;
     setLayerVisibility: (l: LayerResourceDescriptor, visibility: "visible" | "none") => E.Effect<undefined, never, never>;
+    setFilter: (l: LayerResourceDescriptor, filter: FilterSpecification | null) => E.Effect<undefined, never, never>;
     setLayerOpacity: (l: LayerResourceDescriptor, opacity: number) => E.Effect<undefined, never, never>;
     rmLayer: (l: LayerType) => E.Effect<void, never, never> | E.Effect<never, Error, never>;
     moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, never, never>;

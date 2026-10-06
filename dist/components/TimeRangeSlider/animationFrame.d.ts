@@ -36,8 +36,11 @@ export interface AnimationFrameState {
 }
 /**
  * Pure next-frame computation shared by the fixed-timer and back-pressure paths.
- * Advances `selectedStartDateTime` by `advanceMs`, looping back to
- * `animationStartDateTime` once the frame's end passes the animation range end.
+ * Advances `selectedStartDateTime` by `advanceMs` — forwards for a positive
+ * speed, backwards for a negative one — wrapping around at whichever end of the
+ * animation range playback is travelling towards: forwards past the range end
+ * loops to `animationStartDateTime`, backwards past the range start loops to the
+ * last frame that fits inside the range.
  */
 export declare const computeNextAnimationFrame: (currentState: AnimationFrameState, advanceMs: number) => {
     nextStart: DateTime.DateTime;
