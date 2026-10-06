@@ -114,9 +114,13 @@ const makeRecordingMap = ({ autoSettle = true }: { autoSettle?: boolean } = {}) 
       rec("removeSource", id);
       delete sources[id];
     },
-    addLayer(layer: StubLayer) {
-      rec("addLayer", layer.id);
-      layers.push({ id: layer.id, type: layer.type, source: layer.source });
+    // MapLibre inserts immediately below beforeId; `layers` is ordered bottom→top.
+    addLayer(layer: StubLayer, beforeId?: string) {
+      rec("addLayer", layer.id, beforeId);
+      const entry = { id: layer.id, type: layer.type, source: layer.source };
+      const at = beforeId ? layers.findIndex((l) => l.id === beforeId) : -1;
+      if (at === -1) layers.push(entry);
+      else layers.splice(at, 0, entry);
     },
     removeLayer(id: string) {
       rec("removeLayer", id);
