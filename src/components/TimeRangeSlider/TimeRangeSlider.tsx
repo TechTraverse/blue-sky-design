@@ -11,6 +11,7 @@ import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS
 import { acceptsTrackLatestRebase, isStepBlocked, makeStepLattice, normalizeStepPositions, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
 import type { StepDirection, StepResolution } from './stepping';
 import {
+  ClampSelection,
   DEFAULT_ANIMATION_DURATION,
   ExtSetIncrement,
   ExtSetSelectedDuration,
@@ -830,6 +831,20 @@ export const TimeRangeSlider = ({
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [availableDateRange?.start?.getTime(), availableDateRange?.end?.getTime()]);
+
+  /**
+   * Pull the selection back inside the range when the range moves. The bound
+   * checks here only run when something moves the selection, so a floor that
+   * follows the ceiling, or a ceiling that drops back after a failed poll, can
+   * otherwise leave a selection that stayed put outside the range. The animation
+   * bounds follow too, or playback walks straight back out. Reported to the
+   * consumer as 'external'. Keyed on the memoised range, which only changes with
+   * the bounds' instants, and a no-op once the selection fits, so the consumer
+   * echoing the new dateRange back does not re-trigger it.
+   */
+  useEffect(() => {
+    d(ClampSelection({ range: selectableRange }));
+  }, [selectableRange]);
 
   /** Observed frames the step buttons prefer, ascending. */
   const positions = useMemo(
