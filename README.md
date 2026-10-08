@@ -1,4 +1,36 @@
-# React + TypeScript + Vite
+# blue-sky-design
+
+React component library for the WLFS map client, published to the NESDIS GitLab
+package registry as `@wlfs/blue-sky-design`.
+
+## Installing
+
+The package lives in this project's npm registry. The group endpoint for
+`dissemination/wlfs/client` serves it alongside the other `@wlfs` packages, so a
+consumer's `.npmrc` needs one scope mapping and a token with `read_api`:
+
+```ini
+@wlfs:registry=https://git.services.nesdis.noaa.gov/api/v4/groups/11049/-/packages/npm/
+//git.services.nesdis.noaa.gov/api/v4/groups/11049/-/packages/npm/:_authToken=${NPM_TOKEN}
+```
+
+wlfs-client imports it as `bluesky`, so it installs under an alias:
+
+```json
+"bluesky": "npm:@wlfs/blue-sky-design@0.1.0"
+```
+
+## Releasing
+
+1. Bump `version` in `package.json` in your merge request.
+2. Merge to `main`.
+3. The pipeline builds, tests and publishes that version. A merge that leaves the
+   version unchanged skips the publish, since that version is already in the
+   registry.
+
+`dist/` is built in CI; don't commit rebuilt output.
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

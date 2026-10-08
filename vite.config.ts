@@ -24,6 +24,8 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/lib.ts'),
       formats: ['es'],
+      // Pinned so the bundle `exports` points at doesn't follow the package name.
+      fileName: 'blue-sky-design',
     },
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'maplibre-gl', 'effect'],

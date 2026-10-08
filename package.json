@@ -1,7 +1,6 @@
 {
-  "name": "blue-sky-design",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@wlfs/blue-sky-design",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/blue-sky-design.js",
   "module": "./dist/blue-sky-design.js",
@@ -23,8 +22,18 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.stories.ts",
+    "!src/**/*.stories.tsx"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://git.services.nesdis.noaa.gov/dissemination/wlfs/client/blue-sky-design.git"
+  },
+  "publishConfig": {
+    "@wlfs:registry": "https://git.services.nesdis.noaa.gov/api/v4/projects/12483/packages/npm/"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --p ./tsconfig.lib.json && vite build",
