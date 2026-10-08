@@ -942,20 +942,23 @@ export class MapClassWrapper {
         .with([{ _tag: this.#nonBasemapLabelsLayersUnion }, P._],
           ([l, layerSnapshot]) => {
             const layerAbove = O.isSome(layerSnapshot.mMaplibreLayerAbove) ? layerSnapshot.mMaplibreLayerAbove.value : undefined;
-            this.#mapAddSource(l.sourceConfig);
-            l.orderedLayerConfigs.forEach((layerConfig) => {
-              const layerIdWithPrefix = `${this.#commonLayersPrefix}${layerConfig.id}`;
-              if (this.#map.getLayer(layerIdWithPrefix)) {
-                this.#map.removeLayer(layerIdWithPrefix);
-              }
-            });
-            let lastId = layerAbove;
-            l.orderedLayerConfigs.forEach(x => {
-              this.#mapAddLayer(x, lastId);
-              const newLastId = `${this.#commonLayersPrefix}${x.id}`;
-              lastId = newLastId;
-            });
 
+            // A move only needs to change z-position, so reorder the layers that
+            // are actually live instead of removing and re-adding them. After a
+            // double-buffered tile swap the live ids are COMMON-<id>_<uuid>, so
+            // removing the un-suffixed ids was a no-op and re-adding them stacked
+            // a duplicate layer, on a freshly re-added un-parameterized source,
+            // on top of the real one. #getMapLayerIds is the same resolution
+            // setFilter and setLayerOpacity use, so a swapped layer and a
+            // never-swapped one are both found.
+            //
+            // Each id is moved beneath the one before it, which is the stacking
+            // #addLayerConfigs builds when it threads layerAboveId down the list.
+            let lastId = layerAbove;
+            this.#getMapLayerIds(l).forEach(id => {
+              this.#map.moveLayer(id, lastId);
+              lastId = id;
+            });
           })
         .otherwise((x) => console.error("Unknown layer type", x));
       return undefined;
