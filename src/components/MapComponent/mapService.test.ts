@@ -111,9 +111,23 @@ const makeRecordingMap = () => {
       rec("removeSource", id);
       delete sources[id];
     },
-    addLayer(layer: StubLayer) {
-      rec("addLayer", layer.id);
-      layers.push({ id: layer.id, type: layer.type, source: layer.source });
+    // MapLibre inserts immediately below beforeId; `layers` is ordered bottom→top.
+    addLayer(layer: StubLayer, beforeId?: string) {
+      rec("addLayer", layer.id, beforeId);
+      const entry = { id: layer.id, type: layer.type, source: layer.source };
+      const at = beforeId ? layers.findIndex((l) => l.id === beforeId) : -1;
+      if (at === -1) layers.push(entry);
+      else layers.splice(at, 0, entry);
+    },
+    // Same placement rule as addLayer: below beforeId, or on top without one.
+    moveLayer(id: string, beforeId?: string) {
+      rec("moveLayer", id, beforeId);
+      const entry = layers.find((l) => l.id === id);
+      if (!entry || id === beforeId) return;
+      layers = layers.filter((l) => l.id !== id);
+      const at = beforeId ? layers.findIndex((l) => l.id === beforeId) : -1;
+      if (at === -1) layers.push(entry);
+      else layers.splice(at, 0, entry);
     },
     removeLayer(id: string) {
       rec("removeLayer", id);
@@ -328,5 +342,57 @@ describe("MapClassWrapper date change", () => {
     expect(calls.filter((c) => c.method === "setFilter").map((c) => c.args)).toEqual([
       ["COMMON-WINDOW_LAYER-fill", undefined],
     ]);
+  });
+
+  it("H: moveLayer reorders the live layer after a swap instead of duplicating it", async () => {
+    const { wrapper, calls, map, raster, vector } = await setup();
+    const styleIds = () =>
+      (map as unknown as { getStyle: () => { layers: StubLayer[] } })
+        .getStyle().layers.map((l) => l.id);
+    const sourceIds = () =>
+      Object.keys(
+        (map as unknown as { getStyle: () => { sources: Record<string, unknown> } })
+          .getStyle().sources,
+      );
+
+    // A date change swaps both tile layers, so their live ids carry the
+    // `_<uuid>` buffer suffix and the un-suffixed ones no longer exist.
+    await E.runPromise(wrapper.updateSourceParams([raster, vector]));
+    const liveRaster = styleIds().filter((id) => id.startsWith("COMMON-RASTER_IMG-raster"));
+    const liveVector = styleIds().filter((id) => id.startsWith("COMMON-VECTOR_SCENE-line"));
+    expect(liveRaster).toHaveLength(1);
+    expect(liveRaster[0]).not.toBe("COMMON-RASTER_IMG-raster");
+    expect(liveVector).toHaveLength(1);
+    const sourcesBefore = sourceIds();
+    calls.length = 0;
+
+    // Drag the raster layer up, above the vector layer.
+    await E.runPromise(wrapper.moveLayer(raster, undefined));
+
+    // A move must not rebuild anything: removing the un-suffixed id was a no-op
+    // and re-adding it stacked a second layer, on its own freshly re-added
+    // un-parameterized source, above the real one.
+    expect(mutationSeq(calls)).toEqual([]);
+    expect(sourceIds()).toEqual(sourcesBefore);
+    expect(styleIds().filter((id) => id.startsWith("COMMON-RASTER_IMG-raster")))
+      .toEqual(liveRaster);
+
+    // It reorders the id that is actually live, beneath the labels layer.
+    expect(calls.filter((c) => c.method === "moveLayer").map((c) => c.args)).toEqual([
+      [liveRaster[0], "LABELS-symbols"],
+    ]);
+    const ids = styleIds();
+    expect(ids.indexOf(liveRaster[0])).toBe(ids.indexOf("LABELS-symbols") - 1);
+    expect(ids.indexOf(liveVector[0])).toBeLessThan(ids.indexOf(liveRaster[0]));
+
+    // And back down, beneath the vector layer's live id.
+    calls.length = 0;
+    await E.runPromise(wrapper.moveLayer(raster, vector));
+    expect(mutationSeq(calls)).toEqual([]);
+    expect(calls.filter((c) => c.method === "moveLayer").map((c) => c.args)).toEqual([
+      [liveRaster[0], liveVector[0]],
+    ]);
+    const after = styleIds();
+    expect(after.indexOf(liveRaster[0])).toBe(after.indexOf(liveVector[0]) - 1);
   });
 });

@@ -2,7 +2,7 @@ import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration } from 'effect';
 import { match, P } from 'ts-pattern';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone } from './timeSliderTypes';
-import { acceptsTrackLatestRebase } from './stepping';
+import { acceptsTrackLatestRebase, clampSelection, type SelectableRange } from './stepping';
 
 /** Provenance of a selection write. Exported for the reducer tests. */
 export enum UpdateSource {
@@ -20,8 +20,9 @@ export enum UpdateSource {
  * datetime work is stated in terms of *why* a date moved, so a poll-driven
  * re-base must not reach the consumer looking like a user scrub.
  *
- * `'external'` is not emitted today: a change arriving on the `dateRange` prop
- * is not echoed back to the consumer that sent it.
+ * `'external'` is never an echo: a change arriving on the `dateRange` prop is
+ * not reported back to the consumer that sent it. It is reported when a change
+ * to `availableDateRange` pushes the selection back inside the new bounds.
  */
 export type DateUpdateSource =
   | 'external'
@@ -126,6 +127,13 @@ export type Action = D.TaggedEnum<{
     selectedDuration: Duration.Duration;
     updateSource: UpdateSource;
   };
+  /**
+   * Pull the selection and the animation bounds back inside `range`. Resolved
+   * against the state at reduction time, so a `dateRange` change dispatched in
+   * the same commit is clamped rather than overwritten, and a move plus a resize
+   * reaches the consumer as one change.
+   */
+  ClampSelection: { range: SelectableRange | undefined; };
 
   SetAnimationOrStepMode:
   { animationOrStepMode: AnimationOrStepMode; };
@@ -164,6 +172,7 @@ export const {
   ExtSetSelectedStartDateTime,
   SetSelectedDuration,
   ExtSetSelectedDuration,
+  ClampSelection,
 
   SetAnimationOrStepMode,
 
@@ -394,6 +403,34 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
     SetSelectedDuration: getSetSelectedDurationAction(state, actualRoundingFn),
     ExtSetSelectedDuration: getSetSelectedDurationAction(state, actualRoundingFn),
 
+    // Not a user takeover, so tracking stays on; it does end a step sequence,
+    // since the cursor it would walk from may now be out of bounds.
+    ClampSelection: (x) => {
+      const selection = clampSelection(state.selectedStartDateTime, state.selectedDuration, x.range);
+      const animation = clampSelection(state.animationStartDateTime, state.animationDuration, x.range);
+      if (!selection && !animation) return state;
+      return {
+        ...state,
+        ...(selection ? {
+          viewStartDateTime: calculateOptimalViewStart(
+            state.selectedStartDateTime,
+            selection.start,
+            selection.width,
+            state.viewStartDateTime,
+            state.viewDuration,
+            actualRoundingFn
+          ),
+          selectedStartDateTime: selection.start,
+          selectedDuration: selection.width,
+          stepCursor: null,
+        } : {}),
+        ...(animation ? {
+          animationStartDateTime: animation.start,
+          animationDuration: animation.width,
+        } : {}),
+      };
+    },
+
     SetAnimationOrStepMode: (x) => ({
       ...state,
       animationOrStepMode: x.animationOrStepMode,
@@ -475,7 +512,7 @@ export function withMiddleware(
 
     // Handle callbacks
     match(action)
-      .with({ _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration") }, (a) => {
+      .with({ _tag: P.union("SetSelectedStartDateTime", "SetSelectedDuration", "ClampSelection") }, (a) => {
         const start = newState.selectedStartDateTime;
         const end = DateTime.addDuration(start, newState.selectedDuration);
 
@@ -486,7 +523,9 @@ export function withMiddleware(
           onDateRangeSelect({
             start: DateTime.toDate(start),
             end: DateTime.toDate(end)
-          }, toDateUpdateSource(a.updateSource));
+          }, toDateUpdateSource(
+            // A clamp is the selection following the availableDateRange prop.
+            a._tag === "ClampSelection" ? UpdateSource.ExternalProp : a.updateSource));
         }
 
         // Notify when tracking was auto-disabled due to user interaction

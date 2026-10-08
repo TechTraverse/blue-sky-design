@@ -188,3 +188,36 @@ export const isStepBlocked = (
     ? range.max !== undefined && DateTime.greaterThan(end, range.max)
     : range.min !== undefined && DateTime.lessThan(start, range.min);
 };
+
+/**
+ * The selection moved back inside `range`, or undefined when it already fits
+ * (or no bound applies). An open end imposes nothing on its side. The selection
+ * is translated rather than resized; only when the range is narrower than the
+ * selection is the width cut down to fill the range exactly. An inverted range
+ * is ignored rather than guessed at.
+ *
+ * Every writer checks the bounds when it moves the selection, so this is for the
+ * opposite case: the bounds moving under a selection that stayed put.
+ */
+export const clampSelection = (
+  start: DateTime.DateTime,
+  width: Duration.Duration,
+  range: SelectableRange | undefined
+): { start: DateTime.DateTime; width: Duration.Duration } | undefined => {
+  if (!range) return undefined;
+  const minMs = range.min && DateTime.toEpochMillis(range.min);
+  const maxMs = range.max && DateTime.toEpochMillis(range.max);
+  if (minMs !== undefined && maxMs !== undefined && maxMs < minMs) return undefined;
+
+  const startMs = DateTime.toEpochMillis(start);
+  const widthMs = Duration.toMillis(width);
+  const belowFloor = minMs !== undefined && startMs < minMs;
+  const aboveCeiling = maxMs !== undefined && startMs + widthMs > maxMs;
+  if (!belowFloor && !aboveCeiling) return undefined;
+
+  if (minMs !== undefined && maxMs !== undefined && widthMs > maxMs - minMs) {
+    return { start: DateTime.unsafeMake(minMs), width: Duration.millis(maxMs - minMs) };
+  }
+  const clampedMs = belowFloor ? minMs as number : (maxMs as number) - widthMs;
+  return { start: DateTime.unsafeMake(clampedMs), width };
+};

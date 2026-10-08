@@ -1,0 +1,93 @@
+# Lints, tests and builds every pipeline. On the default branch the built
+# package is published to this project's npm registry as @wlfs/blue-sky-design.
+# To release, bump "version" in package.json in the merge request; a merge
+# without a bump finds the version already published and skips the publish.
+
+variables:
+  PACKAGE_NAME: "@wlfs/blue-sky-design"
+  PACKAGE_REGISTRY: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/"
+
+stages:
+  - build
+  - test
+  - deploy
+
+default:
+  image: public.ecr.aws/docker/library/node:lts
+
+# node_modules is too large to hand between jobs as an artifact, so it is cached
+# per lockfile instead. Every job still installs, which is a quick no-op on a
+# cache hit and a full install on a runner without the cache.
+.yarn:
+  cache:
+    key:
+      files:
+        - yarn.lock
+    paths:
+      - node_modules/
+    policy: pull
+  before_script:
+    - yarn install --frozen-lockfile
+
+install_dependencies:
+  extends: .yarn
+  stage: build
+  cache:
+    policy: pull-push
+  script:
+    - echo "Dependencies installed."
+
+build_package:
+  extends: .yarn
+  stage: build
+  needs: [install_dependencies]
+  script:
+    - yarn build
+    # Pack here so the publish job ships exactly this build, rather than this
+    # dist/ unpacked over the committed one in a fresh checkout.
+    - mkdir -p pack
+    - npm pack --pack-destination pack
+  artifacts:
+    paths:
+      - dist/
+      - pack/
+    expire_in: 1 week
+
+lint:
+  extends: .yarn
+  stage: test
+  needs: [install_dependencies]
+  script:
+    - yarn lint
+
+run_tests:
+  extends: .yarn
+  stage: test
+  needs: [install_dependencies]
+  script:
+    - yarn test --reporter=default --reporter=junit --outputFile.junit=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - report.xml
+
+publish_package:
+  stage: deploy
+  needs: [build_package, lint, run_tests]
+  script:
+    - VERSION=$(node -p "require('./package.json').version")
+    - echo "@wlfs:registry=${PACKAGE_REGISTRY}" > .npmrc
+    - echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
+    # npm view exits non-zero when the package has never been published, so
+    # only an exact version match counts as already released.
+    - PUBLISHED=$(npm view "${PACKAGE_NAME}@${VERSION}" version --registry "${PACKAGE_REGISTRY}" 2>/dev/null || true)
+    - |
+      if [ "$PUBLISHED" = "$VERSION" ]; then
+        echo "${PACKAGE_NAME}@${VERSION} is already published; bump the version in package.json to release. Skipping."
+        exit 0
+      fi
+    - echo "Publishing ${PACKAGE_NAME}@${VERSION}..."
+    - npm publish pack/*.tgz --registry "${PACKAGE_REGISTRY}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
