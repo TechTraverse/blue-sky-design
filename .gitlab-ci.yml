@@ -88,6 +88,7 @@ publish_package:
         exit 0
       fi
     - echo "Publishing ${PACKAGE_NAME}@${VERSION}..."
-    - npm publish pack/*.tgz --registry "${PACKAGE_REGISTRY}"
+    # The ./ keeps npm from reading pack/<file> as a GitHub user/repo shorthand.
+    - npm publish ./pack/*.tgz --registry "${PACKAGE_REGISTRY}"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
