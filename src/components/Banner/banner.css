@@ -55,21 +55,26 @@
   color: inherit;
   text-align: left;
   width: 100%;
-  text-decoration: underline;
 }
 
-.bannerToggle:hover {
-  text-decoration: none;
-}
-
-.bannerToggle:focus {
+.bannerToggle:focus-visible {
   outline: 2px solid #2491ff;
   outline-offset: 2px;
+}
+
+/* Keyboard focus only. Outranks host-app `button:focus` rings on mouse clicks. */
+.bannerToggle:focus:not(:focus-visible),
+.bannerDismiss:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .bannerToggleText {
   flex: 1;
   font-weight: 700;
+}
+
+.bannerSummary {
+  font-weight: 400;
 }
 
 .bannerToggleIcon {
@@ -111,7 +116,8 @@
   color: #1a4480;
 }
 
-.banner.info .bannerToggle {
+.banner.info .bannerToggle,
+.banner.info .bannerDismiss {
   color: #005ea2;
 }
 
@@ -129,7 +135,8 @@
   color: #5c4809;
 }
 
-.banner.warning .bannerToggle {
+.banner.warning .bannerToggle,
+.banner.warning .bannerDismiss {
   color: #936f38;
 }
 
@@ -147,7 +154,8 @@
   color: #1b1b1b;
 }
 
-.banner.official .bannerToggle {
+.banner.official .bannerToggle,
+.banner.official .bannerDismiss {
   color: #565c65;
 }
 
@@ -173,6 +181,65 @@
   flex-shrink: 0;
 }
 
+/* Dismiss button */
+.bannerDismiss {
+  background: none;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.125rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.bannerDismiss svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.bannerDismiss:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.bannerDismiss:focus-visible {
+  outline: 2px solid #2491ff;
+  outline-offset: 2px;
+}
+
+/* Compact variant - tighter padding and smaller text */
+.banner.compact .bannerHeader {
+  padding: 0.375rem 1rem;
+}
+
+.banner.compact .bannerHeaderContent {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.banner.compact .bannerIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0;
+}
+
+.banner.compact .bannerTitle,
+.banner.compact .bannerMessage,
+.banner.compact .bannerToggle {
+  font-size: 0.8125rem;
+}
+
+.banner.compact .bannerContent {
+  padding: 0 1rem 0.625rem 2.625rem;
+}
+
+.banner.compact .bannerDismiss svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .bannerHeader {
@@ -196,6 +263,14 @@
   .bannerMessage,
   .bannerToggle {
     font-size: 0.8125rem;
+  }
+
+  .banner.compact .bannerHeader {
+    padding: 0.375rem 0.75rem;
+  }
+
+  .banner.compact .bannerContent {
+    padding: 0 0.75rem 0.625rem 2.375rem;
   }
 }
 

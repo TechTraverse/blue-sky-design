@@ -29,6 +29,21 @@ export const BetaSiteDisclaimer: Story = {
 };
 
 /**
+ * Compact beta disclaimer that starts collapsed. The summary keeps the key
+ * point visible while collapsed, and the close button removes the banner.
+ */
+export const CompactDismissible: Story = {
+  args: {
+    ...BetaSiteDisclaimer.args,
+    title: 'WFDP Beta Version',
+    defaultCollapsed: true,
+    compact: true,
+    summary: 'Data may be delayed or unavailable. Not for operational decisions.',
+    dismissible: true,
+  },
+};
+
+/**
  * Simple info banner that is not collapsible.
  * Useful for general informational messages.
  */

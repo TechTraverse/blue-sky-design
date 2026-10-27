@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MdWarningAmber, MdInfo, MdVerifiedUser, MdExpandMore } from 'react-icons/md';
+import { useId, useState } from 'react';
+import { MdWarningAmber, MdInfo, MdVerifiedUser, MdExpandMore, MdClose } from 'react-icons/md';
 import './banner.css';
 
 export interface BannerProps {
@@ -27,6 +27,14 @@ export interface BannerProps {
   headerActions?: React.ReactNode;
   /** Whether to hide title/message text on mobile (keeps logo visible) */
   hideTextOnMobile?: boolean;
+  /** Whether to show a close button that removes the banner */
+  dismissible?: boolean;
+  /** Called after the banner is dismissed, e.g. to remember the choice */
+  onDismiss?: () => void;
+  /** Use tighter padding and smaller text */
+  compact?: boolean;
+  /** Short text shown after the title, visible while the banner is collapsed */
+  summary?: string;
 }
 
 /**
@@ -46,12 +54,28 @@ export const Banner = ({
   logoAlt = 'Logo',
   headerActions,
   hideTextOnMobile = false,
+  dismissible = false,
+  onDismiss,
+  compact = false,
+  summary,
 }: BannerProps) => {
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
+  const [isDismissed, setIsDismissed] = useState(false);
+  const contentId = useId();
+
+  if (isDismissed) {
+    return null;
+  }
 
   const expandedClass = isExpanded ? 'expanded' : '';
   const fullWidthClass = fullWidth ? 'fullWidth' : '';
   const hideTextMobileClass = hideTextOnMobile ? 'hideTextMobile' : '';
+  const compactClass = compact ? 'compact' : '';
+
+  const dismiss = () => {
+    setIsDismissed(true);
+    onDismiss?.();
+  };
 
   const toggleExpanded = () => {
     if (collapsible) {
@@ -73,7 +97,7 @@ export const Banner = ({
   };
 
   return (
-    <div className={`banner ${variant} ${fullWidthClass} ${hideTextMobileClass} ${className}`} role="region" aria-label="Banner">
+    <div className={`banner ${variant} ${fullWidthClass} ${hideTextMobileClass} ${compactClass} ${className}`} role="region" aria-label={title || 'Banner'}>
       <div className="bannerHeader">
         <div className="bannerHeaderContent">
           {logoSrc ? (
@@ -82,17 +106,23 @@ export const Banner = ({
             getIcon()
           )}
           <div className="bannerHeaderText">
-            {!collapsible && title && <div className="bannerTitle">{title}</div>}
+            {!collapsible && title && (
+              <div className="bannerTitle">
+                {title}
+                {summary && <span className="bannerSummary"> — {summary}</span>}
+              </div>
+            )}
             {!collapsible && message && <div className="bannerMessage">{message}</div>}
             {collapsible && (
               <button
                 className="bannerToggle"
                 onClick={toggleExpanded}
                 aria-expanded={isExpanded}
-                aria-controls="banner-content"
+                aria-controls={contentId}
               >
                 <span className="bannerToggleText">
                   {title || 'Important information'}
+                  {summary && <span className="bannerSummary"> — {summary}</span>}
                 </span>
                 <MdExpandMore
                   className={`bannerToggleIcon ${expandedClass}`}
@@ -106,12 +136,22 @@ export const Banner = ({
               {headerActions}
             </div>
           )}
+          {dismissible && (
+            <button
+              type="button"
+              className="bannerDismiss"
+              onClick={dismiss}
+              aria-label={`Dismiss ${title || 'banner'}`}
+            >
+              <MdClose aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
 
       {(collapsible && isExpanded) && (
         <div
-          id="banner-content"
+          id={contentId}
           className="bannerContent"
         >
           {message && <p className="bannerMessage">{message}</p>}
