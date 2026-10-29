@@ -13,7 +13,7 @@ export { TimeRangeSlider } from './components/TimeRangeSlider/TimeRangeSlider';
 export type { TimeRangeSliderProps, StepRequest } from './components/TimeRangeSlider/TimeRangeSlider';
 export type { StepDirection, StepResolution } from './components/TimeRangeSlider/stepping';
 export type { DateUpdateSource } from './components/TimeRangeSlider/timeSliderReducer';
-export type { FrameAdvance, FrameInfo } from './components/TimeRangeSlider/animationFrame';
+export type { AnimationLookahead, FrameAdvance, FrameInfo } from './components/TimeRangeSlider/animationFrame';
 export { TimeDuration, Theme, TimeZone, AnimationOrStepMode } from './components/TimeRangeSlider/timeSliderTypes';
 
 // MapComponent exports - React-only and effect-ts enhanced APIs

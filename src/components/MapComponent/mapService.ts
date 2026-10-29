@@ -164,6 +164,21 @@ export const {
   SmallScaleImagery,
   CustomOrder } = D.taggedEnum<LayerType>();
 
+/** One time step of a tile layer: its source and that source's map layers, in orderedLayerConfigs order. */
+type TileFrame = { readonly sourceId: string; readonly layerIds: readonly string[] };
+
+type TileFrameSet = {
+  /** Keyed by the frame's tile URLs. */
+  readonly frames: Map<string, TileFrame>;
+  shown: string | undefined;
+  /** The date change (see `updateSourceParams`) that showed the shown frame. */
+  shownSeq: number;
+  /** Requested frames still loading, with the latest date change that asked for each. */
+  readonly pending: Map<string, number>;
+  /** Preloaded frames to keep. */
+  wanted: Set<string>;
+};
+
 export const BASEMAP_PREFIX = "BASEMAP-";
 export const LABELS_PREFIX = "LABELS-";
 export const COMMON_PREFIX = "COMMON-";
@@ -896,7 +911,11 @@ export class MapClassWrapper {
 
   setLayerOpacity = (l: LayerResourceDescriptor, opacity: number) =>
     E.sync(() => {
-      this.#getMapLayerIds(l).forEach(id => {
+      // A tile layer's preloaded frames must stay at 0, so only the shown frame
+      // takes the new opacity; the next flip carries it over from there.
+      const frames = this.#tileFrames.get(l.id);
+      const shown = frames?.shown !== undefined ? frames.frames.get(frames.shown) : undefined;
+      (shown ? shown.layerIds : this.#getMapLayerIds(l)).forEach(id => {
         const layer = this.#map.getLayer(id);
         if (!layer) return;
         const props = this.#opacityPaintProps[layer.type] || [];
@@ -924,12 +943,14 @@ export class MapClassWrapper {
       .with({ _tag: P.union("Basemap", "Labels") }, () => E.fail(new Error("Layer remove handling not implemented")))
       .otherwise((l) => E.sync(() => {
         this.#rmLayerConfigs(l);
+        this.#tileFrames.delete(l.id);
 
         // Remove all sources that start with this ID (handles random-suffix sources)
         const allSources = this.#map.getStyle().sources;
         Object.keys(allSources).forEach(sourceId => {
           if (sourceId.startsWith(l.sourceConfig.id)) {
             this.#map.removeSource(sourceId);
+            this.#releaseSourceWaiters(sourceId);
           }
         });
       }));
@@ -945,7 +966,7 @@ export class MapClassWrapper {
 
             // A move only needs to change z-position, so reorder the layers that
             // are actually live instead of removing and re-adding them. After a
-            // double-buffered tile swap the live ids are COMMON-<id>_<uuid>, so
+            // tile frame swap the live ids are COMMON-<id>_<uuid>, so
             // removing the un-suffixed ids was a no-op and re-adding them stacked
             // a duplicate layer, on a freshly re-added un-parameterized source,
             // on top of the real one. #getMapLayerIds is the same resolution
@@ -964,7 +985,7 @@ export class MapClassWrapper {
       return undefined;
     })
 
-  #tileOrDataUpdate = (l: LayerType) => {
+  #tileOrDataUpdate = (l: LayerType, seq: number) => {
     return match(this.#parameterizeLayerUrls(l))
       .with({
         sourceConfig: P.select({
@@ -981,128 +1002,329 @@ export class MapClassWrapper {
       })
       .with({
         _tag: this.#nonBasemapLabelsLayersUnion,
-        sourceConfig: P.select({
-          _tag: P.union("RasterTiles", "VectorTiles"),
-        })
+        sourceConfig: P.select({ _tag: P.union("RasterTiles", "VectorTiles") })
       }, (sourceConfig, parameterizedLayer) =>
-        // Both raster and vector swap tiles by double-buffering: add the new
-        // tiles on top and only drop the old ones once the new have loaded, so
-        // the imagery never goes blank. Imagery loads slower than vector tiles,
-        // so give it longer before falling back to a hard swap.
-        this.#doubleBufferedTileUpdate(
-          sourceConfig,
-          parameterizedLayer,
-          sourceConfig._tag === "RasterTiles" ? 5000 : 500
-        ))
+        this.#tileFrameUpdate(sourceConfig, parameterizedLayer, 5000, seq))
       .otherwise(() => E.fail(new Error("Unknown layer type")));
   }
 
-  // Swap a tile source's data with no blank gap: add a second buffered
-  // source + layers carrying the new tiles on top of the current ones, wait for
-  // the new tiles to load, then remove the old source. Used for both raster and
-  // vector tiles — the only per-type difference is how long to keep the old
-  // tiles around before giving up (timeoutMs).
-  #doubleBufferedTileUpdate = (
-    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
-    parameterizedLayer: LayerResourceDescriptor,
-    timeoutMs: number
-  ) => E.suspend(() => {
-    const randomSuffix = crypto.randomUUID();
-    const newSourceId = `${sourceConfig.id}_${randomSuffix}`;
-    const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
-    this.#emitLayerStatus(Loading(info));
+  /**
+   * Tile frames
+   *
+   * A raster or vector tile layer's time steps live on the map as sibling
+   * sources and layers ("frames") that differ only in their tile URLs. One frame
+   * is shown at the layer's opacity and the rest sit at opacity 0. MapLibre
+   * still loads tiles for a zero-opacity layer but skips drawing it
+   * (`visibility: none` would stop the loading as well), so showing a frame that
+   * has already loaded is a paint change with no request and no blank gap.
+   *
+   * A hidden vector frame still answers `queryRenderedFeatures`, so feature
+   * queries should skip layers for which `isHiddenFrameLayer` is true.
+   *
+   * Frames are keyed by their tile URLs. Without preloads a layer holds only its
+   * shown frame, plus the next one while it loads; `preloadFrames` adds the
+   * frames playback will reach next.
+   */
+  #tileFrames = new Map<string, TileFrameSet>();
 
-    // Capture old sources BEFORE any changes. Matches both the un-suffixed
-    // source a layer starts life with (first swap) and prior buffered sources.
-    const oldSourceIds = Object.keys(this.#map.getStyle().sources)
-      .filter(id => id === sourceConfig.id || id.startsWith(`${sourceConfig.id}_`));
+  #tilesKey = (tiles: readonly string[]) => tiles.join(" ");
 
-    // Preserve any runtime opacity set on the outgoing layers (e.g. via the
-    // imagery opacity control) so the freshly-added buffer doesn't reset it.
-    const preservedOpacity = new Map<string, [string, unknown][]>();
-    parameterizedLayer.orderedLayerConfigs.forEach(cfg => {
-      const oldLayerId = this.#map.getStyle().layers
-        .map(l => l.id)
-        .find(id => id.startsWith(`${this.#commonLayersPrefix}${cfg.id}`));
-      if (!oldLayerId) return;
-      const type = this.#map.getLayer(oldLayerId)?.type;
-      const captured = (type ? this.#opacityPaintProps[type] ?? [] : [])
-        .map(prop => [prop, this.#map.getPaintProperty(oldLayerId, prop)] as [string, unknown])
-        .filter(([, v]) => v !== undefined);
-      if (captured.length) preservedOpacity.set(cfg.id, captured);
-    });
+  // The style is the source of truth: a frame whose source has gone (a style
+  // reload, an outside removal) is forgotten, and a live source the set has not
+  // seen, such as the one the layer was first added with, is adopted.
+  #tileFrameSet = (l: LayerResourceDescriptor): TileFrameSet => {
+    const style = this.#map.getStyle();
+    const set = this.#tileFrames.get(l.id)
+      ?? { frames: new Map(), shown: undefined, shownSeq: 0, pending: new Map(), wanted: new Set() };
 
-    // E.async body runs synchronously - register listener, add source/layers, then wait
-    let timedOut = false;
-    const waitForLoad = E.async<undefined, never>((cb) => {
-      const onSourceData = (e: MapSourceDataEvent) => {
-        if (e.sourceId === newSourceId && e.isSourceLoaded) {
-          this.#map.off('sourcedata', onSourceData);
-          this.#emitLayerStatus(Loaded(info));
-          cb(E.succeed(undefined));
+    for (const [key, frame] of set.frames) {
+      if (!style.sources[frame.sourceId]) set.frames.delete(key);
+    }
+    if (set.shown !== undefined && !set.frames.has(set.shown)) set.shown = undefined;
+    for (const key of set.pending.keys()) {
+      if (!set.frames.has(key)) set.pending.delete(key);
+    }
+
+    const known = new Set([...set.frames.values()].map(f => f.sourceId));
+    const baseId = l.sourceConfig.id;
+    // Only the layer's own source and its `_<uuid>` frames: a sibling source
+    // such as `<id>_GEOJSON` shares the prefix but isn't a frame.
+    const isFrameSource = (id: string) => id === baseId
+      || (id.startsWith(`${baseId}_`) && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id.slice(baseId.length + 1)));
+    Object.entries(style.sources)
+      .filter(([id]) => isFrameSource(id) && !known.has(id))
+      .forEach(([id, src]) => {
+        // In orderedLayerConfigs order, which is how frames line up their layers.
+        const ownIds = style.layers.filter(x => 'source' in x && x.source === id).map(x => x.id);
+        const frame = {
+          sourceId: id,
+          layerIds: l.orderedLayerConfigs.flatMap(cfg =>
+            ownIds.filter(x => x.startsWith(`${this.#commonLayersPrefix}${cfg.id}`)).slice(0, 1)),
+        };
+        const key = this.#tilesKey((src as { tiles?: string[] }).tiles ?? []);
+        if (set.frames.has(key)) {
+          this.#removeTileFrame(frame);
+          return;
         }
-      };
-
-      // 1. Register listener FIRST
-      this.#map.on('sourcedata', onSourceData);
-
-      // 2. Add new (buffered) source
-      this.#map.addSource(newSourceId, this.#cleanSourceConfig({
-        ...sourceConfig,
-        id: newSourceId
-      }));
-
-      // 3. Add new layers on top of the old ones, re-applying preserved opacity
-      const layers = this.#map.getStyle().layers;
-      const uFirstLabelsLayer = layers.find((layer) => layer.id.startsWith(this.#labelsPrefix));
-
-      parameterizedLayer.orderedLayerConfigs.slice().reverse().forEach(layerConfig => {
-        const newLayerId = `${this.#commonLayersPrefix}${layerConfig.id}_${randomSuffix}`;
-        this.#map.addLayer({
-          ...layerConfig,
-          id: newLayerId,
-          source: newSourceId
-        } as AddLayerObject, uFirstLabelsLayer?.id);
-        preservedOpacity.get(layerConfig.id)?.forEach(([prop, val]) =>
-          this.#map.setPaintProperty(newLayerId, prop, val));
+        set.frames.set(key, frame);
+        set.shown ??= key;
       });
 
-      // Cleanup on interrupt
-      return E.sync(() => this.#map.off('sourcedata', onSourceData));
+    this.#tileFrames.set(l.id, set);
+    return set;
+  };
+
+  // Adds a frame at opacity 0, matching the visibility and filters of the frame
+  // currently shown. It goes directly beneath the layer's other frames, so they
+  // stay together in the stack: a layer placed above or below this one (see
+  // #getSnapshotOfCurrentMapLayers) then lands above or below all of them. A
+  // layer with no frames yet gets it on top of the common layers.
+  #addTileFrame = (
+    set: TileFrameSet,
+    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
+    l: LayerResourceDescriptor,
+  ): TileFrame => {
+    const suffix = crypto.randomUUID();
+    const sourceId = `${sourceConfig.id}_${suffix}`;
+    this.#map.addSource(sourceId, this.#cleanSourceConfig({ ...sourceConfig, id: sourceId }));
+
+    const shown = set.shown !== undefined ? set.frames.get(set.shown) : undefined;
+    const visibility = shown?.layerIds[0] !== undefined
+      ? this.#map.getLayoutProperty(shown.layerIds[0], 'visibility')
+      : undefined;
+    const ownIds = new Set([...set.frames.values()].flatMap(f => f.layerIds));
+    const styleLayers = this.#map.getStyle().layers;
+    const beforeId = (styleLayers.find(layer => ownIds.has(layer.id))
+      ?? styleLayers.find(layer => layer.id.startsWith(this.#labelsPrefix)))?.id;
+
+    const layerIds = l.orderedLayerConfigs.map(cfg => `${this.#commonLayersPrefix}${cfg.id}_${suffix}`);
+    const filters = l.orderedLayerConfigs.map((_, i) => {
+      const shownId = shown?.layerIds[i];
+      return shownId !== undefined ? this.#map.getFilter(shownId) : undefined;
+    });
+    l.orderedLayerConfigs.slice().reverse().forEach((cfg, i) => {
+      const filter = filters[filters.length - 1 - i];
+      const hiddenPaint = Object.fromEntries((this.#opacityPaintProps[cfg.type] ?? []).flatMap(prop => [
+        [prop, 0],
+        // A flip is two opacity changes; the default transition would fade them
+        // together and let the basemap show through mid-frame.
+        [`${prop}-transition`, { duration: 0, delay: 0 }],
+      ]));
+      this.#map.addLayer({
+        ...cfg,
+        id: layerIds[layerIds.length - 1 - i],
+        source: sourceId,
+        ...(visibility ? { layout: { ...('layout' in cfg ? cfg.layout : {}), visibility } } : {}),
+        ...(filter ? { filter } : {}),
+        paint: { ...('paint' in cfg ? cfg.paint : {}), ...hiddenPaint },
+      } as AddLayerObject, beforeId);
     });
 
-    // Chain: wait (with timeout) → cleanup old stuff
-    return waitForLoad.pipe(
+    return { sourceId, layerIds };
+  };
+
+  #removeTileFrame = (frame: TileFrame) => {
+    frame.layerIds.forEach(id => {
+      if (this.#map.getLayer(id)) this.#map.removeLayer(id);
+    });
+    if (this.#map.getSource(frame.sourceId)) this.#map.removeSource(frame.sourceId);
+    this.#releaseSourceWaiters(frame.sourceId);
+  };
+
+  // A removed source never loads, so release anything still waiting on it
+  // rather than holding it until the timeout.
+  #releaseSourceWaiters = (sourceId: string) => {
+    this.#sourceWaiters.get(sourceId)?.forEach(release => release());
+    this.#sourceWaiters.delete(sourceId);
+  };
+
+  // Drops every frame that is not shown, still loading for a request, or preloaded.
+  #evictTileFrames = (set: TileFrameSet) => {
+    for (const [key, frame] of set.frames) {
+      if (key === set.shown || set.pending.has(key) || set.wanted.has(key)) continue;
+      this.#removeTileFrame(frame);
+      set.frames.delete(key);
+    }
+  };
+
+  // Same placement a swap gives a layer: directly beneath the labels, so
+  // updateSourceParams' bottom-to-top pass restacks the layers it updates. The
+  // layer's other frames move with `frame`, beneath it, to stay together.
+  #moveTileFramesToTop = (set: TileFrameSet, frame: TileFrame) => {
+    const uFirstLabelsLayer = this.#map.getStyle().layers
+      .find((layer) => layer.id.startsWith(this.#labelsPrefix));
+    [...set.frames.values()].filter(f => f !== frame).concat(frame).forEach(f =>
+      f.layerIds.slice().reverse().forEach(id => this.#map.moveLayer(id, uFirstLabelsLayer?.id)));
+  };
+
+  // Shows `key`, requested by date change `seq`, at the opacity the shown frame
+  // has (the user's), and hides the shown frame. Requests from date changes up
+  // to `seq` that are still loading can no longer be shown, so they're dropped.
+  #showTileFrame = (set: TileFrameSet, key: string, seq: number, l: LayerResourceDescriptor) => {
+    const next = set.frames.get(key);
+    if (!next) return;
+    const prev = set.shown !== undefined && set.shown !== key ? set.frames.get(set.shown) : undefined;
+
+    if (set.shown !== key) {
+      next.layerIds.forEach((id, i) => {
+        const type = this.#map.getLayer(id)?.type;
+        (type ? this.#opacityPaintProps[type] ?? [] : []).forEach(prop => {
+          const shownId = prev?.layerIds[i];
+          const cfg = l.orderedLayerConfigs[i];
+          const opacity = (shownId !== undefined ? this.#map.getPaintProperty(shownId, prop) : undefined)
+            ?? (cfg && 'paint' in cfg ? (cfg.paint as Record<string, unknown> | undefined)?.[prop] : undefined)
+            ?? 1;
+          this.#map.setPaintProperty(id, prop, opacity);
+        });
+      });
+    }
+    prev?.layerIds.forEach(id => {
+      const type = this.#map.getLayer(id)?.type;
+      (type ? this.#opacityPaintProps[type] ?? [] : []).forEach(prop =>
+        this.#map.setPaintProperty(id, prop, 0));
+    });
+
+    set.shown = key;
+    set.shownSeq = seq;
+    for (const [k, n] of set.pending) {
+      if (n <= seq) set.pending.delete(k);
+    }
+    this.#evictTileFrames(set);
+  };
+
+  #isSourceLoaded = (sourceId: string) => {
+    try {
+      return this.#map.isSourceLoaded(sourceId) === true;
+    } catch {
+      return false;
+    }
+  };
+
+  #sourceWaiters = new Map<string, Set<() => void>>();
+
+  // Completes when the source's tiles have loaded, or when its frame is removed.
+  #waitForSourceLoaded = (sourceId: string) =>
+    E.async<undefined, never>((cb) => {
+      const waiters = this.#sourceWaiters.get(sourceId) ?? new Set();
+      this.#sourceWaiters.set(sourceId, waiters);
+      const done = () => {
+        this.#map.off('sourcedata', onSourceData);
+        waiters.delete(done);
+        cb(E.succeed(undefined));
+      };
+      const onSourceData = (e: MapSourceDataEvent) => {
+        if (e.sourceId === sourceId && e.isSourceLoaded) done();
+      };
+      waiters.add(done);
+      this.#map.on('sourcedata', onSourceData);
+      // The frame may have gone before this wait started.
+      if (!this.#map.getSource(sourceId) || this.#isSourceLoaded(sourceId)) done();
+      return E.sync(() => {
+        this.#map.off('sourcedata', onSourceData);
+        waiters.delete(done);
+      });
+    });
+
+  // Moves a tile layer to the frame for its current tile URLs, for date change
+  // `seq`. An already loaded frame is shown at once. Otherwise the shown frame
+  // stays up until the new one loads (or `timeoutMs` passes). Any frame that
+  // loads is shown if its date change came after the one on screen, so playback
+  // keeps moving while loads run longer than a tick, and a slow frame can't
+  // replace a newer one.
+  #tileFrameUpdate = (
+    sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
+    parameterizedLayer: LayerResourceDescriptor,
+    timeoutMs: number,
+    seq: number
+  ) => E.suspend(() => {
+    const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
+    const set = this.#tileFrameSet(parameterizedLayer);
+    // A later date change already showed this layer while this one waited on
+    // another layer's tiles.
+    if (seq <= set.shownSeq) return E.void;
+    const key = this.#tilesKey(sourceConfig.tiles);
+    const frame = set.frames.get(key) ?? this.#addTileFrame(set, sourceConfig, parameterizedLayer);
+    set.frames.set(key, frame);
+    set.pending.set(key, seq);
+    this.#moveTileFramesToTop(set, frame);
+
+    if (this.#isSourceLoaded(frame.sourceId)) {
+      this.#showTileFrame(set, key, seq, parameterizedLayer);
+      this.#emitLayerStatus(Loaded(info));
+      return E.void;
+    }
+
+    this.#emitLayerStatus(Loading(info));
+    let timedOut = false;
+    return this.#waitForSourceLoaded(frame.sourceId).pipe(
       E.timeout(Duration.millis(timeoutMs)),
       E.catchAll(() => {
         timedOut = true;
-        return E.succeed(undefined);  // timeout is OK, proceed to cleanup
+        return E.void;
       }),
       E.tap(() => {
-        if (timedOut) {
-          this.#emitLayerStatus(Timeout(info));
-        }
-        this.#rmLayerConfigs(parameterizedLayer, (l) =>
-          'source' in l && oldSourceIds.includes(l.source as string));
-        oldSourceIds.forEach(srcId => {
-          if (this.#map.getSource(srcId)) {
-            this.#map.removeSource(srcId);
-          }
-        });
+        const stale = this.#tileFrames.get(parameterizedLayer.id) !== set
+          || !set.frames.has(key)
+          || seq <= set.shownSeq;
+        if (stale) return;
+        this.#emitLayerStatus(timedOut ? Timeout(info) : Loaded(info));
+        this.#showTileFrame(set, key, seq, parameterizedLayer);
       }),
       E.as(undefined)
     );
   });
 
-  updateSourceParams = (layers: LayerType[]) =>
+  /**
+   * Preloads a tile layer's upcoming frames, one per entry of `frames` (the
+   * layer's `paramKeyVals` for that frame), at opacity 0. Frames already on the
+   * map are kept, and preloaded frames missing from `frames` are dropped, so
+   * passing `[]` releases them. The shown frame is never touched. Other
+   * layers are ignored.
+   */
+  preloadFrames = (l: LayerType, frames: readonly Record<string, string>[]) =>
+    E.sync(() => {
+      match(l)
+        .with({ _tag: this.#nonBasemapLabelsLayersUnion, sourceConfig: { _tag: P.union("RasterTiles", "VectorTiles") } }, (layer) => {
+          const set = this.#tileFrameSet(layer);
+          set.wanted = new Set(frames.map(paramKeyVals => {
+            const { sourceConfig } = this.#parameterizeLayerUrls({ ...layer, paramKeyVals }) as typeof layer;
+            const key = this.#tilesKey(sourceConfig.tiles);
+            if (!set.frames.has(key)) set.frames.set(key, this.#addTileFrame(set, sourceConfig, layer));
+            return key;
+          }));
+          this.#evictTileFrames(set);
+        })
+        .otherwise(() => undefined);
+      return undefined;
+    });
+
+  /** True for a map layer that belongs to a tile frame not currently shown. */
+  isHiddenFrameLayer = (layerId: string) => {
+    for (const set of this.#tileFrames.values()) {
+      for (const [key, frame] of set.frames) {
+        if (frame.layerIds.includes(layerId)) return key !== set.shown;
+      }
+    }
+    return false;
+  };
+
+  // Each updateSourceParams run is one date change, numbered in the order they
+  // run. Layers update one after another, so a change waiting on one layer's
+  // tiles can fall behind a later change; the number keeps it from showing its
+  // frames over the later one's.
+  #dateChangeSeq = 0;
+
+  updateSourceParams = (layers: LayerType[]) => E.suspend(() => {
+    const seq = ++this.#dateChangeSeq;
     // Reversing because layers are sent in L to R = Top to Bottom order
     // Which is the opposite of how they need to be updated
-    E.mergeAll(layers.slice().reverse().map((layer) =>
+    return E.mergeAll(layers.slice().reverse().map((layer) =>
       match(layer)
         .with({ _tag: P.union("Basemap", "Labels") }, () => E.fail(new Error("Basemap and Labels layers are not supported for updateSourceParams")))
-        .with({ sourceConfig: { _tag: P.union("VectorTiles", "RasterTiles", "GeoJsonData") } }, x => this.#tileOrDataUpdate(x))
+        .with({ sourceConfig: { _tag: P.union("VectorTiles", "RasterTiles", "GeoJsonData") } }, x => this.#tileOrDataUpdate(x, seq))
         .otherwise(() => E.fail(new Error("Unknown layer type")))),
       undefined, () => undefined);
+  });
 
 
   log = () =>
@@ -1119,6 +1341,8 @@ export type MapServiceImpl = {
   rmLayer: (l: LayerType) => E.Effect<void, Error, void>
   moveLayer: (l: LayerType, uLayerAbove: LayerType | undefined) => E.Effect<undefined, Error, never>
   updateSourceParams: (layers: LayerType[]) => E.Effect<undefined, Error, void>
+  preloadFrames: (l: LayerType, frames: readonly Record<string, string>[]) => E.Effect<undefined>
+  isHiddenFrameLayer: (layerId: string) => boolean
   setLayerVisibility: (l: LayerResourceDescriptor, visibility: 'visible' | 'none') => E.Effect<undefined>
   setLayerOpacity: (l: LayerResourceDescriptor, opacity: number) => E.Effect<undefined>
   updateMapOptions: (mapOptions: Pick<MapOptions, "zoom" | "center">) => E.Effect<void, Error, void>
@@ -1150,6 +1374,8 @@ export const createMapServiceLayer = (config?: {
       rmLayer: mapWrapper.rmLayer,
       moveLayer: mapWrapper.moveLayer,
       updateSourceParams: mapWrapper.updateSourceParams,
+      preloadFrames: mapWrapper.preloadFrames,
+      isHiddenFrameLayer: mapWrapper.isHiddenFrameLayer,
       setLayerVisibility: mapWrapper.setLayerVisibility,
       setLayerOpacity: mapWrapper.setLayerOpacity,
       updateMapOptions: mapWrapper.updateMapOptions,
