@@ -1,5 +1,6 @@
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { TimeZone } from './timeSliderTypes';
 
 export function TimeZoneToggle() {
   const { mode, setMode } = useTimeZoneDisplay();
@@ -13,10 +14,10 @@ export function TimeZoneToggle() {
       className="calendar-timezone-toggle"
       aria-label="Timezone display mode"
     >
-      <ToggleButton value="local" aria-label="Show times in local timezone">
+      <ToggleButton value={TimeZone.Local} aria-label="Show times in local timezone">
         Local
       </ToggleButton>
-      <ToggleButton value="utc" aria-label="Show times in UTC timezone">
+      <ToggleButton value={TimeZone.UTC} aria-label="Show times in UTC timezone">
         UTC
       </ToggleButton>
     </ToggleButtonGroup>

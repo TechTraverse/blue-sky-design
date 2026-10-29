@@ -75,7 +75,9 @@ export interface TimeRangeSliderProps {
   animationRequestFrequency?: AnimationRequestFrequency;
   className?: string;
   theme?: AppTheme;
+  /** Zone the calendar and date picker display times in. Defaults to local. */
   timeZone?: TimeZone;
+  /** Called when the user switches the zone with the date picker's Local/UTC toggle. */
   onTimeZoneChange?: (timeZone: TimeZone) => void;
   onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void;
   increment?: TimeDuration;
@@ -269,7 +271,6 @@ export const TimeRangeSlider = ({
 
   const initialValues = useMemo(() => {
     // Fixed init vals
-    const timeZone = TimeZone.Local;
     const animationSpeed = AnimationSpeed['5 min/sec'];
     const resetAnimationSpeed = AnimationSpeed['5 min/sec'];
     const resetAnimationDuration = DEFAULT_ANIMATION_DURATION;
@@ -1019,9 +1020,11 @@ export const TimeRangeSlider = ({
     end: DateTime.addDuration(s.viewStartDateTime, s.viewDuration)
   }), [s.viewStartDateTime, s.viewDuration]);
 
+  // Stable, so the display context (and the calendar's memos on it) only change with the zone.
+  const setDisplayTimeZone = useCallback((tz: TimeZone) => d(SetTimeZone({ timeZone: tz })), []);
 
   return (
-    <TimeZoneDisplayProvider>
+    <TimeZoneDisplayProvider mode={s.timeZone} onModeChange={setDisplayTimeZone}>
       <div className={`time-range-slider-theme-wrapper ${themeClass}`}>
         <div ref={containerRef} className={`${className} time-range-slider${isSliderHidden ? ' slider-hidden' : ''}`}>
           {!isSliderHidden && (
@@ -1038,7 +1041,6 @@ export const TimeRangeSlider = ({
               viewRange={viewRangeHC}
               earliestValidDateTime={selectableRange?.min}
               latestValidDateTime={selectableRange?.max}
-              timeZone={s.timeZone}
               increment={s.increment}
               theme={theme}
             />
@@ -1222,8 +1224,6 @@ export const TimeRangeSlider = ({
                 returnToDefaultDateTime={() => {
                   d(ResetAll());
                 }}
-                timeZone={s.timeZone}
-                onTimeZoneChange={(tz: TimeZone) => d(SetTimeZone({ timeZone: tz }))}
                 rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
                   ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
                 setRange={

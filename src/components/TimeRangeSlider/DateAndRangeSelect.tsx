@@ -5,7 +5,7 @@ import PopupState, { bindTrigger, bindPopover } from 'material-ui-popup-state';
 import { Button as CalendarButton, Calendar, CalendarCell, CalendarGrid, DateInput, DatePicker, DateSegment, Dialog, Heading, Text } from 'react-aria-components';
 import { CalendarDateTime } from "@internationalized/date";
 import { FaCalendarAlt } from "react-icons/fa";
-import { TimeDuration, TimeZone } from "./timeSliderTypes";
+import { TimeDuration } from "./timeSliderTypes";
 import type { DatePickerProps, DateValue, ValidationResult } from 'react-aria-components';
 
 // RangeValue was removed from react-aria-components, define locally
@@ -194,8 +194,6 @@ export const DateAndRangeSelect = ({
   setRange?: (timeDuration: TimeDuration) => void,
   availableDateRange?: Partial<RangeValue<Date>>,
   returnToDefaultDateTime?: () => void,
-  timeZone?: TimeZone,
-  onTimeZoneChange?: (tz: TimeZone) => void,
 }) => {
   const { toDisplay, fromDisplay, getDisplayZone } = useTimeZoneDisplay();
 
