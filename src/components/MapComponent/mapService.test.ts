@@ -290,15 +290,16 @@ describe("MapClassWrapper date change", () => {
     await E.runPromise(wrapper.updateSourceParams([atFrame(raster, "NEXT"), atFrame(vector, "NEXT")]));
     await E.runPromise(wrapper.setLayerVisibility(winLayer as never, "none"));
 
-    // updateSourceParams reverses input order: vector swaps first, then raster,
-    // then the window layer's visibility is set.
+    // updateSourceParams reverses input order: vector's new frame goes in
+    // first, then raster's; both then wait on their tiles together and drop
+    // their old frames; then the window layer's visibility is set.
     expect(mutationSeq(calls)).toEqual([
+      "addSource",
+      "addLayer",
       "addSource",
       "addLayer",
       "removeLayer",
       "removeSource",
-      "addSource",
-      "addLayer",
       "removeLayer",
       "removeSource",
       "setLayoutProperty",
@@ -708,5 +709,24 @@ describe("MapClassWrapper frame bookkeeping", () => {
     expect(opacity(frameLayer(map, "RASTER_IMG", "RASTER_IMG-raster", "B"), "raster-opacity")).toBe(1);
     expect(opacity(frameLayer(map, "VECTOR_SCENE", "VECTOR_SCENE-line", "B"), "line-opacity")).toBe(1);
     expect(opacity(frameLayer(map, "VECTOR_SCENE", "VECTOR_SCENE-line", "A"), "line-opacity")).toBe(0);
+  });
+
+  it("W: a layer whose frame is ready shows it while another layer still waits on its tiles", async () => {
+    const { wrapper, map, raster, vector, paint, finishLoad } = await setup({ deferLoads: true });
+    await E.runPromise(wrapper.preloadFrames(vector, [{ d: "T1" }]));
+    sourceIds(map, "VECTOR_SCENE").filter((id) => id.includes("_")).forEach(finishLoad);
+
+    // Raster is first in line and its T1 tiles haven't loaded.
+    const swap = E.runPromise(wrapper.updateSourceParams([atFrame(vector, "T1"), atFrame(raster, "T1")]));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const opacity = (id: string | undefined, prop: string) => (id ? paint[id]?.[prop] : undefined) ?? 1;
+    expect(opacity(frameLayer(map, "VECTOR_SCENE", "VECTOR_SCENE-line", "T1"), "line-opacity")).toBe(1);
+    const rasterT1 = frameLayer(map, "RASTER_IMG", "RASTER_IMG-raster", "T1");
+    expect(opacity(rasterT1, "raster-opacity")).toBe(0);
+
+    finishLoad(`RASTER_IMG${rasterT1!.slice("COMMON-RASTER_IMG-raster".length)}`);
+    await swap;
+    expect(opacity(rasterT1, "raster-opacity")).toBe(1);
   });
 });
