@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { DateTime, Option as O } from "effect";
 import { createContext, useContext, useState, useMemo, ReactNode } from "react";
+import { TimeZone } from "../components/TimeRangeSlider/timeSliderTypes";
 
-export type TimeZoneDisplayMode = "utc" | "local";
+export type TimeZoneDisplayMode = TimeZone;
 
 interface TimeZoneDisplayContextValue {
   mode: TimeZoneDisplayMode;
@@ -32,8 +33,18 @@ const getReliableLocalTimezone = (): DateTime.TimeZone => {
   );
 };
 
-export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<TimeZoneDisplayMode>("local");
+/**
+ * Pass `mode` and `onModeChange` to control the display zone from outside (the slider drives it
+ * from its `timeZone` prop). Without `mode` the provider keeps its own, starting at local.
+ */
+export function TimeZoneDisplayProvider({ mode: controlledMode, onModeChange, children }: {
+  mode?: TimeZoneDisplayMode;
+  onModeChange?: (mode: TimeZoneDisplayMode) => void;
+  children: ReactNode;
+}) {
+  const [uncontrolledMode, setUncontrolledMode] = useState<TimeZoneDisplayMode>(TimeZone.Local);
+  const mode = controlledMode ?? uncontrolledMode;
+  const setMode = onModeChange ?? setUncontrolledMode;
 
   const value = useMemo(() => ({
     mode,
@@ -42,7 +53,7 @@ export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
       // Always normalize to UTC first
       const utc = DateTime.isZoned(dt) ? DateTime.toUtc(dt) : dt as DateTime.Utc;
 
-      if (mode === "utc") {
+      if (mode === TimeZone.UTC) {
         return utc;
       } else {
         const localZone = getReliableLocalTimezone();
@@ -53,14 +64,14 @@ export function TimeZoneDisplayProvider({ children }: { children: ReactNode }) {
       return DateTime.isZoned(dt) ? DateTime.toUtc(dt) : dt as DateTime.Utc;
     },
     getDisplayZone: () => {
-      if (mode === "utc") {
+      if (mode === TimeZone.UTC) {
         return "UTC";
       } else {
         const localZone = getReliableLocalTimezone();
         return DateTime.zoneToString(localZone);
       }
     }
-  }), [mode]);
+  }), [mode, setMode]);
 
   return (
     <TimeZoneDisplayContext.Provider value={value}>

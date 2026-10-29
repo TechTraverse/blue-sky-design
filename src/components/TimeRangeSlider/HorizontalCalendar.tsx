@@ -86,7 +86,6 @@ export const HorizontalCalendar = ({
   latestValidDateTime?: DateTime.DateTime,
   increment?: number,
   theme?: AppTheme,
-  timeZone?: unknown,
 }) => {
   const { toDisplay, fromDisplay } = useTimeZoneDisplay();
 

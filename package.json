@@ -1,6 +1,6 @@
 {
   "name": "@wlfs/blue-sky-design",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "main": "./dist/blue-sky-design.js",
   "module": "./dist/blue-sky-design.js",
