@@ -985,6 +985,7 @@ export class MapClassWrapper {
       return undefined;
     })
 
+  // Starts a layer's update and returns what is left to wait for (see #tileFrameUpdate).
   #tileOrDataUpdate = (l: LayerType, seq: number) => {
     return match(this.#parameterizeLayerUrls(l))
       .with({
@@ -995,9 +996,9 @@ export class MapClassWrapper {
         const uSource = this.#map.getSource(sourceConfig.id);
         if (uSource) {
           (uSource as maplibregl.GeoJSONSource).setData(sourceConfig.data);
-          return E.succeed(undefined);
+          return E.succeed(E.void);
         } else {
-          return this.addLayer(l);
+          return E.as(this.addLayer(l), E.void);
         }
       })
       .with({
@@ -1231,16 +1232,20 @@ export class MapClassWrapper {
   // loads is shown if its date change came after the one on screen, so playback
   // keeps moving while loads run longer than a tick, and a slow frame can't
   // replace a newer one.
+  //
+  // Runs in two steps so updateSourceParams can wait on every layer at once:
+  // the outer Effect switches to the frame and restacks it, and returns the
+  // wait for its tiles.
   #tileFrameUpdate = (
     sourceConfig: Extract<SourcePropsType, { _tag: "RasterTiles" | "VectorTiles" }>,
     parameterizedLayer: LayerResourceDescriptor,
     timeoutMs: number,
     seq: number
-  ) => E.suspend(() => {
+  ): E.Effect<E.Effect<void>> => E.sync(() => {
     const info = { layerId: parameterizedLayer.id, layerName: parameterizedLayer.humanReadableName };
     const set = this.#tileFrameSet(parameterizedLayer);
     // A later date change already showed this layer while this one waited on
-    // another layer's tiles.
+    // other layers' tiles.
     if (seq <= set.shownSeq) return E.void;
     const key = this.#tilesKey(sourceConfig.tiles);
     const frame = set.frames.get(key) ?? this.#addTileFrame(set, sourceConfig, parameterizedLayer);
@@ -1317,13 +1322,16 @@ export class MapClassWrapper {
   updateSourceParams = (layers: LayerType[]) => E.suspend(() => {
     const seq = ++this.#dateChangeSeq;
     // Reversing because layers are sent in L to R = Top to Bottom order
-    // Which is the opposite of how they need to be updated
-    return E.mergeAll(layers.slice().reverse().map((layer) =>
+    // Which is the opposite of how they need to be updated.
+    // Each layer starts in that order, which restacks them; then the waits for
+    // their tiles run together, so a slow layer doesn't hold back the others.
+    return E.forEach(layers.slice().reverse(), (layer) =>
       match(layer)
         .with({ _tag: P.union("Basemap", "Labels") }, () => E.fail(new Error("Basemap and Labels layers are not supported for updateSourceParams")))
         .with({ sourceConfig: { _tag: P.union("VectorTiles", "RasterTiles", "GeoJsonData") } }, x => this.#tileOrDataUpdate(x, seq))
-        .otherwise(() => E.fail(new Error("Unknown layer type")))),
-      undefined, () => undefined);
+        .otherwise(() => E.fail(new Error("Unknown layer type")))).pipe(
+      E.flatMap((waits) => E.all(waits, { concurrency: "unbounded", discard: true })),
+      E.as(undefined));
   });
 
 
