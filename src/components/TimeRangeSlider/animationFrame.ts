@@ -23,6 +23,12 @@ export type FrameAdvance =
       maxWaitMs?: number;
     };
 
+/** See `TimeRangeSliderProps.animationLookahead`. */
+export interface AnimationLookahead {
+  frameCount: number;
+  onUpcomingFrames: (frames: FrameInfo[]) => void;
+}
+
 /**
  * Default ceiling on how long a back-pressure `onFrameSettled` can hold the
  * animation clock before it advances anyway. Chosen above the map service's
@@ -81,6 +87,42 @@ export const computeNextAnimationFrame = (
   const end = DateTime.addDuration(nextStart, currentState.selectedDuration);
   return { nextStart, frame: { start: nextStart, end } };
 };
+
+/**
+ * The next `count` frames playback will advance to from `currentState`, in
+ * order, by repeated `computeNextAnimationFrame` steps.
+ */
+export const upcomingAnimationFrames = (
+  currentState: AnimationFrameState,
+  advanceMs: number,
+  count: number
+): FrameInfo[] => {
+  const frames: FrameInfo[] = [];
+  let state = currentState;
+  for (let i = 0; i < count; i++) {
+    const { nextStart, frame } = computeNextAnimationFrame(state, advanceMs);
+    frames.push(frame);
+    state = { ...state, selectedStartDateTime: nextStart };
+  }
+  return frames;
+};
+
+/**
+ * The frames a host should hold loaded in animation mode: the selected frame
+ * first, since the host may not have shown it yet, then the next `count`
+ * frames playback will advance to.
+ */
+export const lookaheadFrames = (
+  currentState: AnimationFrameState,
+  advanceMs: number,
+  count: number
+): FrameInfo[] => [
+  {
+    start: currentState.selectedStartDateTime,
+    end: DateTime.addDuration(currentState.selectedStartDateTime, currentState.selectedDuration),
+  },
+  ...upcomingAnimationFrames(currentState, advanceMs, count),
+];
 
 /**
  * Builds the back-pressure animation loop as an interruptible Effect. Each

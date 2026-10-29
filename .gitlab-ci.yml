@@ -13,7 +13,9 @@ stages:
   - deploy
 
 default:
-  image: public.ecr.aws/docker/library/node:lts
+  # Pinned by digest, like wlfs-client's: the bare `lts` tag moves to each new
+  # LTS line, and the Node 26 images no longer ship yarn.
+  image: public.ecr.aws/docker/library/node:lts@sha256:e9891237dfbb1de60ce19e9ff9fac5d73ad9c37da303ad72ff2a425ad1057e71
 
 # node_modules is too large to hand between jobs as an artifact, so it is cached
 # per lockfile instead. Every job still installs, which is a quick no-op on a

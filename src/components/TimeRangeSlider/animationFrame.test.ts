@@ -3,6 +3,8 @@ import { Effect, Fiber, DateTime, Duration } from "effect";
 import {
   computeNextAnimationFrame,
   makeAnimationLoopEffect,
+  upcomingAnimationFrames,
+  lookaheadFrames,
   type AnimationFrameState,
 } from "./animationFrame";
 
@@ -159,5 +161,40 @@ describe("makeAnimationLoopEffect (back-pressure)", () => {
     // still proving the clock advances without any settle.
     expect(dispatches.length).toBeGreaterThanOrEqual(2);
     expect(dispatches.length).toBeLessThanOrEqual(12);
+  });
+});
+
+describe("upcomingAnimationFrames", () => {
+  const starts = (frames: { start: DateTime.DateTime }[]) =>
+    frames.map((f) => DateTime.toEpochMillis(f.start));
+
+  it("lists the next frames in playback order, wrapping at the range end", () => {
+    // Range 0..1000, width 100: 700, 800, 900, then 1000+100 > 1000 wraps to 0.
+    const frames = upcomingAnimationFrames(mkState(600, 100, 0, 1000), 100, 5);
+    expect(starts(frames)).toEqual([700, 800, 900, 0, 100]);
+    expect(DateTime.toEpochMillis(frames[0].end)).toBe(800);
+  });
+
+  it("matches what repeated computeNextAnimationFrame calls produce, in reverse too", () => {
+    let state = mkState(300, 100, 0, 1000);
+    const expected: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const { nextStart } = computeNextAnimationFrame(state, -200);
+      expected.push(DateTime.toEpochMillis(nextStart));
+      state = { ...state, selectedStartDateTime: nextStart };
+    }
+    expect(starts(upcomingAnimationFrames(mkState(300, 100, 0, 1000), -200, 4))).toEqual(expected);
+  });
+
+  it("returns nothing for a count of 0", () => {
+    expect(upcomingAnimationFrames(mkState(0, 100, 0, 1000), 100, 0)).toEqual([]);
+  });
+});
+
+describe("lookaheadFrames", () => {
+  it("puts the selected frame first, so a preload list never drops the frame about to be shown", () => {
+    const frames = lookaheadFrames(mkState(600, 100, 0, 1000), 100, 3);
+    expect(frames.map((f) => DateTime.toEpochMillis(f.start))).toEqual([600, 700, 800, 900]);
+    expect(DateTime.toEpochMillis(frames[0].end)).toBe(700);
   });
 });

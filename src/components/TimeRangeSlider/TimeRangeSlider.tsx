@@ -7,7 +7,7 @@ import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
-import { computeNextAnimationFrame, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
+import { computeNextAnimationFrame, lookaheadFrames, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
 import { acceptsTrackLatestRebase, isStepBlocked, makeStepLattice, normalizeStepPositions, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
 import type { StepDirection, StepResolution } from './stepping';
 import {
@@ -38,7 +38,7 @@ import {
   withMiddleware,
 } from './timeSliderReducer';
 import type { DateUpdateSource } from './timeSliderReducer';
-import type { FrameAdvance } from './animationFrame';
+import type { AnimationLookahead, FrameAdvance } from './animationFrame';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
 import { Divider, IconButton, Tooltip } from '@mui/material';
 import { MdMyLocation, MdFastForward } from 'react-icons/md';
@@ -130,6 +130,16 @@ export interface TimeRangeSliderProps {
    * advancement on tile loads (see {@link FrameAdvance}).
    */
   frameAdvance?: FrameAdvance;
+  /**
+   * Lets the host preload frames before playback reaches them. In animation
+   * mode, whenever the selection, speed or animation range changes,
+   * `onUpcomingFrames` receives the frame now selected followed by the next
+   * `frameCount` frames playback will advance to (wrapping as playback does).
+   * The selected frame comes first because the host may not have shown it yet:
+   * a preload list without it would let the host drop the frame it is about to
+   * show. On leaving animation mode it receives `[]` once.
+   */
+  animationLookahead?: AnimationLookahead;
 }
 
 /**
@@ -183,6 +193,7 @@ export const TimeRangeSlider = ({
   onTrackLatestChange,
   initialTrackLatest = false,
   frameAdvance,
+  animationLookahead,
 }: TimeRangeSliderProps) => {
 
   const viewIncrement = increment;
@@ -647,6 +658,36 @@ export const TimeRangeSlider = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [increment]);
+
+  /**
+   * Animation lookahead
+   * Reports the selected frame and the frames playback will reach next,
+   * computed with the same frame math the playback loops use, so the host can
+   * preload exactly those frames.
+   */
+  const lookaheadRef = useRef(animationLookahead);
+  lookaheadRef.current = animationLookahead;
+  const lookaheadActiveRef = useRef(false);
+
+  useEffect(() => {
+    const lookahead = lookaheadRef.current;
+    if (!lookahead) return;
+    if (s.animationOrStepMode !== AnimationOrStepMode.Animation) {
+      if (lookaheadActiveRef.current) {
+        lookaheadActiveRef.current = false;
+        lookahead.onUpcomingFrames([]);
+      }
+      return;
+    }
+    lookaheadActiveRef.current = true;
+    const advanceMs = (s.animationSpeed * animationRequestFrequency) / 1000;
+    lookahead.onUpcomingFrames(lookaheadFrames(s, advanceMs, lookahead.frameCount));
+    // The callback is read through lookaheadRef, and only the frame-math inputs
+    // of `s` gate recomputation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationLookahead?.frameCount, s.animationOrStepMode, s.selectedStartDateTime,
+    s.selectedDuration, s.animationSpeed, animationRequestFrequency,
+    s.animationStartDateTime, s.animationDuration]);
 
   /**
    * Animation auto-increment logic (fixed-rate / default path)
