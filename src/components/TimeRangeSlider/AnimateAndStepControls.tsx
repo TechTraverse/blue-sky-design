@@ -112,6 +112,8 @@ export const AnimateAndStepControls = ({
               variant="contained"
               onClick={() => decrementStartDateTime?.()}
               disabled={disableStepBackward}
+              aria-label="Step back"
+              title="Step back"
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
@@ -153,6 +155,8 @@ export const AnimateAndStepControls = ({
               variant="contained"
               onClick={() => incrementStartDateTime?.()}
               disabled={disableStepForward}
+              aria-label="Step forward"
+              title="Step forward"
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
