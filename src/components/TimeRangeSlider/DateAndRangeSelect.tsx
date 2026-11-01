@@ -14,6 +14,7 @@ import { MdOutlineKeyboardArrowLeft, MdOutlineKeyboardArrowRight } from "react-i
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 import { TimeZoneToggle } from './TimeZoneToggle';
+import { floorToGrid } from './stepping';
 
 
 interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
@@ -187,6 +188,7 @@ export const DateAndRangeSelect = ({
   rangeValue,
   setRange,
   availableDateRange,
+  instantStepMs,
 }: {
   startDateTime?: DateTime.DateTime,
   setStartDateTime?: (date: DateTime.DateTime) => void,
@@ -194,6 +196,8 @@ export const DateAndRangeSelect = ({
   setRange?: (timeDuration: TimeDuration) => void,
   availableDateRange?: Partial<RangeValue<Date>>,
   returnToDefaultDateTime?: () => void,
+  /** Instant mode's grid step: a picked time is floored onto the grid. */
+  instantStepMs?: number,
 }) => {
   const { toDisplay, fromDisplay, getDisplayZone } = useTimeZoneDisplay();
 
@@ -237,6 +241,13 @@ export const DateAndRangeSelect = ({
     // Convert from display timezone back to UTC
     const utcDt = fromDisplay(displayDateTime);
 
+    // In instant mode the floored instant is what gets selected, so it is the
+    // one checked against the ceiling: a time typed past the last grid point
+    // can still floor onto it.
+    const picked = instantStepMs
+      ? DateTime.unsafeMake(floorToGrid(DateTime.toEpochMillis(utcDt), instantStepMs))
+      : utcDt;
+
     // Enforce whichever ends of the selectable range are closed
     if (availableDateRange?.start &&
       DateTime.lessThan(utcDt, DateTime.unsafeFromDate(availableDateRange.start))) {
@@ -244,12 +255,12 @@ export const DateAndRangeSelect = ({
       return;
     }
     if (availableDateRange?.end &&
-      DateTime.greaterThan(utcDt, DateTime.unsafeFromDate(availableDateRange.end))) {
+      DateTime.greaterThan(picked, DateTime.unsafeFromDate(availableDateRange.end))) {
       console.warn("Selected date exceeds maximum allowed date");
       return;
     }
 
-    setStartDateTime(utcDt);
+    setStartDateTime(picked);
   };
 
   const calendarDateTime = getDisplayDateTime(startDateTime);
@@ -257,7 +268,7 @@ export const DateAndRangeSelect = ({
   return (
     <div className="date-and-query-range-container">
       <SliderDatePicker
-        label={`Start Date (${getDisplayZone()})`}
+        label={`${instantStepMs ? 'Date' : 'Start Date'} (${getDisplayZone()})`}
         value={calendarDateTime}
         onChange={handleDateChange}
         firstDayOfWeek={"sun"}

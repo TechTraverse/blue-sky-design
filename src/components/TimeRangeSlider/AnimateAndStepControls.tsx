@@ -25,6 +25,8 @@ export const AnimateAndStepControls = ({
   decrementAnimationSpeed,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
+  frameIntervalMs,
+  setFrameIntervalMs,
 }: {
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
@@ -44,6 +46,9 @@ export const AnimateAndStepControls = ({
   hideAnimationToggle?: boolean,
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string,
+  /** Instant mode's frame interval; replaces the speed setting with a frame rate. */
+  frameIntervalMs?: number,
+  setFrameIntervalMs?: (ms: number) => void,
 }) => {
 
   const handleCenterButtonClick = () => {
@@ -168,6 +173,8 @@ export const AnimateAndStepControls = ({
                   setAnimationSpeed={setAnimationSpeed}
                   animationDuration={animationDuration}
                   setAnimationDuration={setAnimationDuration}
+                  frameIntervalMs={frameIntervalMs}
+                  setFrameIntervalMs={setFrameIntervalMs}
                   disabled={false}
                 />
               </div>

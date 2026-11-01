@@ -14,6 +14,7 @@ import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMod
 const at = (iso: string) => DateTime.unsafeFromDate(new Date(iso));
 
 const baseState = (overrides: Partial<State> = {}): State => ({
+  selectionMode: 'range',
   timeZone: TimeZone.Local,
   increment: TimeDuration['5m'],
   viewStartDateTime: at('2026-08-22T11:00:00Z'),

@@ -1,8 +1,8 @@
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration } from 'effect';
 import { match, P } from 'ts-pattern';
-import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone } from './timeSliderTypes';
-import { acceptsTrackLatestRebase, clampSelection, type SelectableRange } from './stepping';
+import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone, type SelectionMode } from './timeSliderTypes';
+import { acceptsTrackLatestRebase, clampInstant, clampSelection, resolveInstantStepMs, type SelectableRange } from './stepping';
 
 /** Provenance of a selection write. Exported for the reducer tests. */
 export enum UpdateSource {
@@ -55,6 +55,9 @@ const DISABLES_TRACKING: Record<UpdateSource, boolean> = {
 };
 
 export type State = {
+  // In instant mode the selection is selectedStartDateTime alone and
+  // selectedDuration stays zero.
+  selectionMode: SelectionMode;
   timeZone: TimeZone;
   increment: TimeDuration;
   // The current viewable range of dates
@@ -133,7 +136,13 @@ export type Action = D.TaggedEnum<{
    * the same commit is clamped rather than overwritten, and a move plus a resize
    * reaches the consumer as one change.
    */
-  ClampSelection: { range: SelectableRange | undefined; };
+  ClampSelection: {
+    range: SelectableRange | undefined;
+    /** Instant mode's grid step, so a clamped instant lands on the grid. */
+    gridStepMs?: number;
+  };
+  /** Switching to instant mode zeroes the width; back to range restores one. */
+  ExtSetSelectionMode: { selectionMode: SelectionMode; };
 
   SetAnimationOrStepMode:
   { animationOrStepMode: AnimationOrStepMode; };
@@ -173,6 +182,7 @@ export const {
   SetSelectedDuration,
   ExtSetSelectedDuration,
   ClampSelection,
+  ExtSetSelectionMode,
 
   SetAnimationOrStepMode,
 
@@ -240,6 +250,16 @@ const calculateCenteredViewStart = (
   return roundingFn(unroundedViewStart);
 };
 
+/** `clampInstant` in the shape `clampSelection` returns; the width stays zero. */
+const clampInstantSelection = (
+  start: DateTime.DateTime,
+  gridStepMs: number | undefined,
+  range: SelectableRange | undefined
+): { start: DateTime.DateTime; width: Duration.Duration } | undefined => {
+  const clamped = clampInstant(start, resolveInstantStepMs(gridStepMs), range);
+  return clamped && { start: clamped, width: Duration.zero };
+};
+
 /**
  * State management: reducer
  */
@@ -296,6 +316,9 @@ const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateT
   selectedDuration: Duration.Duration;
   updateSource: UpdateSource;
 }) => {
+  // An instant has no width to set.
+  if (state.selectionMode === 'instant') return state;
+
   // Calculate optimal view range with new duration
   const viewStartDateTime = calculateOptimalViewStart(
     state.selectedStartDateTime,
@@ -392,7 +415,7 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
       ...state,
       resetStartDateTime: x.resetStartDateTime,
     }),
-    SetResetDuration: (x) => ({
+    SetResetDuration: (x) => state.selectionMode === 'instant' ? state : ({
       ...state,
       resetDuration: x.resetDuration,
     }),
@@ -406,7 +429,9 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
     // Not a user takeover, so tracking stays on; it does end a step sequence,
     // since the cursor it would walk from may now be out of bounds.
     ClampSelection: (x) => {
-      const selection = clampSelection(state.selectedStartDateTime, state.selectedDuration, x.range);
+      const selection = state.selectionMode === 'instant'
+        ? clampInstantSelection(state.selectedStartDateTime, x.gridStepMs, x.range)
+        : clampSelection(state.selectedStartDateTime, state.selectedDuration, x.range);
       const animation = clampSelection(state.animationStartDateTime, state.animationDuration, x.range);
       if (!selection && !animation) return state;
       return {
@@ -428,6 +453,22 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
           animationStartDateTime: animation.start,
           animationDuration: animation.width,
         } : {}),
+      };
+    },
+
+    ExtSetSelectionMode: (x) => {
+      if (x.selectionMode === state.selectionMode) return state;
+      // Back in range mode a zero width would be an empty window; fall back to
+      // the same 5 minutes a malformed dateRange gets.
+      const width = (d: Duration.Duration) =>
+        x.selectionMode === 'instant' ? Duration.zero
+          : Duration.toMillis(d) > 0 ? d : Duration.minutes(5);
+      return {
+        ...state,
+        selectionMode: x.selectionMode,
+        selectedDuration: width(state.selectedDuration),
+        resetDuration: width(state.resetDuration),
+        stepCursor: null,
       };
     },
 
@@ -479,9 +520,10 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
     ResetAll: () => ({
       ...state,
       viewStartDateTime: state.resetStartDateTime,
-      viewDuration: state.resetDuration,
+      // A zero reset width would collapse the view to nothing.
+      viewDuration: state.selectionMode === 'instant' ? state.viewDuration : state.resetDuration,
       selectedStartDateTime: state.resetStartDateTime,
-      selectedDuration: state.resetDuration,
+      selectedDuration: state.selectionMode === 'instant' ? Duration.zero : state.resetDuration,
       stepCursor: null,
       animationOrStepMode: AnimationOrStepMode.Step,
       animationDuration: state.resetAnimationDuration,

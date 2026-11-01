@@ -8,6 +8,7 @@ import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match } from "ts-pattern";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
+import { ceilToGrid, floorToGrid, nearestGridPoint, snapInstant } from './stepping';
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -77,6 +78,7 @@ export const HorizontalCalendar = ({
   earliestValidDateTime,
   latestValidDateTime,
   increment,
+  instantStepMs,
   theme = AppTheme.Light,
 }: {
   primaryRange: PrimaryRange<DateTime.DateTime>,
@@ -85,6 +87,11 @@ export const HorizontalCalendar = ({
   earliestValidDateTime?: DateTime.DateTime,
   latestValidDateTime?: DateTime.DateTime,
   increment?: number,
+  /**
+   * Instant mode's grid step. The track then shows one thumb at
+   * `primaryRange.start`, its marks fall on the grid, and every move snaps to it.
+   */
+  instantStepMs?: number,
   theme?: AppTheme,
 }) => {
   const { toDisplay, fromDisplay } = useTimeZoneDisplay();
@@ -150,8 +157,13 @@ export const HorizontalCalendar = ({
   const colors = useMemo(() => getThemeColors(theme), [theme]);
 
   /**
-   * View range and step settings
+   * View range and step settings. In instant mode the marks are the grid
+   * points, which with `step={null}` are also where the thumb can land.
    */
+  const markStepMs = instantStepMs || increment || 10 * 60 * 1000;
+  const firstMarkMs = (viewStartMs: number) =>
+    instantStepMs ? ceilToGrid(viewStartMs, instantStepMs) : viewStartMs;
+
   const [viewRangeAndStep, setViewRangeAndStep] = useState<{
     start: number;
     end: number;
@@ -160,9 +172,9 @@ export const HorizontalCalendar = ({
     start: DateTime.toEpochMillis(displayViewRange.start),
     end: DateTime.toEpochMillis(displayViewRange.end),
     stepArr: createStepsOverRange(
-      DateTime.toEpochMillis(displayViewRange.start),
+      firstMarkMs(DateTime.toEpochMillis(displayViewRange.start)),
       DateTime.toEpochMillis(displayViewRange.end),
-      increment || 10 * 60 * 1000,
+      markStepMs,
       toDisplay,
       displayEarliestValidDateTime,
       displayLatestValidDateTime
@@ -174,15 +186,17 @@ export const HorizontalCalendar = ({
       start: DateTime.toEpochMillis(displayViewRange.start),
       end: DateTime.toEpochMillis(displayViewRange.end),
       stepArr: createStepsOverRange(
-        DateTime.toEpochMillis(displayViewRange.start),
+        firstMarkMs(DateTime.toEpochMillis(displayViewRange.start)),
         DateTime.toEpochMillis(displayViewRange.end),
-        increment || 10 * 60 * 1000,
+        markStepMs,
         toDisplay,
         displayEarliestValidDateTime,
         displayLatestValidDateTime
       )
     });
-  }, [displayViewRange, increment, toDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
+    // firstMarkMs only reads instantStepMs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayViewRange, markStepMs, instantStepMs, toDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
 
   /**
    * Selected date range settings and slider active updates
@@ -416,8 +430,8 @@ export const HorizontalCalendar = ({
       const viewDuration = viewEnd - viewStart;
       const newMs = viewStart + (percent * viewDuration);
 
-      // Round to increment
-      const incrementMs = increment || 5 * 60 * 1000;
+      // Round to increment (the grid step in instant mode)
+      const incrementMs = instantStepMs || increment || 5 * 60 * 1000;
       let roundedMs = Math.round(newMs / incrementMs) * incrementMs;
 
       // Enforce earliestValidDateTime constraint
@@ -477,7 +491,41 @@ export const HorizontalCalendar = ({
       document.removeEventListener('touchend', handlePointerEnd);
       document.removeEventListener('touchcancel', handlePointerEnd);
     };
-  }, [draggingBoundary, viewRangeAndStep, increment, limitedRange, fromDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
+  }, [draggingBoundary, viewRangeAndStep, increment, instantStepMs, limitedRange, fromDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
+
+  /**
+   * Instant mode's track: one thumb, so no minimum gap and no translate-versus-
+   * resize. A click or drag moves the thumb to the nearest grid point, kept
+   * inside the animation range and the valid range.
+   */
+  const handleInstantChange = (e: Event, value: number | number[], stepMs: number) => {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const validRange = { min: earliestValidDateTime, max: latestValidDateTime };
+
+    // A click outside the animation range moves the range there, as in range mode.
+    if (displayLimitedRange && limitedRange && e.type !== 'mousemove') {
+      const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
+      const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
+      const edt = earliestValidDateTime ? DateTime.toEpochMillis(earliestValidDateTime) : -Infinity;
+      const ldt = latestValidDateTime ? DateTime.toEpochMillis(latestValidDateTime) : Infinity;
+      if ((raw < limitStart || raw > limitEnd) && raw >= edt && raw <= ldt) {
+        const start = snapInstant(DateTime.unsafeMake(raw), stepMs, 'nearest', validRange);
+        const startMs = DateTime.toEpochMillis(start);
+        const end = DateTime.unsafeMake(Math.min(startMs + (limitEnd - limitStart), ldt));
+        limitedRange.set({ start, end });
+        primaryRange.set({ start });
+        return;
+      }
+    }
+
+    let ms = nearestGridPoint(raw, stepMs);
+    if (displayLimitedRange) {
+      const first = ceilToGrid(DateTime.toEpochMillis(displayLimitedRange.start), stepMs);
+      const last = floorToGrid(DateTime.toEpochMillis(displayLimitedRange.end), stepMs);
+      ms = Math.min(Math.max(ms, first), last);
+    }
+    primaryRange.set({ start: snapInstant(DateTime.unsafeMake(ms), stepMs, 'nearest', validRange) });
+  };
 
   return (
     <div className={`horizontal-calendar-grid`}>
@@ -746,9 +794,17 @@ export const HorizontalCalendar = ({
         )}
         <Slider
           sx={sliderSx}
-          getAriaLabel={() => 'Minimum distance'}
-          value={primaryRangeMillis}
+          getAriaLabel={() => instantStepMs ? 'Selected time' : 'Minimum distance'}
+          getAriaValueText={instantStepMs
+            ? (value) => DateTime.formatIso(DateTime.unsafeMake(value))
+            : undefined}
+          value={instantStepMs ? primaryRangeMillis[0] : primaryRangeMillis}
+          track={instantStepMs ? false : 'normal'}
           onChange={(e, _newValue, activeThumb) => {
+            if (instantStepMs) {
+              handleInstantChange(e, _newValue, instantStepMs);
+              return;
+            }
             if (!(Array.isArray(_newValue) && _newValue.length === 2)) {
               return;
             }
