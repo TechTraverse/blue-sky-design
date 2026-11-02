@@ -151,7 +151,7 @@ export const upcomingAnimationFrames = (
 };
 
 /**
- * The frames a host should hold loaded in animation mode: the selected frame
+ * The frames a host should hold loaded during playback: the selected frame
  * first, since the host may not have shown it yet, then the next `count`
  * frames playback will advance to.
  */

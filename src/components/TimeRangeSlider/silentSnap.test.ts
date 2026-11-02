@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { DateTime, Duration } from 'effect';
 import type { RangeValue } from '@react-types/shared';
 import {
-  SetAnimationOrStepMode,
   SetSelectedStartDateTime,
+  StartLoop,
   UpdateSource,
   reducer,
   withMiddleware,
@@ -18,7 +18,7 @@ import {
   stepSelection,
   type StepDirection,
 } from './stepping';
-import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone } from './timeSliderTypes';
+import { AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone } from './timeSliderTypes';
 
 const at = (iso: string) => DateTime.unsafeFromDate(new Date(iso));
 const iso = (dt: DateTime.DateTime) => DateTime.toDate(dt).toISOString();
@@ -42,7 +42,7 @@ const baseState = (overrides: Partial<State> = {}): State => ({
   selectedStartDateTime: at('2026-08-22T13:03:20Z'),
   selectedDuration: width,
   stepCursor: null,
-  animationOrStepMode: AnimationOrStepMode.Step,
+  loopActive: false,
   resetAnimationSpeed: AnimationSpeed['5 min/sec'],
   resetAnimationDuration: Duration.hours(2),
   animationStartDateTime: at('2026-08-22T13:03:20Z'),
@@ -66,12 +66,12 @@ const press = (state: State, direction: StepDirection) => {
   }));
 };
 
-describe('entering a repeatable mode', () => {
+describe('starting playback', () => {
   it('does not rewrite the selection, so the consumer keeps the unsnapped value', () => {
     const scrubbed = baseState();
     const onDateRangeSelect = vi.fn<(rv: RangeValue<Date>, source: DateUpdateSource) => void>();
     const next = withMiddleware(reducer, onDateRangeSelect, identityRounding)(
-      scrubbed, SetAnimationOrStepMode({ animationOrStepMode: AnimationOrStepMode.Animation }));
+      scrubbed, StartLoop({ animationStartDateTime: at('2026-08-22T11:03:20Z') }));
 
     expect(iso(next.selectedStartDateTime)).toBe('2026-08-22T13:03:20.000Z');
     expect(onDateRangeSelect).not.toHaveBeenCalled();
@@ -86,8 +86,8 @@ describe('entering a repeatable mode', () => {
     const stepped = press(baseState({ isTrackingLatest: true }), -1);
     expect(reducer(stepped, rebase)).toBe(stepped);
 
-    const switched = reducer(stepped, SetAnimationOrStepMode({
-      animationOrStepMode: AnimationOrStepMode.Animation }));
+    const switched = reducer(stepped, StartLoop({
+      animationStartDateTime: at('2026-08-22T11:03:20Z') }));
     expect(iso(reducer(switched, rebase).selectedStartDateTime))
       .toBe('2026-08-22T13:05:31.000Z');
   });
@@ -123,13 +123,5 @@ describe('the first step after a scrub', () => {
     expect(iso(state.selectedStartDateTime)).toBe('2026-08-22T11:00:31.000Z');
     state = press(state, -1);
     expect(iso(state.selectedStartDateTime)).toBe('2026-08-22T10:55:31.000Z');
-  });
-
-  it('is unchanged by re-entering step mode between presses', () => {
-    let state = press(baseState(), -1);
-    state = reducer(state, SetAnimationOrStepMode({
-      animationOrStepMode: AnimationOrStepMode.Step }));
-    state = press(state, -1);
-    expect(iso(state.selectedStartDateTime)).toBe('2026-08-22T12:55:31.000Z');
   });
 });

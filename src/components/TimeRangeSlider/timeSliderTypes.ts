@@ -7,11 +7,6 @@ import { Duration } from "effect";
  */
 export type SelectionMode = 'range' | 'instant';
 
-export enum AnimationOrStepMode {
-  Animation,
-  Step,
-}
-
 export enum TimeDuration {
   "1m" = 60000, // 1 minute in milliseconds
   "5m" = 300000, // 5 minutes in milliseconds

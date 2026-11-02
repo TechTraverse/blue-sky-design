@@ -8,7 +8,7 @@ import type { RangeValue } from "@react-types/shared";
 import type { SxProps, Theme } from "@mui/material";
 import { match } from "ts-pattern";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
-import { ceilToGrid, floorToGrid, nearestGridPoint, snapInstant } from './stepping';
+import { ceilToGrid, snapInstant } from './stepping';
 import { axisLabelDensity, axisMarkKind, formatClockTime } from './timeLabels';
 
 const getMonth = (number: number): string => {
@@ -558,39 +558,13 @@ export const HorizontalCalendar = ({
 
   /**
    * Instant mode's track: one thumb, so no minimum gap and no translate-versus-
-   * resize. A click or drag moves the thumb to the nearest grid point, kept
-   * inside the animation range and the valid range.
+   * resize. A click or drag moves the thumb to the nearest grid point inside the
+   * valid range. It is not held inside the loop: a move out of the loop closes it.
    */
-  const handleInstantChange = (e: Event, value: number | number[], stepMs: number) => {
+  const handleInstantChange = (value: number | number[], stepMs: number) => {
     const raw = Array.isArray(value) ? value[0] : value;
     const validRange = { min: earliestValidDateTime, max: latestValidDateTime };
-
-    // A click or tap outside the animation range moves the range there, as in
-    // range mode. A drag or arrow key past its edge stops at the edge instead.
-    const isPress = e.type === 'mousedown' || e.type === 'touchstart';
-    if (displayLimitedRange && limitedRange && isPress) {
-      const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
-      const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
-      const edt = earliestValidDateTime ? DateTime.toEpochMillis(earliestValidDateTime) : -Infinity;
-      const ldt = latestValidDateTime ? DateTime.toEpochMillis(latestValidDateTime) : Infinity;
-      if ((raw < limitStart || raw > limitEnd) && raw >= edt && raw <= ldt) {
-        const start = snapInstant(DateTime.unsafeMake(raw), stepMs, 'nearest', validRange);
-        const startMs = DateTime.toEpochMillis(start);
-        const end = DateTime.unsafeMake(Math.min(startMs + (limitEnd - limitStart), ldt));
-        limitedRange.set({ start, end });
-        primaryRange.set({ start });
-        return;
-      }
-    }
-
-    let ms = nearestGridPoint(raw, stepMs);
-    if (displayLimitedRange) {
-      const first = ceilToGrid(DateTime.toEpochMillis(displayLimitedRange.start), stepMs);
-      const last = floorToGrid(DateTime.toEpochMillis(displayLimitedRange.end), stepMs);
-      // A range shorter than a step may hold no grid point; then there is nothing to keep it in.
-      if (first <= last) ms = Math.min(Math.max(ms, first), last);
-    }
-    primaryRange.set({ start: snapInstant(DateTime.unsafeMake(ms), stepMs, 'nearest', validRange) });
+    primaryRange.set({ start: snapInstant(DateTime.unsafeMake(raw), stepMs, 'nearest', validRange) });
   };
 
   return (
@@ -880,7 +854,7 @@ export const HorizontalCalendar = ({
           track={instantStepMs ? false : 'normal'}
           onChange={(e, _newValue, activeThumb) => {
             if (instantStepMs) {
-              handleInstantChange(e, _newValue, instantStepMs);
+              handleInstantChange(_newValue, instantStepMs);
               return;
             }
             if (!(Array.isArray(_newValue) && _newValue.length === 2)) {

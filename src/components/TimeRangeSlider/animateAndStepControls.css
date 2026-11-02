@@ -3,108 +3,11 @@
   position: relative;
 }
 
-/* Toggle container for mode switch */
-
-.playback-toggle-container {
-  display: flex;
-  align-items: center;
-  margin-right: 12px;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
-.playback-toggle-switch {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  padding: 6px 6px;
-  border-radius: 999px;
-  background-color: var(--surface-color, #f5f5f5);
-  border: 1px solid var(--border-color, #e0e0e0);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  transition: all 0.2s ease;
-  width: 58px;
-  min-width: 58px;
-  max-width: 58px;
-  box-sizing: border-box;
-  gap: 10px;
-}
-
-
-.playback-toggle-step,
-.playback-toggle-animate {
-  width: 18px;
-  min-width: 18px;
-  max-width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
-  font-size: 11px;
-  font-weight: bold;
-  font-family: var(--font-family-main, Arial, sans-serif);
-  background-color: var(--surface-color-alt, #f0f0f0);
-  color: var(--text-color-muted, #999);
-  box-shadow: 0 0 0 2px transparent;
-}
-.playback-toggle-step.active {
-  background-color: var(--primary-color, #1976d2);
-  color: var(--text-color-inverse, #fff);
-  box-shadow: 0 0 0 2px var(--primary-color, #1976d2);
-}
-.playback-toggle-step:not(.active) {
-  box-shadow: 0 0 0 2px transparent;
-}
-.playback-toggle-animate.active {
-  background-color: var(--accent-color, #4caf50);
-  color: var(--text-color-inverse, #fff);
-  box-shadow: 0 0 0 2px var(--accent-color, #4caf50);
-}
-.playback-toggle-animate:not(.active) {
-  box-shadow: 0 0 0 2px transparent;
-}
-
-/* Disabled state for animation toggle */
-.playback-toggle-switch.disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.playback-toggle-animate.disabled {
-  opacity: 0.5;
-}
-
 .playback-button-container {
   display: flex;
   gap: 7px;
   flex: 0 0 auto;
   justify-content: center;
-}
-
-.playback-button-container.step-mode {
-  width: 160px;
-  min-width: 160px;
-  position: relative;
-  justify-content: center;
-}
-
-.playback-button-container.step-mode .MuiButton-root:first-child {
-  width: 60px !important;
-  min-width: 60px !important;
-  max-width: 60px !important;
-  position: absolute;
-  left: 16px;
-}
-
-.playback-button-container.step-mode .MuiButton-root:last-child {
-  width: 60px !important;
-  min-width: 60px !important;
-  max-width: 60px !important;
-  position: absolute;
-  left: 84px;
 }
 
 /* A step button at the end of the selectable range must still read as a button. */
@@ -113,15 +16,10 @@
   color: rgba(0, 0, 0, 0.38);
 }
 
-.playback-button-container.animation-mode {
-  width: 160px;
-  min-width: 160px;
-  gap: 7px;
-}
-
-.playback-button-container.animation-mode .MuiButton-root {
+.playback-button-container .MuiButton-root {
   width: 44px !important;
   min-width: 44px !important;
+  flex: 0 0 auto;
 }
 
 .playback-btn {
@@ -129,18 +27,9 @@
   width: 44px;
   flex: 0 0 auto;
 }
-.playback-btn.step-mode {
-  width: 67px;
-}
 .playback-btn svg {
   margin-top: 0;
   transform: scale(1.4);
-}
-.center-btn.playing {
-  background-color: var(--primary-color) !important;
-}
-.center-btn.playing:hover {
-  background-color: var(--primary-color-dark) !important;
 }
 
 /* Unified control panel layout */
@@ -149,8 +38,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 300px;
-  min-width: 300px;
+  width: fit-content;
   background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
   border: 1px solid #dee2e6;
   border-radius: 12px;
@@ -159,7 +47,7 @@
   transition: all 0.3s ease;
 }
 
-/* Compressed state when animation toggle is hidden */
+/* Compressed state when playback is hidden */
 .unified-control-panel.compressed {
   width: 180px;
   min-width: 180px;
@@ -196,10 +84,6 @@
     max-width: 20px;
     max-height: 20px;
   }
-}
-
-.control-section.mode-section {
-  /* Mode toggle styling */
 }
 
 .control-section.settings-section {
@@ -254,8 +138,12 @@
 
 /* } */
 
-.animate-container, .unified-control-panel {
+.animate-container {
   width: 260px;
+  box-sizing: border-box;
+}
+
+.unified-control-panel {
   box-sizing: border-box;
 }
 
@@ -435,34 +323,6 @@
 }
 
 /* Dark theme styles */
-.dark-theme .playback-toggle-switch {
-  background-color: #3a3a3a;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.dark-theme .playback-toggle-step,
-.dark-theme .playback-toggle-animate {
-  background-color: #2a2a2a;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.dark-theme .playback-toggle-step.active {
-  background-color: var(--primary-color, #1976d2);
-  color: white;
-  box-shadow: 0 0 0 2px var(--primary-color, #1976d2);
-}
-
-.dark-theme .playback-toggle-animate.active {
-  background-color: var(--accent-color, #4caf50);
-  color: white;
-  box-shadow: 0 0 0 2px var(--accent-color, #4caf50);
-}
-
-.dark-theme .playback-toggle-switch.disabled {
-  opacity: 0.5;
-}
-
 .dark-theme .unified-control-panel {
   background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -653,8 +513,6 @@ body.time-range-slider-dark-theme .control-settings-button:hover:not(:disabled),
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
   .unified-control-panel {
-    width: 260px;
-    min-width: 260px;
     padding: 6px 10px;
   }
 }
@@ -672,23 +530,6 @@ body.time-range-slider-dark-theme .control-settings-button:hover:not(:disabled),
     min-width: 120px;
   }
 
-  .playback-toggle-switch {
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
-    padding: 4px;
-    gap: 6px;
-  }
-
-  .playback-toggle-step,
-  .playback-toggle-animate {
-    width: 16px;
-    min-width: 16px;
-    max-width: 16px;
-    height: 16px;
-    font-size: 10px;
-  }
-
   .center-button-container {
     width: 36px;
     min-width: 36px;
@@ -698,15 +539,6 @@ body.time-range-slider-dark-theme .control-settings-button:hover:not(:disabled),
 
 /* Touch-friendly active states */
 @media (hover: none) and (pointer: coarse) {
-  .playback-toggle-switch:active {
-    transform: scale(0.97);
-  }
-
-  .playback-toggle-step:active,
-  .playback-toggle-animate:active {
-    transform: scale(0.9);
-  }
-
   .control-settings-button:active {
     transform: scale(0.9);
   }

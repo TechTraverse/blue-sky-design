@@ -11,7 +11,7 @@ import {
   type DateUpdateSource,
   type State,
 } from './timeSliderReducer';
-import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone } from './timeSliderTypes';
+import { AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone } from './timeSliderTypes';
 
 const at = (iso: string) => DateTime.unsafeFromDate(new Date(iso));
 const iso = (dt: DateTime.DateTime) => DateTime.toDate(dt).toISOString();
@@ -106,7 +106,7 @@ const baseState = (overrides: Partial<State> = {}): State => ({
   selectedStartDateTime: at('2026-08-22T13:30:00Z'),
   selectedDuration: Duration.minutes(30),
   stepCursor: at('2026-08-22T13:30:00Z'),
-  animationOrStepMode: AnimationOrStepMode.Step,
+  loopActive: false,
   resetAnimationSpeed: AnimationSpeed['5 min/sec'],
   resetAnimationDuration: Duration.hours(2),
   animationStartDateTime: at('2026-08-22T13:30:00Z'),
