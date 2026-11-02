@@ -3,6 +3,8 @@
  * names (or "UTC"), as `getDisplayZone` returns them.
  */
 
+import { DateTime } from 'effect';
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 
@@ -33,6 +35,39 @@ export const zoneAbbreviation = (date: Date, zone: string) => {
     .formatToParts(date)
     .find((p) => p.type === 'timeZoneName');
   return part?.value ?? zone;
+};
+
+/** A wall-clock time as typed: month is 1-based. */
+export interface WallClock {
+  year: number;
+  month: number;
+  day: number;
+  hour?: number;
+  minute?: number;
+  second?: number;
+  millisecond?: number;
+}
+
+/**
+ * The instant at which the clock in `zone` reads `wall`. A time typed under
+ * "Time (UTC)" is UTC whatever zone the browser is in. Across a daylight-saving
+ * change, a repeated time is the earlier one and a skipped time moves forward.
+ */
+export const wallClockToDate = (wall: WallClock, zone: string): Date => {
+  const parts = {
+    year: wall.year, month: wall.month, day: wall.day,
+    hours: wall.hour ?? 0, minutes: wall.minute ?? 0, seconds: wall.second ?? 0, millis: wall.millisecond ?? 0,
+  };
+  const utc = () => new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, parts.seconds, parts.millis));
+  if (zone === 'UTC') return utc();
+  try {
+    // toEpochMillis, not toDate: toDate of a zoned value is its wall clock, not the instant.
+    return new Date(DateTime.toEpochMillis(
+      DateTime.unsafeMakeZoned(parts, { timeZone: zone, adjustForTimeZone: true })));
+  } catch {
+    // An unknown zone name, as in `formatter`.
+    return utc();
+  }
 };
 
 /**

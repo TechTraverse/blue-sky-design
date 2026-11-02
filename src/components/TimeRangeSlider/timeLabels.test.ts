@@ -5,6 +5,7 @@ import {
   formatAgo,
   formatClockTime,
   formatReadoutDate,
+  wallClockToDate,
   zoneAbbreviation,
 } from './timeLabels';
 
@@ -69,5 +70,25 @@ describe('axis labels', () => {
     expect(axisLabelDensity(40)).toEqual({ hourInterval: 2, halfHourLabels: false });
     expect(axisLabelDensity(10)).toEqual({ hourInterval: 6, halfHourLabels: false });
     expect(axisLabelDensity(1)).toEqual({ hourInterval: 24, halfHourLabels: false });
+  });
+});
+
+describe('wallClockToDate', () => {
+  const nov1 = { year: 2026, month: 11, day: 1, hour: 13, minute: 0 };
+
+  it('reads a typed time in the display zone, whatever zone the browser is in', () => {
+    expect(wallClockToDate(nov1, 'UTC').toISOString()).toBe('2026-11-01T13:00:00.000Z');
+    expect(wallClockToDate(nov1, 'America/Denver').toISOString()).toBe('2026-11-01T20:00:00.000Z');
+    expect(wallClockToDate({ ...nov1, month: 7 }, 'America/Denver').toISOString()).toBe('2026-07-01T19:00:00.000Z');
+  });
+
+  it('takes the earlier of a time repeated when daylight saving ends', () => {
+    // 01:30 happens twice in Denver on Nov 1, 2026: first at MDT (07:30Z).
+    expect(wallClockToDate({ ...nov1, hour: 1, minute: 30 }, 'America/Denver').toISOString())
+      .toBe('2026-11-01T07:30:00.000Z');
+  });
+
+  it('falls back to UTC for a zone name it does not know', () => {
+    expect(wallClockToDate(nov1, 'Not/AZone').toISOString()).toBe('2026-11-01T13:00:00.000Z');
   });
 });

@@ -15,7 +15,7 @@ import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 import { TimeZoneToggle } from './TimeZoneToggle';
 import { floorToGrid } from './stepping';
-import { formatAgo, formatClockTime, formatReadoutDate, zoneAbbreviation } from './timeLabels';
+import { formatAgo, formatClockTime, formatReadoutDate, wallClockToDate, zoneAbbreviation } from './timeLabels';
 
 
 interface LocalDatePickerProps<T extends DateValue> extends DatePickerProps<T> {
@@ -274,25 +274,7 @@ export const DateAndRangeSelect = ({
   /** Instant mode's grid step: a picked time is floored onto the grid. */
   instantStepMs?: number,
 }) => {
-  const { toDisplay, fromDisplay, getDisplayZone } = useTimeZoneDisplay();
-
-  // Convert DateTime to CalendarDateTime for display
-  const getDisplayDateTime = (dt: DateTime.DateTime | undefined) => {
-    if (!dt) return undefined;
-
-    const displayDt = toDisplay(dt);
-    const parts = DateTime.toParts(displayDt);
-
-    return new CalendarDateTime(
-      parts.year,
-      parts.month,
-      parts.day,
-      parts.hours,
-      parts.minutes,
-      parts.seconds,
-      (parts as { millis?: number }).millis ?? 0
-    );
-  };
+  const { toDisplay, getDisplayZone } = useTimeZoneDisplay();
 
   // Convert CalendarDateTime back to UTC DateTime
   const handleDateChange = (d: DateValue | null) => {
@@ -307,21 +289,16 @@ export const DateAndRangeSelect = ({
       second = 0,
       millisecond = 0 } = d as CalendarDateTime;
 
-    // Create DateTime in display timezone, then convert to UTC using fromDisplay
-    // This matches the pattern used in HorizontalCalendar
-    const displayDateTime = DateTime.unsafeFromDate(
-      new Date(year, month - 1, day, hour, minute, second, millisecond)
-    );
+    // The typed wall-clock time is in the display zone.
+    const utcDt = DateTime.unsafeFromDate(wallClockToDate(
+      { year, month, day, hour, minute, second, millisecond }, getDisplayZone()));
 
-    // Convert from display timezone back to UTC
-    const utcDt = fromDisplay(displayDateTime);
-
-    // In instant mode the floored instant is what gets selected, so it is the
-    // one checked against the ceiling: a time typed past the last grid point
-    // can still floor onto it.
-    const picked = instantStepMs
-      ? DateTime.unsafeMake(floorToGrid(DateTime.toEpochMillis(utcDt), instantStepMs))
-      : utcDt;
+    // Instant mode floors the time onto the grid and clamps it into the
+    // selectable range where it is applied, so it goes straight through.
+    if (instantStepMs) {
+      setStartDateTime(utcDt);
+      return;
+    }
 
     // Enforce whichever ends of the selectable range are closed
     if (availableDateRange?.start &&
@@ -330,15 +307,15 @@ export const DateAndRangeSelect = ({
       return;
     }
     if (availableDateRange?.end &&
-      DateTime.greaterThan(picked, DateTime.unsafeFromDate(availableDateRange.end))) {
+      DateTime.greaterThan(utcDt, DateTime.unsafeFromDate(availableDateRange.end))) {
       console.warn("Selected date exceeds maximum allowed date");
       return;
     }
 
-    setStartDateTime(picked);
+    setStartDateTime(utcDt);
   };
 
-  const calendarDateTime = getDisplayDateTime(startDateTime);
+  const calendarDateTime = startDateTime && toCalendarDateTime(startDateTime, toDisplay);
 
   if (instantStepMs) {
     return (
