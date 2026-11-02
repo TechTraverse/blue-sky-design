@@ -9,6 +9,7 @@ import type { SxProps, Theme } from "@mui/material";
 import { match } from "ts-pattern";
 import { useTimeZoneDisplay } from '../../contexts/TimeZoneDisplayContext';
 import { ceilToGrid, floorToGrid, nearestGridPoint, snapInstant } from './stepping';
+import { axisLabelDensity, axisMarkKind, formatClockTime } from './timeLabels';
 
 const getMonth = (number: number): string => {
   switch (number) {
@@ -33,7 +34,16 @@ type Step = {
   value: number;
   disabled: boolean;
 }
-const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime, earliestValidDateTime?: DateTime.DateTime, latestValidDateTime?: DateTime.DateTime): Step[] => {
+/** `from`/`to`: labels outside them would be cut off at the track's edges. */
+type LabelDensity = { hourInterval: number; halfHourLabels: boolean; from?: number; to?: number };
+const pad2 = (n: number) => n.toString().padStart(2, '0');
+
+/**
+ * Every mark gets a tick, longest at the hour and at midnight. Hours read as
+ * "17:00", midnight as the new date ("Nov 2"), and ":30" gets a lighter label
+ * when there is room; `density` thins the hour labels on narrow tracks.
+ */
+const createStepsOverRange = (start: number, end: number, step: number, toDisplay: (dt: DateTime.DateTime) => DateTime.DateTime, earliestValidDateTime?: DateTime.DateTime, latestValidDateTime?: DateTime.DateTime, density: LabelDensity = { hourInterval: 1, halfHourLabels: true }): Step[] => {
   const steps: Step[] = [];
   const earliestValidMillis = earliestValidDateTime ? DateTime.toEpochMillis(earliestValidDateTime) : undefined;
   const latestValidMillis = latestValidDateTime ? DateTime.toEpochMillis(latestValidDateTime) : undefined;
@@ -46,11 +56,21 @@ const createStepsOverRange = (start: number, end: number, step: number, toDispla
     const isAfterMax = latestValidMillis !== undefined && i > latestValidMillis;
     const isDisabled = isBeforeMin || isAfterMax;
 
-    const label = minutes === 0
-      ? <div className={`hour-marks ${isDisabled ? 'disabled-marks' : ''}`}>{DateTime.getPart(displayDt, "hours").toString()}</div>
-      : minutes % 10 === 0
-        ? <div className={`minute-marks ${isDisabled ? 'disabled-marks' : ''}`}>{minutes.toString()}</div>
-        : <div className={`blank-marks ${isDisabled ? 'disabled-marks' : ''}`} />;
+    const hours = DateTime.getPart(displayDt, "hours");
+    const kind = axisMarkKind(hours, minutes);
+    const fits = (density.from === undefined || i >= density.from) && (density.to === undefined || i <= density.to);
+    const text = !fits ? undefined : match(kind)
+      .with('day', () => `${getMonth(DateTime.getPart(displayDt, "month")).slice(0, 3)} ${DateTime.getPart(displayDt, "day")}`)
+      .with('hour', () => hours % density.hourInterval === 0 ? `${pad2(hours)}:00` : undefined)
+      .with('half', () => density.halfHourLabels ? ':30' : undefined)
+      .otherwise(() => undefined);
+
+    const label = (
+      <span className={`axis-mark axis-mark-${kind}${isDisabled ? ' disabled-marks' : ''}`}>
+        <span className="axis-tick" aria-hidden="true" />
+        {text && <span className="axis-label">{text}</span>}
+      </span>
+    );
 
     steps.push({
       value: i,
@@ -80,6 +100,7 @@ export const HorizontalCalendar = ({
   increment,
   instantStepMs,
   theme = AppTheme.Light,
+  showDateHeader = true,
 }: {
   primaryRange: PrimaryRange<DateTime.DateTime>,
   limitedRange?: LimitedRange<DateTime.DateTime>,
@@ -93,8 +114,21 @@ export const HorizontalCalendar = ({
    */
   instantStepMs?: number,
   theme?: AppTheme,
+  /** The date above the track. Instant mode drops it when the readout shows the date. */
+  showDateHeader?: boolean,
 }) => {
-  const { toDisplay, fromDisplay } = useTimeZoneDisplay();
+  const { toDisplay, fromDisplay, getDisplayZone } = useTimeZoneDisplay();
+
+  // The track's width sets how densely the axis can label.
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  useEffect(() => {
+    const el = sliderRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => setTrackWidth(entry.contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Convert all DateTimes to display timezone
   const displayPrimaryRange = useMemo(() => ({
@@ -181,6 +215,19 @@ export const HorizontalCalendar = ({
     )
   });
 
+  // Unmeasured (first render, tests) labels every hour and half hour.
+  const viewStartMs = DateTime.toEpochMillis(displayViewRange.start);
+  const viewEndMs = DateTime.toEpochMillis(displayViewRange.end);
+  const viewHours = (viewEndMs - viewStartMs) / 3_600_000;
+  const measured = trackWidth > 0 && viewHours > 0;
+  const { hourInterval, halfHourLabels } = measured
+    ? axisLabelDensity(trackWidth / viewHours)
+    : { hourInterval: 1, halfHourLabels: true };
+  // Half an "HH:00" label's width, in time.
+  const edgeMs = measured ? Math.round(20 * (viewEndMs - viewStartMs) / trackWidth) : 0;
+  const labelFrom = viewStartMs + edgeMs;
+  const labelTo = viewEndMs - edgeMs;
+
   useEffect(() => {
     setViewRangeAndStep({
       start: DateTime.toEpochMillis(displayViewRange.start),
@@ -191,12 +238,13 @@ export const HorizontalCalendar = ({
         markStepMs,
         toDisplay,
         displayEarliestValidDateTime,
-        displayLatestValidDateTime
+        displayLatestValidDateTime,
+        { hourInterval, halfHourLabels, from: labelFrom, to: labelTo }
       )
     });
     // firstMarkMs only reads instantStepMs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayViewRange, markStepMs, instantStepMs, toDisplay, displayEarliestValidDateTime, displayLatestValidDateTime]);
+  }, [displayViewRange, markStepMs, instantStepMs, toDisplay, displayEarliestValidDateTime, displayLatestValidDateTime, hourInterval, halfHourLabels, labelFrom, labelTo]);
 
   /**
    * Selected date range settings and slider active updates
@@ -244,15 +292,31 @@ export const HorizontalCalendar = ({
         backgroundColor: `${colors.primary} !important`,
         opacity: '1 !important',
       },
+      // Each mark label draws its own tick, so the length can follow the mark's kind.
       '& .MuiSlider-mark': {
-        backgroundColor: `${colors.text} !important`,
-        opacity: '1 !important',
+        display: 'none',
       },
       '& .MuiSlider-markLabel': {
         color: `${colors.text} !important`,
         opacity: '1 !important',
       },
+      // Instant mode's time label above the thumb.
+      '& .MuiSlider-valueLabel': {
+        top: '-4px',
+        padding: '1px 7px',
+        borderRadius: '4px',
+        backgroundColor: theme === AppTheme.Dark ? '#4a9eff' : '#005ea2',
+        color: theme === AppTheme.Dark ? '#0b1620' : '#ffffff',
+        fontFamily: "'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+        fontSize: '13px',
+        fontWeight: 700,
+        lineHeight: '18px',
+        fontVariantNumeric: 'tabular-nums',
+        letterSpacing: 0,
+      },
       '& .MuiSlider-thumb': {
+        // Above the out-of-range overlays, which now start exactly at the bound.
+        zIndex: 3,
         backgroundColor: theme === AppTheme.Dark ? '#4a9eff' : '#005ea2',
         '&:hover': {
           boxShadow: theme === AppTheme.Dark ? '0 0 0 8px rgba(74, 158, 255, 0.16)' : '0 0 0 8px rgba(0, 94, 162, 0.16)',
@@ -280,7 +344,6 @@ export const HorizontalCalendar = ({
       : `${(dayDividerIndex / (viewInMinIncrements.length + 1)) * 100}%`;
   }, [displayViewRange.end, displayViewRange.start]);
 
-  const sliderRef = useRef<HTMLDivElement>(null);
   const lastEvtTypeRef = useRef<string>('');
   const [draggingBoundary, setDraggingBoundary] = useState<'start' | 'end' | null>(null);
   const [hoveringBoundary, setHoveringBoundary] = useState<'start' | 'end' | null>(null);
@@ -530,15 +593,17 @@ export const HorizontalCalendar = ({
   return (
     <div className={`horizontal-calendar-grid`}>
       <div>
+        {/* Without the date it stays as room for the thumb's time label. */}
         <div className="horizontal-calendar-grid-header">
           <div style={{ left: headerGridLocation }} className="horizontal-calendar-grid-header-label">
-            {`${getMonth(DateTime.getPart(displayViewRange.end, "month"))} ` +
+            {showDateHeader &&
+              `${getMonth(DateTime.getPart(displayViewRange.end, "month"))} ` +
               `${DateTime.getPart(displayViewRange.end, "day")}, ` +
               `${DateTime.getPart(displayViewRange.end, "year")}`}
           </div>
         </div>
       </div>
-      <Box ref={sliderRef} sx={{ maxWidth: "100%", boxSizing: "border-box", position: "relative" }} className={`horizontal-calendar-grid-body ${match(sliderActive)
+      <Box ref={sliderRef} sx={{ maxWidth: "100%", boxSizing: "border-box", position: "relative" }} className={`horizontal-calendar-grid-body${instantStepMs ? ' instant-track' : ''} ${match(sliderActive)
         .with(SliderActive.Inactive, () => "hide-slider-components")
         .with(SliderActive.RightActive, () => "hide-left-slider-component")
         .with(SliderActive.LeftActive, () => "hide-right-slider-component")
@@ -738,24 +803,34 @@ export const HorizontalCalendar = ({
         {/* Latest valid date time visual indicator - shows right-side disabled region */}
         {latestValidPosition && (
           <>
-            {/* Dim overlay for disabled area (beyond latestValidDateTime) */}
+            {/* Dim overlay for disabled area (beyond latestValidDateTime). Instant mode
+                hatches it from the bound itself; the thumb sits above it. */}
             <div
+              className={instantStepMs ? 'latest-overlay-instant' : undefined}
               style={{
                 position: 'absolute',
-                left: latestValidPosition.fullyCovered ? 0 : `calc(${latestValidPosition.percent}% + 12px)`,
+                left: latestValidPosition.fullyCovered ? 0
+                  : instantStepMs ? `${latestValidPosition.percent}%`
+                    : `calc(${latestValidPosition.percent}% + 12px)`,
                 right: 0,
                 top: 0,
                 bottom: 0,
-                backgroundColor: colors.compBg,
-                opacity: 0.7,
+                ...(instantStepMs ? {} : { backgroundColor: colors.compBg, opacity: 0.7 }),
                 cursor: 'not-allowed',
                 zIndex: 1,
               }}
               onMouseEnter={() => setHoveringDisabledRegion('right')}
               onMouseLeave={() => setHoveringDisabledRegion(null)}
             />
+            {/* Instant mode marks the newest selectable time with a labelled line. */}
+            {instantStepMs && !latestValidPosition.fullyCovered && (
+              <>
+                <div className="latest-line" style={{ left: `${latestValidPosition.percent}%` }} />
+                <div className="latest-tag" style={{ left: `${latestValidPosition.percent}%` }}>Latest</div>
+              </>
+            )}
             {/* Boundary line at cutoff point - only show when cutoff is visible */}
-            {!latestValidPosition.fullyCovered && (
+            {!instantStepMs && !latestValidPosition.fullyCovered && (
               <div style={{
                 position: 'absolute',
                 left: `${latestValidPosition.percent}%`,
@@ -1011,11 +1086,10 @@ export const HorizontalCalendar = ({
             );
             primaryRange.set({ start, end });
           }}
-          valueLabelDisplay="off"
-          valueLabelFormat={(value) => {
-            const date = DateTime.unsafeFromDate(new Date(value));
-            return DateTime.formatIsoDate(date);
-          }}
+          valueLabelDisplay={instantStepMs ? 'on' : 'off'}
+          valueLabelFormat={(value) => instantStepMs
+            ? formatClockTime(new Date(value), getDisplayZone())
+            : DateTime.formatIsoDate(DateTime.unsafeFromDate(new Date(value)))}
           step={null}
           marks={viewRangeAndStep.stepArr}
           min={viewRangeAndStep.start}

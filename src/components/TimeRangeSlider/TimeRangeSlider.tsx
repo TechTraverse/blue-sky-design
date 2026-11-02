@@ -1163,6 +1163,7 @@ export const TimeRangeSlider = ({
               increment={s.increment}
               instantStepMs={isInstant ? instantStepMs : undefined}
               theme={theme}
+              showDateHeader={!isInstant || hideDatePicker}
             />
           </div>
           {!isSliderHidden && (

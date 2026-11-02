@@ -12,6 +12,11 @@
   }
 }
 
+/* Keeps its height without the date: the thumb's time label sits in it. */
+.horizontal-calendar-grid-header {
+  min-height: 18px;
+}
+
 .horizontal-calendar-grid-header-label {
   /* Using local font and color values for maximum specificity and to override third-party styles */
   position: relative;
@@ -185,29 +190,115 @@
   }
 }
 
-/* Disabled marks styling - matches popover calendar disabled dates */
-.hour-marks.disabled-marks,
-.minute-marks.disabled-marks,
-.blank-marks.disabled-marks {
-  color: #ccc !important;
-  cursor: not-allowed !important;
+/* ---- Time axis ----
+ * Each mark label carries its own tick (MUI's marks are hidden), centred on the
+ * rail 15px above the label row: longest at midnight and the hour, shorter at
+ * :30, shortest elsewhere. */
+.axis-mark {
+  --axis-ink: #1b1b1b;
+  --axis-ink-muted: #6f7a85;
+  --axis-tick: #8d98a3;
+  --axis-day: #1b1b1b;
+  position: relative;
+  display: block;
+  min-width: 1px;
+  min-height: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.hour-marks.disabled-marks:hover,
-.minute-marks.disabled-marks:hover,
-.blank-marks.disabled-marks:hover {
-  color: #ccc !important;
+.dark-theme .axis-mark {
+  --axis-ink: #f1f4f7;
+  --axis-ink-muted: #95a2ae;
+  --axis-tick: #6c7a87;
+  --axis-day: #f1f4f7;
 }
 
-/* Dark theme disabled marks */
-.dark-theme .hour-marks.disabled-marks,
-.dark-theme .minute-marks.disabled-marks,
-.dark-theme .blank-marks.disabled-marks {
-  color: rgba(255, 255, 255, 0.3) !important;
+.axis-tick {
+  --tick-h: 5px;
+  position: absolute;
+  left: 50%;
+  top: calc(-15px - var(--tick-h) / 2);
+  width: 1px;
+  height: var(--tick-h);
+  background: var(--axis-tick);
+  transform: translateX(-0.5px);
 }
 
-.dark-theme .hour-marks.disabled-marks:hover,
-.dark-theme .minute-marks.disabled-marks:hover,
-.dark-theme .blank-marks.disabled-marks:hover {
-  color: rgba(255, 255, 255, 0.3) !important;
+.axis-mark-half .axis-tick { --tick-h: 9px; }
+.axis-mark-hour .axis-tick { --tick-h: 14px; }
+.axis-mark-day .axis-tick {
+  --tick-h: 22px;
+  width: 2px;
+  background: var(--axis-day);
+  transform: translateX(-1px);
+}
+
+.axis-label {
+  display: block;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--axis-ink-muted);
+}
+
+.axis-mark-hour .axis-label,
+.axis-mark-day .axis-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--axis-ink);
+}
+
+.axis-mark.disabled-marks {
+  cursor: not-allowed;
+}
+
+/* ---- Instant mode's newest selectable time ---- */
+.latest-overlay-instant {
+  --latest-future: #eef1f4;
+  --latest-hatch: #dde3e9;
+  background: repeating-linear-gradient(135deg, var(--latest-future) 0 6px, var(--latest-hatch) 6px 7px);
+  opacity: 0.6;
+}
+
+.dark-theme .latest-overlay-instant {
+  --latest-future: #232c35;
+  --latest-hatch: #2b3540;
+}
+
+.latest-line,
+.latest-tag {
+  --latest-color: #b50909;
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dark-theme .latest-line,
+.dark-theme .latest-tag {
+  --latest-color: #ff7b72;
+}
+
+.latest-line {
+  top: 4px;
+  height: 22px;
+  width: 2px;
+  background: var(--latest-color);
+  transform: translateX(-1px);
+}
+
+.latest-tag {
+  top: -1px;
+  margin-left: 8px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 12px;
+  text-transform: uppercase;
+  color: var(--latest-color);
+}
+
+/* The thumb's time label sits above the track. */
+.instant-track.horizontal-calendar-grid-body {
+  overflow-y: visible;
 }
