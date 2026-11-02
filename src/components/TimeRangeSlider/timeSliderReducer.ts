@@ -1,7 +1,7 @@
 import type { RangeValue } from "@react-types/shared";
 import { DateTime, Data as D, Duration } from 'effect';
 import { match, P } from 'ts-pattern';
-import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone, type SelectionMode } from './timeSliderTypes';
+import { AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, TimeZone, type SelectionMode } from './timeSliderTypes';
 import { acceptsTrackLatestRebase, clampInstant, clampSelection, resolveInstantStepMs, type SelectableRange } from './stepping';
 
 /** Provenance of a selection write. Exported for the reducer tests. */
@@ -76,8 +76,9 @@ export type State = {
   // Steps walk from here, never from the shared selection cell.
   stepCursor: DateTime.DateTime | null;
 
-  // Two modes: animation or step
-  animationOrStepMode: AnimationOrStepMode;
+  // A loop window is open: playback repeats over the animation range, which the
+  // calendar draws. Opened by play, closed by a manual move outside it.
+  loopActive: boolean;
 
   // Animation state for the calendar
   resetAnimationSpeed: AnimationSpeed;
@@ -144,8 +145,8 @@ export type Action = D.TaggedEnum<{
   /** Switching to instant mode zeroes the width; back to range restores one. */
   ExtSetSelectionMode: { selectionMode: SelectionMode; };
 
-  SetAnimationOrStepMode:
-  { animationOrStepMode: AnimationOrStepMode; };
+  /** Open the loop window at `animationStartDateTime` and play. */
+  StartLoop: { animationStartDateTime: DateTime.DateTime; };
 
   SetAnimationStartDateTime:
   { animationStartDateTime: DateTime.DateTime; };
@@ -184,7 +185,7 @@ export const {
   ClampSelection,
   ExtSetSelectionMode,
 
-  SetAnimationOrStepMode,
+  StartLoop,
 
   SetAnimationStartDateTime,
   SetAnimationDuration,
@@ -309,8 +310,46 @@ const getSetSelectedStartDateTimeAction = (state: State, roundingFn: (dateTime: 
     // Only a step continues the sequence; every other writer ends it.
     stepCursor: x.updateSource === UpdateSource.Step ? start : null,
     ...(shouldDisableTracking ? { isTrackingLatest: false } : {}),
+    ...playbackAfterMove(state, start, x.updateSource),
   }
 }
+
+/** Whether `start` (with the selection's width) lies inside the loop window, edges included. */
+const isInsideLoop = (state: State, start: DateTime.DateTime): boolean => {
+  const loopEnd = DateTime.addDuration(state.animationStartDateTime, state.animationDuration);
+  return !DateTime.lessThan(start, state.animationStartDateTime)
+    && !DateTime.greaterThan(DateTime.addDuration(start, state.selectedDuration), loopEnd);
+};
+
+// A Record for the same reason as DISABLES_TRACKING: a new source must say
+// what it does to playback.
+const PLAYBACK_AFTER_MOVE: Record<UpdateSource, 'keep' | 'pause' | 'end'> = {
+  [UpdateSource.ExternalProp]: 'keep',
+  [UpdateSource.Animation]: 'keep',
+  [UpdateSource.UserInteraction]: 'pause',
+  [UpdateSource.Step]: 'pause',
+  [UpdateSource.TrackLatestUpdate]: 'end',
+};
+
+/**
+ * A manual move (a step, a drag, a typed time) pauses playback where it lands,
+ * and closes the loop when it lands outside it. Jumping to the latest time closes
+ * it too. Animation frames and the host's own writes leave playback alone.
+ */
+const playbackAfterMove = (
+  state: State,
+  start: DateTime.DateTime,
+  source: UpdateSource
+): Partial<State> => {
+  switch (PLAYBACK_AFTER_MOVE[source]) {
+    case 'keep': return {};
+    case 'pause': return {
+      animationPlayMode: PlayMode.Pause,
+      loopActive: state.loopActive && isInsideLoop(state, start),
+    };
+    case 'end': return { animationPlayMode: PlayMode.Pause, loopActive: false };
+  }
+};
 
 const getSetSelectedDurationAction = (state: State, roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime) => (x: {
   selectedDuration: Duration.Duration;
@@ -472,12 +511,15 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
       };
     },
 
-    SetAnimationOrStepMode: (x) => ({
+    StartLoop: (x) => ({
       ...state,
-      animationOrStepMode: x.animationOrStepMode,
-      // Entering a repeatable mode ends any live step sequence, so a track-latest
-      // re-base is no longer refused. The snap onto the lattice stays silent:
-      // the selection is not rewritten, the first step absorbs it.
+      loopActive: true,
+      animationStartDateTime: x.animationStartDateTime,
+      animationPlayMode: PlayMode.Play,
+      // Playback and tracking are mutually exclusive.
+      isTrackingLatest: false,
+      // Ends any live step sequence. The selection is not rewritten: the first
+      // frame moves it into the loop.
       stepCursor: null,
     }),
 
@@ -496,6 +538,8 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
     SetAnimationPlayMode: (x) => ({
       ...state,
       animationPlayMode: x.playMode,
+      // Playback and tracking are mutually exclusive.
+      ...(x.playMode === PlayMode.Play ? { isTrackingLatest: false } : {}),
     }),
     SetAnimationSpeed: (x) => ({
       ...state,
@@ -511,6 +555,8 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
       isTrackingLatest: x.isTrackingLatest,
       // Toggling tracking is an explicit end to any step sequence.
       stepCursor: null,
+      // Tracking follows the newest time, so it stops playback and closes the loop.
+      ...(x.isTrackingLatest ? { animationPlayMode: PlayMode.Pause, loopActive: false } : {}),
     }),
     SetLastKnownLatestDate: (x) => ({
       ...state,
@@ -525,7 +571,7 @@ export const reducer = (state: State, action: Action, roundingFn?: (dateTime: Da
       selectedStartDateTime: state.resetStartDateTime,
       selectedDuration: state.selectionMode === 'instant' ? Duration.zero : state.resetDuration,
       stepCursor: null,
-      animationOrStepMode: AnimationOrStepMode.Step,
+      loopActive: false,
       animationDuration: state.resetAnimationDuration,
       animationPlayMode: PlayMode.Pause,
       animationSpeed: state.resetAnimationSpeed,
@@ -544,7 +590,6 @@ export function withMiddleware(
   onDateRangeSelect: (rv: RangeValue<Date>, source: DateUpdateSource) => void,
   roundingFn: (dateTime: DateTime.DateTime) => DateTime.DateTime,
   onTimeZoneChange?: (timeZone: TimeZone) => void,
-  onAnimationOrStepModeChange?: (mode: AnimationOrStepMode) => void,
   onTrackLatestChange?: (enabled: boolean) => void
 ): (state: State, action: Action) => State {
   return (oldState, action) => {
@@ -582,9 +627,6 @@ export function withMiddleware(
       })
       .with({ _tag: "SetTimeZone" }, () => (newState.timeZone !== oldState.timeZone),
         () => onTimeZoneChange?.(newState.timeZone)
-      )
-      .with({ _tag: "SetAnimationOrStepMode" }, () => (newState.animationOrStepMode !== oldState.animationOrStepMode),
-        () => onAnimationOrStepModeChange?.(newState.animationOrStepMode)
       )
     return newState;
   };

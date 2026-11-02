@@ -33,7 +33,6 @@ const durationOptions = [
 ];
 
 export const ControlSettings = ({
-  animationEnabled,
   animationSpeed,
   setAnimationSpeed,
   animationDuration,
@@ -43,7 +42,6 @@ export const ControlSettings = ({
   disabled = false,
   darkTheme = false,
 }: {
-  animationEnabled: boolean;
   animationSpeed?: AnimationSpeed;
   setAnimationSpeed?: (speed: AnimationSpeed) => void;
   animationDuration?: Duration.Duration;
@@ -73,15 +71,10 @@ export const ControlSettings = ({
 
   const open = Boolean(anchorEl);
   const id = open ? 'control-settings-popover' : undefined;
-  const title = 'Animation settings';
-  const settingsTitle = 'Animation Settings';
+  const title = 'Playback settings';
+  const settingsTitle = 'Playback Settings';
   const themeClass = darkTheme ? 'dark-theme' : 'light-theme';
   const menuProps = { className: themeClass, sx: { zIndex: 10004 } };
-
-  // Only show settings button in animation mode
-  if (!animationEnabled) {
-    return null;
-  }
 
   return (
     <>
