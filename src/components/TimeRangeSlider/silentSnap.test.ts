@@ -32,6 +32,7 @@ const lattice = makeStepLattice(FRAMES[0], 0, 300_000);
 const width = Duration.minutes(5);
 
 const baseState = (overrides: Partial<State> = {}): State => ({
+  selectionMode: 'range',
   timeZone: TimeZone.Local,
   increment: TimeDuration['5m'],
   viewStartDateTime: at('2026-08-22T11:00:00Z'),

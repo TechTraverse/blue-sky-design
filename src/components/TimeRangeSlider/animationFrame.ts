@@ -51,12 +51,15 @@ export interface AnimationFrameState {
  * speed, backwards for a negative one — wrapping around at whichever end of the
  * animation range playback is travelling towards: forwards past the range end
  * loops to `animationStartDateTime`, backwards past the range start loops to the
- * last frame that fits inside the range.
+ * last frame that fits inside the range. With `gridAligned` frames land on the
+ * `|advanceMs|` grid instead (see `computeNextGridFrame`).
  */
 export const computeNextAnimationFrame = (
   currentState: AnimationFrameState,
-  advanceMs: number
+  advanceMs: number,
+  gridAligned = false
 ): { nextStart: DateTime.DateTime; frame: FrameInfo } => {
+  if (gridAligned) return computeNextGridFrame(currentState, advanceMs);
   const reverse = advanceMs < 0;
   // Duration is unsigned (`Duration.millis(-1)` is zero), so a reverse frame
   // subtracts the magnitude rather than adding a negative — the same treatment
@@ -89,18 +92,58 @@ export const computeNextAnimationFrame = (
 };
 
 /**
+ * Instant mode's frame step: `|advanceMs|` is the grid step, and each frame
+ * moves to the adjacent grid point (`k * |advanceMs|`) in the direction of
+ * travel, so an off-grid selection rejoins the grid on the first frame. Wraps
+ * within the grid points that fit inside the animation range: forwards past the
+ * last one loops to the first, backwards past the first loops to the last.
+ */
+const computeNextGridFrame = (
+  currentState: AnimationFrameState,
+  advanceMs: number
+): { nextStart: DateTime.DateTime; frame: FrameInfo } => {
+  const stepMs = Math.abs(advanceMs);
+  const widthMs = Duration.toMillis(currentState.selectedDuration);
+  const fromMs = DateTime.toEpochMillis(currentState.selectedStartDateTime);
+  const animStartMs = DateTime.toEpochMillis(currentState.animationStartDateTime);
+  const animEndMs = animStartMs + Duration.toMillis(currentState.animationDuration);
+  let nextMs = fromMs;
+  if (stepMs > 0) {
+    const first = Math.ceil(animStartMs / stepMs) * stepMs;
+    const last = Math.floor((animEndMs - widthMs) / stepMs) * stepMs;
+    if (first > last) {
+      // No grid point inside the animation range (it is shorter than a step):
+      // hold, rather than jump to one outside it.
+      nextMs = fromMs;
+    } else if (advanceMs < 0) {
+      const prev = Math.ceil(fromMs / stepMs) * stepMs - stepMs;
+      nextMs = prev < first ? last : prev;
+    } else {
+      const next = Math.floor(fromMs / stepMs) * stepMs + stepMs;
+      nextMs = next > last ? first : next;
+    }
+  }
+  const nextStart = DateTime.unsafeMake(nextMs);
+  return {
+    nextStart,
+    frame: { start: nextStart, end: DateTime.addDuration(nextStart, currentState.selectedDuration) },
+  };
+};
+
+/**
  * The next `count` frames playback will advance to from `currentState`, in
  * order, by repeated `computeNextAnimationFrame` steps.
  */
 export const upcomingAnimationFrames = (
   currentState: AnimationFrameState,
   advanceMs: number,
-  count: number
+  count: number,
+  gridAligned = false
 ): FrameInfo[] => {
   const frames: FrameInfo[] = [];
   let state = currentState;
   for (let i = 0; i < count; i++) {
-    const { nextStart, frame } = computeNextAnimationFrame(state, advanceMs);
+    const { nextStart, frame } = computeNextAnimationFrame(state, advanceMs, gridAligned);
     frames.push(frame);
     state = { ...state, selectedStartDateTime: nextStart };
   }
@@ -115,13 +158,14 @@ export const upcomingAnimationFrames = (
 export const lookaheadFrames = (
   currentState: AnimationFrameState,
   advanceMs: number,
-  count: number
+  count: number,
+  gridAligned = false
 ): FrameInfo[] => [
   {
     start: currentState.selectedStartDateTime,
     end: DateTime.addDuration(currentState.selectedStartDateTime, currentState.selectedDuration),
   },
-  ...upcomingAnimationFrames(currentState, advanceMs, count),
+  ...upcomingAnimationFrames(currentState, advanceMs, count, gridAligned),
 ];
 
 /**
@@ -138,10 +182,12 @@ export const makeAnimationLoopEffect = (params: {
   dispatchFrame: (nextStart: DateTime.DateTime) => void;
   onFrameSettled: (frame: FrameInfo) => Promise<void>;
   maxWaitMs: number;
+  /** Step along the `|advanceMs|` grid, as instant mode does. */
+  gridAligned?: boolean;
 }) => {
-  const { readState, advanceMs, frameMs, dispatchFrame, onFrameSettled, maxWaitMs } = params;
+  const { readState, advanceMs, frameMs, dispatchFrame, onFrameSettled, maxWaitMs, gridAligned } = params;
   const iteration = Effect.gen(function* () {
-    const { nextStart, frame } = computeNextAnimationFrame(readState(), advanceMs);
+    const { nextStart, frame } = computeNextAnimationFrame(readState(), advanceMs, gridAligned);
     yield* Effect.sync(() => dispatchFrame(nextStart));
     const settled = Effect.tryPromise(() => onFrameSettled(frame)).pipe(
       Effect.timeout(Duration.millis(maxWaitMs)),

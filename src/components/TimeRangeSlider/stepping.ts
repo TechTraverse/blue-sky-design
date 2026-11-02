@@ -221,3 +221,139 @@ export const clampSelection = (
   const clampedMs = belowFloor ? minMs as number : (maxMs as number) - widthMs;
   return { start: DateTime.unsafeMake(clampedMs), width };
 };
+
+/*
+ * Instant mode: the selection is a single instant on a clock grid of
+ * `k * stepMs` epoch milliseconds, so a 5-minute step lands on 13:00, 13:05, …
+ * whatever the display zone. Everything the user does is snapped onto the grid;
+ * an instant arriving on the `dateRange` prop is taken as given.
+ */
+
+/** Step size instant mode uses when `stepMs` is absent or unusable. */
+export const DEFAULT_INSTANT_STEP_MS = 5 * 60 * 1000;
+
+/** Choices the step selector offers when `stepOptionsMs` is absent. */
+export const DEFAULT_STEP_OPTIONS_MS: readonly number[] = [1, 5, 10, 30].map((m) => m * 60 * 1000);
+
+const isUsableStep = (stepMs: unknown): stepMs is number =>
+  typeof stepMs === 'number' && Number.isFinite(stepMs) && Math.round(stepMs) > 0;
+
+/** The grid step in whole milliseconds, falling back to the default. */
+export const resolveInstantStepMs = (stepMs: number | undefined): number =>
+  isUsableStep(stepMs) ? Math.round(stepMs) : DEFAULT_INSTANT_STEP_MS;
+
+/**
+ * The step selector's choices: valid, unique and ascending, with the current
+ * step added when the list lacks it, so one choice is always selected.
+ */
+export const resolveStepOptions = (
+  options: readonly number[] | undefined,
+  currentStepMs: number
+): number[] => {
+  const valid = (options ?? []).filter(isUsableStep).map(Math.round);
+  const base = valid.length ? valid : [...DEFAULT_STEP_OPTIONS_MS];
+  return [...new Set([...base, currentStepMs])].sort((a, b) => a - b);
+};
+
+/** How an arbitrary instant is moved onto the grid. */
+export type GridSnap = 'floor' | 'nearest';
+
+export const floorToGrid = (ms: number, stepMs: number): number =>
+  Math.floor(ms / stepMs) * stepMs;
+
+export const ceilToGrid = (ms: number, stepMs: number): number =>
+  Math.ceil(ms / stepMs) * stepMs;
+
+export const nearestGridPoint = (ms: number, stepMs: number): number =>
+  Math.round(ms / stepMs) * stepMs;
+
+/**
+ * Move an on-grid instant to the nearest grid point inside `range`: the first
+ * one at or after the floor, the last one at or before the ceiling. When no
+ * grid point fits between the two, the ceiling wins, since nothing newer than
+ * it exists.
+ */
+const clampOnGrid = (ms: number, stepMs: number, range: SelectableRange | undefined): number => {
+  const lo = range?.min && ceilToGrid(DateTime.toEpochMillis(range.min), stepMs);
+  const hi = range?.max && floorToGrid(DateTime.toEpochMillis(range.max), stepMs);
+  if (hi !== undefined && ms > hi) return hi;
+  if (lo !== undefined && ms < lo) return hi !== undefined && hi < lo ? hi : lo;
+  return ms;
+};
+
+/** Snap an instant onto the grid, then pull it inside `range` on the grid. */
+export const snapInstant = (
+  instant: DateTime.DateTime,
+  stepMs: number,
+  snap: GridSnap,
+  range?: SelectableRange
+): DateTime.DateTime => {
+  const ms = DateTime.toEpochMillis(instant);
+  const snapped = snap === 'floor' ? floorToGrid(ms, stepMs) : nearestGridPoint(ms, stepMs);
+  return DateTime.unsafeMake(clampOnGrid(snapped, stepMs, range));
+};
+
+/**
+ * Where picking a new step size puts the instant: floored onto the new grid
+ * inside the bounds, or, while tracking latest, the newest grid point, so a
+ * finer step can move it forward. Tracking stays on even before the first poll
+ * has returned; the ceiling then stands in for the latest data.
+ */
+export const instantAfterStepChange = (
+  current: { instant: DateTime.DateTime; isTrackingLatest: boolean; lastKnownLatest: DateTime.DateTime | null },
+  stepMs: number,
+  range?: SelectableRange
+): { instant: DateTime.DateTime; tracking: boolean } => {
+  const latest = current.lastKnownLatest ?? range?.max;
+  return {
+    instant: current.isTrackingLatest && latest
+      ? latestInstant(latest, stepMs, range)
+      : snapInstant(current.instant, stepMs, 'floor', range),
+    tracking: current.isTrackingLatest,
+  };
+};
+
+/**
+ * Where track-latest puts the instant: the newest grid point at or before both
+ * the latest data and the ceiling.
+ */
+export const latestInstant = (
+  latest: DateTime.DateTime,
+  stepMs: number,
+  range?: SelectableRange
+): DateTime.DateTime => snapInstant(latest, stepMs, 'floor', range);
+
+/**
+ * The instant one step from `from`: the adjacent grid point, so an on-grid
+ * instant moves exactly `stepMs` and an off-grid one lands on its neighbour.
+ * Blocked when that point is past the bound in the direction of travel.
+ */
+export const stepInstant = (
+  from: DateTime.DateTime,
+  stepMs: number,
+  direction: StepDirection,
+  range?: SelectableRange
+): { to: DateTime.DateTime; blocked: boolean } => {
+  const to = adjacentLatticePosition(from, { originMs: 0, stepMs }, direction);
+  return { to, blocked: isStepBlocked(to, to, direction, range) };
+};
+
+/**
+ * The instant moved back inside `range` onto the grid, or undefined when it
+ * already fits. An instant inside the range is left alone even off the grid:
+ * the consumer owns what it passes in. The instant-mode counterpart of
+ * `clampSelection`.
+ */
+export const clampInstant = (
+  instant: DateTime.DateTime,
+  stepMs: number,
+  range: SelectableRange | undefined
+): DateTime.DateTime | undefined => {
+  if (!range) return undefined;
+  const ms = DateTime.toEpochMillis(instant);
+  const belowFloor = range.min !== undefined && ms < DateTime.toEpochMillis(range.min);
+  const aboveCeiling = range.max !== undefined && ms > DateTime.toEpochMillis(range.max);
+  if (!belowFloor && !aboveCeiling) return undefined;
+  return DateTime.unsafeMake(clampOnGrid(
+    belowFloor ? ceilToGrid(ms, stepMs) : floorToGrid(ms, stepMs), stepMs, range));
+};

@@ -7,15 +7,32 @@ import { HorizontalCalendar } from './HorizontalCalendar';
 import { match, P } from 'ts-pattern';
 import { AnimateAndStepControls } from './AnimateAndStepControls';
 import { AnimationOrStepMode, AnimationRequestFrequency, AnimationSpeed, PlayMode, TimeDuration, Theme as AppTheme, TimeZone } from './timeSliderTypes';
+import type { SelectionMode } from './timeSliderTypes';
 import { computeNextAnimationFrame, lookaheadFrames, makeAnimationLoopEffect, DEFAULT_MAX_WAIT_MS } from './animationFrame';
-import { acceptsTrackLatestRebase, isStepBlocked, makeStepLattice, normalizeStepPositions, resolveStepMs, sequenceCursor, stepSelection } from './stepping';
-import type { StepDirection, StepResolution } from './stepping';
+import {
+  acceptsTrackLatestRebase,
+  DEFAULT_INSTANT_STEP_MS,
+  isStepBlocked,
+  instantAfterStepChange,
+  latestInstant,
+  makeStepLattice,
+  normalizeStepPositions,
+  resolveInstantStepMs,
+  resolveStepMs,
+  resolveStepOptions,
+  sequenceCursor,
+  snapInstant,
+  stepInstant,
+  stepSelection,
+} from './stepping';
+import type { SelectableRange, StepDirection, StepResolution } from './stepping';
 import {
   ClampSelection,
   DEFAULT_ANIMATION_DURATION,
   ExtSetIncrement,
   ExtSetSelectedDuration,
   ExtSetSelectedStartDateTime,
+  ExtSetSelectionMode,
   ExtSetTimeZone,
   HandleResize,
   ResetAll,
@@ -40,6 +57,7 @@ import {
 import type { DateUpdateSource } from './timeSliderReducer';
 import type { AnimationLookahead, FrameAdvance } from './animationFrame';
 import { DateAndRangeSelect } from './DateAndRangeSelect';
+import { StepSizeSelect } from './StepSizeSelect';
 import { Divider, IconButton, Tooltip } from '@mui/material';
 import { MdMyLocation, MdFastForward } from 'react-icons/md';
 import { TimeZoneDisplayProvider } from '../../contexts/TimeZoneDisplayContext';
@@ -142,6 +160,31 @@ export interface TimeRangeSliderProps {
    * show. On leaving animation mode it receives `[]` once.
    */
   animationLookahead?: AnimationLookahead;
+  /**
+   * `'range'` (the default) selects a window; `'instant'` selects one instant on
+   * a clock grid of `stepMs` steps. In instant mode `dateRange.start` is the
+   * instant (pass `{ start: t, end: t }`), every `onDateRangeSelect` has
+   * `end === start`, and everything the user does — drags, clicks, steps, picks,
+   * playback, track-latest — lands on a grid point inside `availableDateRange`.
+   * An instant arriving on `dateRange` is taken as given, on the grid or not.
+   * `stepSizeMs`, `stepAnchor`, `stepPhaseMs` and `stepPositions` do not apply.
+   */
+  selectionMode?: SelectionMode;
+  /**
+   * Instant mode's step in milliseconds: the grid is `k * stepMs` epoch
+   * milliseconds (13:00, 13:05, … for 5 minutes), shared by the track marks,
+   * snapping, step buttons, date picker and playback, which advances one step
+   * per frame. Defaults to 5 minutes. Controlled when passed; otherwise the
+   * slider keeps the step the user picks.
+   */
+  stepMs?: number;
+  /** The step selector's choices in milliseconds. Defaults to 1, 5, 10 and 30 minutes. */
+  stepOptionsMs?: readonly number[];
+  /**
+   * Called when the user picks a step size. The instant is floored onto the new
+   * grid at the same time and reported through `onDateRangeSelect`.
+   */
+  onStepMsChange?: (stepMs: number) => void;
 }
 
 /**
@@ -196,9 +239,25 @@ export const TimeRangeSlider = ({
   initialTrackLatest = false,
   frameAdvance,
   animationLookahead,
+  selectionMode = 'range',
+  stepMs: instantStepMsProp,
+  stepOptionsMs,
+  onStepMsChange,
 }: TimeRangeSliderProps) => {
 
   const viewIncrement = increment;
+
+  const isInstant = selectionMode === 'instant';
+  // The step the user picked, for a consumer that does not control stepMs.
+  const [uncontrolledStepMs, setUncontrolledStepMs] = useState(DEFAULT_INSTANT_STEP_MS);
+  const instantStepMs = resolveInstantStepMs(instantStepMsProp ?? uncontrolledStepMs);
+  // Instant mode's frame interval; the frame-rate setting changes it.
+  const [instantFrameMs, setInstantFrameMs] = useState<number>(animationRequestFrequency);
+  useEffect(() => setInstantFrameMs(animationRequestFrequency), [animationRequestFrequency]);
+
+  /** Instant mode's floor onto the grid, inside `range` when given. Identity in range mode. */
+  const toGrid = (dateTime: DateTime.DateTime, range?: SelectableRange) =>
+    isInstant ? snapInstant(dateTime, instantStepMs, 'floor', range) : dateTime;
 
   const roundDateTimeDownToNearestIncrement = (dateTime: DateTime.DateTime): DateTime.DateTime => {
     const incrementMinutes = viewIncrement / (60 * 1000);
@@ -286,12 +345,14 @@ export const TimeRangeSlider = ({
         (x) => DateTime.unsafeFromDate(x.start))
       .otherwise(() => {
         console.warn("TimeRangeSlider: dateRange prop is malformed or undefined, defaulting to current time");
-        const now = DateTime.unsafeNow().pipe(roundDateTimeDownToNearestIncrement);
+        const now = isInstant
+          ? toGrid(DateTime.unsafeNow())
+          : DateTime.unsafeNow().pipe(roundDateTimeDownToNearestIncrement);
         return now;
       });
     const animationStartDateTime = selectedStartDateTime;
 
-    const selectedDuration = match(dateRange)
+    const selectedDuration = isInstant ? Duration.zero : match(dateRange)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
         (x) => {
           const start = DateTime.unsafeFromDate(x.start);
@@ -314,7 +375,7 @@ export const TimeRangeSlider = ({
         (x) => DateTime.unsafeFromDate(x.start))
       .otherwise(() => selectedStartDateTime);
 
-    const resetDuration = match(dateRangeForReset)
+    const resetDuration = isInstant ? Duration.zero : match(dateRangeForReset)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
         (x) => {
           const start = DateTime.unsafeFromDate(x.start);
@@ -335,6 +396,7 @@ export const TimeRangeSlider = ({
     );
 
     return {
+      selectionMode,
       timeZone,
       increment,
       viewStartDateTime,
@@ -561,6 +623,15 @@ export const TimeRangeSlider = ({
    * External prop change handlers
    */
 
+  // selectionMode prop change. Ahead of the dateRange handlers, so a mode switch
+  // and a new dateRange in the same render apply in that order.
+  useEffect(() => {
+    if (selectionMode !== s.selectionMode) {
+      d(ExtSetSelectionMode({ selectionMode }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionMode]);
+
   // Update selectedStartDateTime
   useEffect(() => {
     if (!dateRange?.start) return;
@@ -581,9 +652,9 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange?.start?.getTime()]);
 
-  // Update selectedDuration
+  // Update selectedDuration. An instant has none.
   useEffect(() => {
-    if (!dateRange?.start || !dateRange?.end) return;
+    if (isInstant || !dateRange?.start || !dateRange?.end) return;
 
     match(dateRange)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
@@ -603,7 +674,7 @@ export const TimeRangeSlider = ({
           }));
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
+  }, [dateRange?.start?.getTime(), dateRange?.end?.getTime(), isInstant]);
 
   // The same thing but for the reset time and duration
   useEffect(() => {
@@ -623,7 +694,7 @@ export const TimeRangeSlider = ({
   }, [dateRangeForReset?.start?.getTime()]);
 
   useEffect(() => {
-    if (!dateRangeForReset?.start || !dateRangeForReset?.end) return;
+    if (isInstant || !dateRangeForReset?.start || !dateRangeForReset?.end) return;
 
     match(dateRangeForReset)
       .with({ start: P.instanceOf(Date), end: P.instanceOf(Date) },
@@ -642,7 +713,7 @@ export const TimeRangeSlider = ({
           }));
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime()]);
+  }, [dateRangeForReset?.start?.getTime(), dateRangeForReset?.end?.getTime(), isInstant]);
 
   // timeZone prop change
   useEffect(() => {
@@ -659,6 +730,17 @@ export const TimeRangeSlider = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [increment]);
+
+  /**
+   * Playback rate. Range mode advances `animationSpeed` of simulated time per
+   * real second, one `animationRequestFrequency` frame at a time. Instant mode
+   * advances exactly one grid step per frame, in the direction of the speed's
+   * sign, at the frame-rate setting's interval.
+   */
+  const animationFrameMs = isInstant ? instantFrameMs : animationRequestFrequency;
+  const animationAdvanceMs = isInstant
+    ? (s.animationSpeed < 0 ? -instantStepMs : instantStepMs)
+    : (s.animationSpeed * animationRequestFrequency) / 1000;
 
   /**
    * Animation lookahead
@@ -681,14 +763,14 @@ export const TimeRangeSlider = ({
       return;
     }
     lookaheadActiveRef.current = true;
-    const advanceMs = (s.animationSpeed * animationRequestFrequency) / 1000;
-    lookahead.onUpcomingFrames(lookaheadFrames(s, advanceMs, lookahead.frameCount));
+    lookahead.onUpcomingFrames(
+      lookaheadFrames(s, animationAdvanceMs, lookahead.frameCount, isInstant));
     // The callback is read through lookaheadRef, and only the frame-math inputs
     // of `s` gate recomputation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animationLookahead?.frameCount, s.animationOrStepMode, s.selectedStartDateTime,
     s.selectedDuration, s.animationSpeed, animationRequestFrequency,
-    s.animationStartDateTime, s.animationDuration]);
+    s.animationStartDateTime, s.animationDuration, isInstant, animationAdvanceMs]);
 
   /**
    * Animation auto-increment logic (fixed-rate / default path)
@@ -704,13 +786,12 @@ export const TimeRangeSlider = ({
       return;
     }
 
-    // Calculate milliseconds to advance per animation frame
-    const animationSpeed = s.animationSpeed; // ms of simulated time per real second
-    const frameMs = animationRequestFrequency; // ms per frame
-    const advanceMs = (animationSpeed * frameMs) / 1000; // ms to advance per frame
+    // Milliseconds per frame, and to advance per frame (see animationAdvanceMs)
+    const frameMs = animationFrameMs;
+    const advanceMs = animationAdvanceMs;
 
     const intervalId = setInterval(() => {
-      const { nextStart } = computeNextAnimationFrame(stateRef.current, advanceMs);
+      const { nextStart } = computeNextAnimationFrame(stateRef.current, advanceMs, isInstant);
       d(SetSelectedStartDateTime({
         selectedStartDateTime: nextStart,
         updateSource: UpdateSource.Animation
@@ -719,7 +800,8 @@ export const TimeRangeSlider = ({
 
     return () => clearInterval(intervalId);
   }, [frameAdvance?.mode, s.animationOrStepMode, s.animationPlayMode, s.animationSpeed,
-    animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
+    animationRequestFrequency, s.animationStartDateTime, s.animationDuration,
+    isInstant, animationFrameMs, animationAdvanceMs]);
 
   /**
    * Animation auto-increment logic (back-pressure path)
@@ -748,13 +830,14 @@ export const TimeRangeSlider = ({
       return;
     }
 
-    const frameMs = animationRequestFrequency;
-    const advanceMs = (s.animationSpeed * frameMs) / 1000;
+    const frameMs = animationFrameMs;
+    const advanceMs = animationAdvanceMs;
 
     const loop = makeAnimationLoopEffect({
       readState: () => stateRef.current,
       advanceMs,
       frameMs,
+      gridAligned: isInstant,
       dispatchFrame: (nextStart) => d(SetSelectedStartDateTime({
         selectedStartDateTime: nextStart,
         updateSource: UpdateSource.Animation
@@ -779,7 +862,8 @@ export const TimeRangeSlider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameAdvance?.mode, frameAdvance?.mode === 'backpressure' ? frameAdvance.maxWaitMs : undefined,
     s.animationOrStepMode, s.animationPlayMode,
-    s.animationSpeed, animationRequestFrequency, s.animationStartDateTime, s.animationDuration]);
+    s.animationSpeed, animationRequestFrequency, s.animationStartDateTime, s.animationDuration,
+    isInstant, animationFrameMs, animationAdvanceMs]);
 
   /**
    * Track-latest polling logic using Effect Schedule
@@ -787,6 +871,8 @@ export const TimeRangeSlider = ({
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pollingFiberRef = useRef<Fiber.RuntimeFiber<any, any> | null>(null);
+  // The poll outlives renders, so it reads instant mode's grid through a ref.
+  const instantGridRef = useRef<{ stepMs: number; range: SelectableRange | undefined } | null>(null);
 
   useEffect(() => {
     // Clean up any existing fiber
@@ -817,8 +903,15 @@ export const TimeRangeSlider = ({
 
         // If tracking is enabled, also update selection. An active step sequence
         // holds the selection and the view still, so the poll cannot re-base it.
-        if (currentState.isTrackingLatest && acceptsTrackLatestRebase(currentState.stepCursor)) {
-          const newStart = DateTime.subtractDuration(latestDateTime, currentState.selectedDuration);
+        // In instant mode the newest grid point at or before the latest data
+        // and the ceiling, and only ever forwards: flooring could otherwise
+        // pull an off-grid instant back.
+        const grid = instantGridRef.current;
+        const newStart = grid
+          ? latestInstant(latestDateTime, grid.stepMs, grid.range)
+          : DateTime.subtractDuration(latestDateTime, currentState.selectedDuration);
+        const moves = !grid || DateTime.greaterThan(newStart, currentState.selectedStartDateTime);
+        if (currentState.isTrackingLatest && acceptsTrackLatestRebase(currentState.stepCursor) && moves) {
           d(SetSelectedStartDateTime({
             selectedStartDateTime: newStart,
             updateSource: UpdateSource.TrackLatestUpdate
@@ -885,8 +978,12 @@ export const TimeRangeSlider = ({
    * echoing the new dateRange back does not re-trigger it.
    */
   useEffect(() => {
-    d(ClampSelection({ range: selectableRange }));
+    d(ClampSelection({ range: selectableRange, gridStepMs: isInstant ? instantStepMs : undefined }));
+    // A step change floors the instant itself; only the bounds moving re-clamps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectableRange]);
+
+  instantGridRef.current = isInstant ? { stepMs: instantStepMs, range: selectableRange } : null;
 
   /** Observed frames the step buttons prefer, ascending. */
   const positions = useMemo(
@@ -906,13 +1003,18 @@ export const TimeRangeSlider = ({
   const stepTargets = useMemo(() => {
     const preview = (direction: StepDirection) => {
       const from = sequenceCursor(s.stepCursor, s.selectedStartDateTime);
+      if (isInstant) {
+        // One grid step; frames and the anchored lattice do not apply.
+        const { to, blocked } = stepInstant(from, instantStepMs, direction, selectableRange);
+        return { from, start: to, end: to, resolvedBy: 'lattice' as const, blocked };
+      }
       const { start, end, resolvedBy } = stepSelection(
         from, stepMs, direction, s.selectedDuration, stepLattice, positions);
       return { from, start, end, resolvedBy, blocked: isStepBlocked(start, end, direction, selectableRange) };
     };
     return { backward: preview(-1), forward: preview(1) };
   }, [s.stepCursor, s.selectedStartDateTime, s.selectedDuration, stepMs, stepLattice,
-    positions, selectableRange]);
+    positions, selectableRange, isInstant, instantStepMs]);
 
   const requestStep = useCallback((direction: StepDirection) => {
     const { from, start, resolvedBy, blocked } =
@@ -931,6 +1033,20 @@ export const TimeRangeSlider = ({
       updateSource: UpdateSource.Step
     }));
   }, [stepTargets, onStepRequest]);
+
+  /** The user picked a step size; see `instantAfterStepChange`. */
+  const changeStepMs = useCallback((nextStepMs: number) => {
+    setUncontrolledStepMs(nextStepMs);
+    onStepMsChange?.(nextStepMs);
+    const { isTrackingLatest, lastKnownLatestDate, selectedStartDateTime } = stateRef.current;
+    const { instant, tracking } = instantAfterStepChange(
+      { instant: selectedStartDateTime, isTrackingLatest, lastKnownLatest: lastKnownLatestDate },
+      nextStepMs, selectableRange);
+    d(SetSelectedStartDateTime({
+      selectedStartDateTime: instant,
+      updateSource: tracking ? UpdateSource.TrackLatestUpdate : UpdateSource.UserInteraction
+    }));
+  }, [onStepMsChange, selectableRange]);
 
   const themeClass = useMemo(() => theme === AppTheme.Dark ? 'dark-theme' : 'light-theme', [theme]);
 
@@ -1042,7 +1158,9 @@ export const TimeRangeSlider = ({
               earliestValidDateTime={selectableRange?.min}
               latestValidDateTime={selectableRange?.max}
               increment={s.increment}
+              instantStepMs={isInstant ? instantStepMs : undefined}
               theme={theme}
+              showDateHeader={!isInstant || hideDatePicker}
             />
           </div>
           {!isSliderHidden && (
@@ -1099,7 +1217,8 @@ export const TimeRangeSlider = ({
                         // Enable tracking - first jump to latest, then enable polling
                         try {
                           const latestDate = await getLatestDateRange();
-                          const latestDateTime = DateTime.unsafeFromDate(latestDate);
+                          // Instant mode: the newest grid point within the ceiling.
+                          const latestDateTime = toGrid(DateTime.unsafeFromDate(latestDate), selectableRange);
 
                           // Enable first: this also ends any step sequence, so the
                           // jump-to-latest writes below are not refused as re-bases.
@@ -1108,10 +1227,10 @@ export const TimeRangeSlider = ({
                           if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
                             // In animation mode: position animation range to end at latest date
                             // and move primary range to start of animation range
-                            const newAnimationStart = DateTime.subtractDuration(latestDateTime, s.animationDuration);
+                            const newAnimationStart = toGrid(DateTime.subtractDuration(latestDateTime, s.animationDuration));
                             d(SetAnimationStartDateTime({ animationStartDateTime: newAnimationStart }));
                             d(SetSelectedStartDateTime({
-                              selectedStartDateTime: newAnimationStart,
+                              selectedStartDateTime: toGrid(newAnimationStart, selectableRange),
                               updateSource: UpdateSource.TrackLatestUpdate
                             }));
 
@@ -1178,7 +1297,8 @@ export const TimeRangeSlider = ({
             <>
               <DateAndRangeSelect
                 startDateTime={s.selectedStartDateTime}
-                setStartDateTime={(date: DateTime.DateTime) => {
+                setStartDateTime={(picked: DateTime.DateTime) => {
+                  const date = toGrid(picked, selectableRange);
                   // In animation mode, adjust animation range if new date falls outside it
                   if (s.animationOrStepMode === AnimationOrStepMode.Animation) {
                     const selectedEnd = DateTime.addDuration(date, s.selectedDuration);
@@ -1226,7 +1346,8 @@ export const TimeRangeSlider = ({
                 }}
                 rangeValue={TimeDuration[Duration.toMillis(s.selectedDuration)]
                   ? Duration.toMillis(s.selectedDuration) as TimeDuration : undefined}
-                setRange={
+                // Instant mode's step selector sits on the bar instead
+                setRange={isInstant ? undefined :
                   (timeDuration: TimeDuration) =>
                     d(SetSelectedDuration({
                       selectedDuration: Duration.millis(timeDuration),
@@ -1234,9 +1355,17 @@ export const TimeRangeSlider = ({
                     }))
                 }
                 availableDateRange={availableDateRange}
+                instantStepMs={isInstant ? instantStepMs : undefined}
               />
               <Divider variant="middle" orientation={"vertical"} flexItem />
             </>
+          )}
+          {isInstant && (
+            <StepSizeSelect
+              options={resolveStepOptions(stepOptionsMs, instantStepMs)}
+              value={instantStepMs}
+              onChange={changeStepMs}
+            />
           )}
           <AnimateAndStepControls
             /* Step controls */
@@ -1248,6 +1377,9 @@ export const TimeRangeSlider = ({
             /* Feature toggle */
             hideAnimationToggle={hideAnimationToggle}
             disabledAnimationTooltip={disabledAnimationTooltip}
+            frameIntervalMs={isInstant ? instantFrameMs : undefined}
+            setFrameIntervalMs={setInstantFrameMs}
+            darkTheme={theme === AppTheme.Dark}
 
             /* Animation toggle */
             animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}
@@ -1258,7 +1390,8 @@ export const TimeRangeSlider = ({
                   : AnimationOrStepMode.Step
               }));
               if (enabled) {
-                let animationStart = s.selectedStartDateTime;
+                // Instant mode starts the animation on a grid point
+                let animationStart = toGrid(s.selectedStartDateTime);
                 let needsStartUpdate = false;
 
                 // Determine max/min constraints
@@ -1271,7 +1404,7 @@ export const TimeRangeSlider = ({
 
                   if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
                     // Bump animation back to fit within the acceptable range
-                    const adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration);
+                    const adjustedStart = toGrid(DateTime.subtractDuration(maxAllowedDateTime, s.animationDuration));
                     // Only update if the adjustment is actually different
                     if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(animationStart)) {
                       animationStart = adjustedStart;
@@ -1282,7 +1415,7 @@ export const TimeRangeSlider = ({
 
                 // Check if animation start would be before min
                 if (minAllowedDateTime && DateTime.lessThan(animationStart, minAllowedDateTime)) {
-                  animationStart = minAllowedDateTime;
+                  animationStart = toGrid(minAllowedDateTime, selectableRange);
                   needsStartUpdate = true;
                 }
 
@@ -1328,13 +1461,13 @@ export const TimeRangeSlider = ({
                   const proposedAnimationEnd = DateTime.addDuration(adjustedStart, duration);
                   if (DateTime.greaterThan(proposedAnimationEnd, maxAllowedDateTime)) {
                     // Adjust animation start to accommodate the new duration
-                    adjustedStart = DateTime.subtractDuration(maxAllowedDateTime, duration);
+                    adjustedStart = toGrid(DateTime.subtractDuration(maxAllowedDateTime, duration));
                   }
                 }
 
                 // Ensure adjusted start doesn't go before minimum
                 if (minAllowedDateTime && DateTime.lessThan(adjustedStart, minAllowedDateTime)) {
-                  adjustedStart = minAllowedDateTime;
+                  adjustedStart = toGrid(minAllowedDateTime, selectableRange);
                 }
 
                 if (DateTime.toEpochMillis(adjustedStart) !== DateTime.toEpochMillis(s.animationStartDateTime)) {

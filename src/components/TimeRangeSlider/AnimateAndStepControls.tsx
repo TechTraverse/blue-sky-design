@@ -25,6 +25,9 @@ export const AnimateAndStepControls = ({
   decrementAnimationSpeed,
   hideAnimationToggle = false,
   disabledAnimationTooltip,
+  frameIntervalMs,
+  setFrameIntervalMs,
+  darkTheme = false,
 }: {
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
@@ -44,6 +47,11 @@ export const AnimateAndStepControls = ({
   hideAnimationToggle?: boolean,
   /** When provided, shows the animation toggle in a disabled state with this tooltip message */
   disabledAnimationTooltip?: string,
+  /** Instant mode's frame interval; replaces the speed setting with a frame rate. */
+  frameIntervalMs?: number,
+  setFrameIntervalMs?: (ms: number) => void,
+  /** Themes the settings popover, which renders outside the slider. */
+  darkTheme?: boolean,
 }) => {
 
   const handleCenterButtonClick = () => {
@@ -107,6 +115,8 @@ export const AnimateAndStepControls = ({
               variant="contained"
               onClick={() => decrementStartDateTime?.()}
               disabled={disableStepBackward}
+              aria-label="Step back"
+              title="Step back"
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
@@ -148,6 +158,8 @@ export const AnimateAndStepControls = ({
               variant="contained"
               onClick={() => incrementStartDateTime?.()}
               disabled={disableStepForward}
+              aria-label="Step forward"
+              title="Step forward"
               sx={{
                 transition: 'all 0.3s ease',
                 width: animationEnabled ? '44px' : '67px', // Wider when in step mode
@@ -168,7 +180,10 @@ export const AnimateAndStepControls = ({
                   setAnimationSpeed={setAnimationSpeed}
                   animationDuration={animationDuration}
                   setAnimationDuration={setAnimationDuration}
+                  frameIntervalMs={frameIntervalMs}
+                  setFrameIntervalMs={setFrameIntervalMs}
                   disabled={false}
+                  darkTheme={darkTheme}
                 />
               </div>
             </div>

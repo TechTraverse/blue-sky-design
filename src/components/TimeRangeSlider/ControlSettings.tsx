@@ -12,6 +12,15 @@ const speedOptions = Object.entries(AnimationSpeed)
   }))
   .sort((a, b) => a.value - b.value);
 
+// Frame rates for instant mode, where each frame is one step
+const frameRatesFps = [0.5, 1, 2, 4];
+
+/** Frame-rate choices as frame intervals, including `currentMs` so the select always has a value. */
+const frameIntervalOptions = (currentMs: number) =>
+  [...new Set([...frameRatesFps.map((fps) => 1000 / fps), currentMs])]
+    .sort((a, b) => b - a)
+    .map((ms) => ({ label: `${+(1000 / ms).toFixed(2)} fps`, value: ms }));
+
 // Duration options for animation
 const durationOptions = [
   { label: "30 minutes", value: Duration.minutes(30) },
@@ -29,14 +38,28 @@ export const ControlSettings = ({
   setAnimationSpeed,
   animationDuration,
   setAnimationDuration,
-  disabled = false
+  frameIntervalMs,
+  setFrameIntervalMs,
+  disabled = false,
+  darkTheme = false,
 }: {
   animationEnabled: boolean;
   animationSpeed?: AnimationSpeed;
   setAnimationSpeed?: (speed: AnimationSpeed) => void;
   animationDuration?: Duration.Duration;
   setAnimationDuration?: (duration: Duration.Duration) => void;
+  /**
+   * Instant mode: every frame advances one step, so the speed select becomes a
+   * frame rate (this interval) plus a direction (the sign of `animationSpeed`).
+   */
+  frameIntervalMs?: number;
+  setFrameIntervalMs?: (ms: number) => void;
   disabled?: boolean;
+  /**
+   * The popover and its menus render in a portal outside the slider, so they
+   * take the slider's theme class themselves.
+   */
+  darkTheme?: boolean;
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -52,6 +75,8 @@ export const ControlSettings = ({
   const id = open ? 'control-settings-popover' : undefined;
   const title = 'Animation settings';
   const settingsTitle = 'Animation Settings';
+  const themeClass = darkTheme ? 'dark-theme' : 'light-theme';
+  const menuProps = { className: themeClass, sx: { zIndex: 10004 } };
 
   // Only show settings button in animation mode
   if (!animationEnabled) {
@@ -92,48 +117,85 @@ export const ControlSettings = ({
           zIndex: 10002,
         }}
         PaperProps={{
-          sx: {
-            p: 2,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            borderRadius: '8px',
-            border: '1px solid #e0e0e0',
-          }
+          className: `control-settings-paper ${themeClass}`,
+          sx: { p: 2, borderRadius: '8px' },
         }}
       >
         <Box sx={{ minWidth: 200 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#555' }}>
+          <Typography variant="subtitle2" className="control-settings-title" sx={{ mb: 2, fontWeight: 600 }}>
             {settingsTitle}
           </Typography>
           
           {animationSpeed && animationDuration && (
             <>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
-                  Speed
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={animationSpeed}
-                    onChange={(e) => setAnimationSpeed?.(e.target.value as AnimationSpeed)}
-                    variant="outlined"
-                    MenuProps={{
-                      sx: { zIndex: 10004 },
-                      PaperProps: {
-                        sx: { zIndex: 10004 }
-                      }
-                    }}
-                  >
-                    {speedOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              
+              {frameIntervalMs === undefined ? (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
+                    Speed
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <Select
+                      value={animationSpeed}
+                      onChange={(e) => setAnimationSpeed?.(e.target.value as AnimationSpeed)}
+                      variant="outlined"
+                      MenuProps={menuProps}
+                    >
+                      {speedOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
+                      Frame rate
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        value={frameIntervalMs}
+                        onChange={(e) => setFrameIntervalMs?.(Number(e.target.value))}
+                        variant="outlined"
+                        MenuProps={menuProps}
+                      >
+                        {frameIntervalOptions(frameIntervalMs).map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
+                      Direction
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        value={animationSpeed < 0 ? -1 : 1}
+                        onChange={(e) => {
+                          const direction = Number(e.target.value);
+                          if (Math.sign(animationSpeed) !== direction) {
+                            setAnimationSpeed?.(-animationSpeed as AnimationSpeed);
+                          }
+                        }}
+                        variant="outlined"
+                        MenuProps={menuProps}
+                      >
+                        <MenuItem value={1}>Forward</MenuItem>
+                        <MenuItem value={-1}>Reverse</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </>
+              )}
+
               <Box>
-                <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
+                <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
                   Duration
                 </Typography>
                 <FormControl fullWidth size="small">
@@ -148,12 +210,7 @@ export const ControlSettings = ({
                       }
                     }}
                     variant="outlined"
-                    MenuProps={{
-                      sx: { zIndex: 10004 },
-                      PaperProps: {
-                        sx: { zIndex: 10004 }
-                      }
-                    }}
+                    MenuProps={menuProps}
                   >
                     {durationOptions.map((option) => (
                       <MenuItem key={Duration.toMillis(option.value)} value={Duration.toMillis(option.value)}>

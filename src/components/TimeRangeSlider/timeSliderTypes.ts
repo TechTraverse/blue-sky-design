@@ -1,6 +1,12 @@
 import type { RangeValue } from "@react-types/shared";
 import { Duration } from "effect";
 
+/**
+ * What the slider selects: a window of time (`range`, the default), or a single
+ * instant on a clock grid of `stepMs` steps (`instant`).
+ */
+export type SelectionMode = 'range' | 'instant';
+
 export enum AnimationOrStepMode {
   Animation,
   Step,

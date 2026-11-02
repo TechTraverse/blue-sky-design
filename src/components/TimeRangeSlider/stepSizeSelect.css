@@ -1,0 +1,83 @@
+/* Instant mode's step size selector, on the main bar beside the playback controls. */
+.step-size-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 0 4px;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+
+.step-size-select-label {
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.step-size-select-group {
+  display: flex;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.step-size-select-option {
+  min-width: 32px;
+  height: 26px;
+  padding: 0 6px;
+  border: none;
+  border-left: 1px solid #dee2e6;
+  background: transparent;
+  color: #3d4551;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.step-size-select-option:first-child {
+  border-left: none;
+}
+
+.step-size-select-option:hover:not(.selected) {
+  background-color: rgba(0, 118, 214, 0.1);
+}
+
+.step-size-select-option.selected {
+  background-color: #1976d2;
+  color: #fff;
+  font-weight: 600;
+}
+
+.step-size-select-option:focus-visible {
+  outline: 2px solid #0076d6;
+  outline-offset: -2px;
+}
+
+.dark-theme .step-size-select-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.dark-theme .step-size-select-group {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
+}
+
+.dark-theme .step-size-select-option {
+  border-left-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.dark-theme .step-size-select-option:hover:not(.selected) {
+  background-color: rgba(74, 158, 255, 0.1);
+}
+
+.dark-theme .step-size-select-option.selected {
+  background-color: #1976d2;
+  color: #fff;
+}
+
+.dark-theme .step-size-select-option:focus-visible {
+  outline-color: #4a9eff;
+}

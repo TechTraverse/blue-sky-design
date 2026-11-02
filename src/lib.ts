@@ -15,6 +15,7 @@ export type { StepDirection, StepResolution } from './components/TimeRangeSlider
 export type { DateUpdateSource } from './components/TimeRangeSlider/timeSliderReducer';
 export type { AnimationLookahead, FrameAdvance, FrameInfo } from './components/TimeRangeSlider/animationFrame';
 export { TimeDuration, Theme, TimeZone, AnimationOrStepMode } from './components/TimeRangeSlider/timeSliderTypes';
+export type { SelectionMode } from './components/TimeRangeSlider/timeSliderTypes';
 
 // MapComponent exports - React-only and effect-ts enhanced APIs
 export { MapComponent, MapComponentEffect } from './components/MapComponent';
