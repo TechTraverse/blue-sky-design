@@ -516,6 +516,32 @@
   }
 }
 
+/* Animation settings popover. It renders in a portal outside the slider, so
+ * ControlSettings gives it (and its select menus) the slider's theme class. */
+.control-settings-paper {
+  --control-settings-text: #1b1b1b;
+  --control-settings-label: #565c65;
+  border: 1px solid #dfe1e2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.MuiPopover-paper.control-settings-paper.dark-theme {
+  --control-settings-text: rgba(255, 255, 255, 0.92);
+  --control-settings-label: rgba(255, 255, 255, 0.75);
+  background-color: #1e1e1e;
+  color: var(--control-settings-text);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.control-settings-paper .control-settings-title {
+  color: var(--control-settings-text);
+}
+
+.control-settings-paper .control-settings-label {
+  color: var(--control-settings-label);
+}
+
 /* Dark theme styles for animation settings popover */
 body.time-range-slider-dark-theme .MuiPopover-paper,
 .dark-theme .MuiPopover-paper {
@@ -572,14 +598,14 @@ body.time-range-slider-dark-theme .MuiTooltip-tooltip,
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
-/* Dark theme styles for animation settings button */
+/* Animation settings button */
 .control-settings-button {
   width: 20px;
   height: 20px;
-  border: 1px solid #dae9f8;
+  border: 1px solid #71767a;
   border-radius: 50%;
-  background-color: #f0f0f0;
-  color: #666;
+  background-color: #fff;
+  color: #1b1b1b;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   transition: all 0.2s ease-in-out;
   padding: 0;

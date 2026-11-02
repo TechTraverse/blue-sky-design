@@ -27,6 +27,7 @@ export const AnimateAndStepControls = ({
   disabledAnimationTooltip,
   frameIntervalMs,
   setFrameIntervalMs,
+  darkTheme = false,
 }: {
   animationEnabled?: boolean,
   setAnimationEnabled?: (enabled: boolean) => void,
@@ -49,6 +50,8 @@ export const AnimateAndStepControls = ({
   /** Instant mode's frame interval; replaces the speed setting with a frame rate. */
   frameIntervalMs?: number,
   setFrameIntervalMs?: (ms: number) => void,
+  /** Themes the settings popover, which renders outside the slider. */
+  darkTheme?: boolean,
 }) => {
 
   const handleCenterButtonClick = () => {
@@ -180,6 +183,7 @@ export const AnimateAndStepControls = ({
                   frameIntervalMs={frameIntervalMs}
                   setFrameIntervalMs={setFrameIntervalMs}
                   disabled={false}
+                  darkTheme={darkTheme}
                 />
               </div>
             </div>

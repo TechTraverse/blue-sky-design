@@ -40,7 +40,8 @@ export const ControlSettings = ({
   setAnimationDuration,
   frameIntervalMs,
   setFrameIntervalMs,
-  disabled = false
+  disabled = false,
+  darkTheme = false,
 }: {
   animationEnabled: boolean;
   animationSpeed?: AnimationSpeed;
@@ -54,6 +55,11 @@ export const ControlSettings = ({
   frameIntervalMs?: number;
   setFrameIntervalMs?: (ms: number) => void;
   disabled?: boolean;
+  /**
+   * The popover and its menus render in a portal outside the slider, so they
+   * take the slider's theme class themselves.
+   */
+  darkTheme?: boolean;
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -69,6 +75,8 @@ export const ControlSettings = ({
   const id = open ? 'control-settings-popover' : undefined;
   const title = 'Animation settings';
   const settingsTitle = 'Animation Settings';
+  const themeClass = darkTheme ? 'dark-theme' : 'light-theme';
+  const menuProps = { className: themeClass, sx: { zIndex: 10004 } };
 
   // Only show settings button in animation mode
   if (!animationEnabled) {
@@ -109,16 +117,12 @@ export const ControlSettings = ({
           zIndex: 10002,
         }}
         PaperProps={{
-          sx: {
-            p: 2,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            borderRadius: '8px',
-            border: '1px solid #e0e0e0',
-          }
+          className: `control-settings-paper ${themeClass}`,
+          sx: { p: 2, borderRadius: '8px' },
         }}
       >
         <Box sx={{ minWidth: 200 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#555' }}>
+          <Typography variant="subtitle2" className="control-settings-title" sx={{ mb: 2, fontWeight: 600 }}>
             {settingsTitle}
           </Typography>
           
@@ -126,7 +130,7 @@ export const ControlSettings = ({
             <>
               {frameIntervalMs === undefined ? (
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
+                  <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
                     Speed
                   </Typography>
                   <FormControl fullWidth size="small">
@@ -134,12 +138,7 @@ export const ControlSettings = ({
                       value={animationSpeed}
                       onChange={(e) => setAnimationSpeed?.(e.target.value as AnimationSpeed)}
                       variant="outlined"
-                      MenuProps={{
-                        sx: { zIndex: 10004 },
-                        PaperProps: {
-                          sx: { zIndex: 10004 }
-                        }
-                      }}
+                      MenuProps={menuProps}
                     >
                       {speedOptions.map((option) => (
                         <MenuItem key={option.value} value={option.value}>
@@ -152,7 +151,7 @@ export const ControlSettings = ({
               ) : (
                 <>
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
+                    <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
                       Frame rate
                     </Typography>
                     <FormControl fullWidth size="small">
@@ -160,12 +159,7 @@ export const ControlSettings = ({
                         value={frameIntervalMs}
                         onChange={(e) => setFrameIntervalMs?.(Number(e.target.value))}
                         variant="outlined"
-                        MenuProps={{
-                          sx: { zIndex: 10004 },
-                          PaperProps: {
-                            sx: { zIndex: 10004 }
-                          }
-                        }}
+                        MenuProps={menuProps}
                       >
                         {frameIntervalOptions(frameIntervalMs).map((option) => (
                           <MenuItem key={option.value} value={option.value}>
@@ -177,7 +171,7 @@ export const ControlSettings = ({
                   </Box>
 
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
+                    <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
                       Direction
                     </Typography>
                     <FormControl fullWidth size="small">
@@ -190,12 +184,7 @@ export const ControlSettings = ({
                           }
                         }}
                         variant="outlined"
-                        MenuProps={{
-                          sx: { zIndex: 10004 },
-                          PaperProps: {
-                            sx: { zIndex: 10004 }
-                          }
-                        }}
+                        MenuProps={menuProps}
                       >
                         <MenuItem value={1}>Forward</MenuItem>
                         <MenuItem value={-1}>Reverse</MenuItem>
@@ -206,7 +195,7 @@ export const ControlSettings = ({
               )}
 
               <Box>
-                <Typography variant="caption" sx={{ display: 'block', mb: 1, color: '#666' }}>
+                <Typography variant="caption" className="control-settings-label" sx={{ display: 'block', mb: 1 }}>
                   Duration
                 </Typography>
                 <FormControl fullWidth size="small">
@@ -221,12 +210,7 @@ export const ControlSettings = ({
                       }
                     }}
                     variant="outlined"
-                    MenuProps={{
-                      sx: { zIndex: 10004 },
-                      PaperProps: {
-                        sx: { zIndex: 10004 }
-                      }
-                    }}
+                    MenuProps={menuProps}
                   >
                     {durationOptions.map((option) => (
                       <MenuItem key={Duration.toMillis(option.value)} value={Duration.toMillis(option.value)}>

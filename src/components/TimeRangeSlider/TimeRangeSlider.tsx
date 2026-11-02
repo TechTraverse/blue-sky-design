@@ -1382,6 +1382,7 @@ export const TimeRangeSlider = ({
             disabledAnimationTooltip={disabledAnimationTooltip}
             frameIntervalMs={isInstant ? instantFrameMs : undefined}
             setFrameIntervalMs={setInstantFrameMs}
+            darkTheme={theme === AppTheme.Dark}
 
             /* Animation toggle */
             animationEnabled={s.animationOrStepMode === AnimationOrStepMode.Animation}
