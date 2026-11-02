@@ -294,6 +294,26 @@ export const snapInstant = (
 };
 
 /**
+ * Where picking a new step size puts the instant: floored onto the new grid
+ * inside the bounds, or, while tracking latest, the newest grid point, so a
+ * finer step can move it forward. Tracking stays on even before the first poll
+ * has returned; the ceiling then stands in for the latest data.
+ */
+export const instantAfterStepChange = (
+  current: { instant: DateTime.DateTime; isTrackingLatest: boolean; lastKnownLatest: DateTime.DateTime | null },
+  stepMs: number,
+  range?: SelectableRange
+): { instant: DateTime.DateTime; tracking: boolean } => {
+  const latest = current.lastKnownLatest ?? range?.max;
+  return {
+    instant: current.isTrackingLatest && latest
+      ? latestInstant(latest, stepMs, range)
+      : snapInstant(current.instant, stepMs, 'floor', range),
+    tracking: current.isTrackingLatest,
+  };
+};
+
+/**
  * Where track-latest puts the instant: the newest grid point at or before both
  * the latest data and the ceiling.
  */

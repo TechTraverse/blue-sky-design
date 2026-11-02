@@ -248,8 +248,21 @@
   color: var(--axis-ink);
 }
 
+/* Marks outside the selectable range read as greyed out, like the calendar's
+ * disabled dates. */
 .axis-mark.disabled-marks {
+  --axis-ink: #b8bdc2;
+  --axis-ink-muted: #c6cace;
+  --axis-tick: #d4d8db;
+  --axis-day: #b8bdc2;
   cursor: not-allowed;
+}
+
+.dark-theme .axis-mark.disabled-marks {
+  --axis-ink: rgba(255, 255, 255, 0.3);
+  --axis-ink-muted: rgba(255, 255, 255, 0.3);
+  --axis-tick: rgba(255, 255, 255, 0.2);
+  --axis-day: rgba(255, 255, 255, 0.3);
 }
 
 /* ---- Instant mode's newest selectable time ---- */

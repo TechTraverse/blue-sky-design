@@ -13,6 +13,7 @@ import {
   acceptsTrackLatestRebase,
   DEFAULT_INSTANT_STEP_MS,
   isStepBlocked,
+  instantAfterStepChange,
   latestInstant,
   makeStepLattice,
   normalizeStepPositions,
@@ -1033,20 +1034,16 @@ export const TimeRangeSlider = ({
     }));
   }, [stepTargets, onStepRequest]);
 
-  /**
-   * The user picked a step size: floor the instant onto the new grid inside the
-   * bounds. While tracking latest it goes to the newest grid point instead, so a
-   * finer step can move it forward.
-   */
+  /** The user picked a step size; see `instantAfterStepChange`. */
   const changeStepMs = useCallback((nextStepMs: number) => {
     setUncontrolledStepMs(nextStepMs);
     onStepMsChange?.(nextStepMs);
     const { isTrackingLatest, lastKnownLatestDate, selectedStartDateTime } = stateRef.current;
-    const tracking = isTrackingLatest && lastKnownLatestDate !== null;
+    const { instant, tracking } = instantAfterStepChange(
+      { instant: selectedStartDateTime, isTrackingLatest, lastKnownLatest: lastKnownLatestDate },
+      nextStepMs, selectableRange);
     d(SetSelectedStartDateTime({
-      selectedStartDateTime: tracking
-        ? latestInstant(lastKnownLatestDate, nextStepMs, selectableRange)
-        : snapInstant(selectedStartDateTime, nextStepMs, 'floor', selectableRange),
+      selectedStartDateTime: instant,
       updateSource: tracking ? UpdateSource.TrackLatestUpdate : UpdateSource.UserInteraction
     }));
   }, [onStepMsChange, selectableRange]);

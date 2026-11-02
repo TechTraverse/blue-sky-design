@@ -5,6 +5,7 @@ import {
   clampInstant,
   DEFAULT_INSTANT_STEP_MS,
   DEFAULT_STEP_OPTIONS_MS,
+  instantAfterStepChange,
   latestInstant,
   resolveInstantStepMs,
   resolveStepOptions,
@@ -115,6 +116,29 @@ describe('a step size change', () => {
 
   it('lifts a floored instant that drops below the floor back onto the grid inside it', () => {
     expect(iso(snapInstant(at('2026-08-21T13:10:00Z'), 30 * MIN, 'floor', range))).toBe('2026-08-21T13:30:00.000Z');
+  });
+
+  it('goes to the newest grid point and keeps tracking while tracking latest', () => {
+    const next = instantAfterStepChange(
+      { instant: at('2026-08-22T12:30:00Z'), isTrackingLatest: true, lastKnownLatest: at('2026-08-22T12:58:00Z') },
+      MIN, range);
+    expect(iso(next.instant)).toBe('2026-08-22T12:58:00.000Z');
+    expect(next.tracking).toBe(true);
+  });
+
+  it('keeps tracking before the first poll returns, using the ceiling as the latest', () => {
+    const next = instantAfterStepChange(
+      { instant: at('2026-08-22T12:30:00Z'), isTrackingLatest: true, lastKnownLatest: null }, MIN, range);
+    expect(iso(next.instant)).toBe('2026-08-22T13:05:00.000Z');
+    expect(next.tracking).toBe(true);
+  });
+
+  it('floors the instant and leaves tracking off when not tracking', () => {
+    const next = instantAfterStepChange(
+      { instant: at('2026-08-22T12:25:00Z'), isTrackingLatest: false, lastKnownLatest: at('2026-08-22T12:58:00Z') },
+      30 * MIN, range);
+    expect(iso(next.instant)).toBe('2026-08-22T12:00:00.000Z');
+    expect(next.tracking).toBe(false);
   });
 });
 
@@ -229,6 +253,13 @@ describe('grid-aligned animation frames', () => {
     expect(starts(upcomingAnimationFrames(state, FIVE, 3, true))).toEqual([60 * MIN, 5 * MIN, 10 * MIN]);
     expect(starts(upcomingAnimationFrames(mkState(5 * MIN, 2 * MIN, HOUR), -FIVE, 2, true)))
       .toEqual([60 * MIN, 55 * MIN]);
+  });
+
+  it('holds in an animation range with no grid point, instead of leaving it', () => {
+    // 30-minute steps in 5:00..15:00: the nearest grid points, 0 and 30, are both outside.
+    const state = mkState(10 * MIN, 5 * MIN, 10 * MIN);
+    expect(DateTime.toEpochMillis(computeNextAnimationFrame(state, 30 * MIN, true).nextStart)).toBe(10 * MIN);
+    expect(DateTime.toEpochMillis(computeNextAnimationFrame(state, -30 * MIN, true).nextStart)).toBe(10 * MIN);
   });
 
   it('leaves range-mode frame math alone when not grid aligned', () => {

@@ -111,7 +111,11 @@ const computeNextGridFrame = (
   if (stepMs > 0) {
     const first = Math.ceil(animStartMs / stepMs) * stepMs;
     const last = Math.floor((animEndMs - widthMs) / stepMs) * stepMs;
-    if (advanceMs < 0) {
+    if (first > last) {
+      // No grid point inside the animation range (it is shorter than a step):
+      // hold, rather than jump to one outside it.
+      nextMs = fromMs;
+    } else if (advanceMs < 0) {
       const prev = Math.ceil(fromMs / stepMs) * stepMs - stepMs;
       nextMs = prev < first ? last : prev;
     } else {

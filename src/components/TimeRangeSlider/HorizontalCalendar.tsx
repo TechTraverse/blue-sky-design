@@ -565,8 +565,10 @@ export const HorizontalCalendar = ({
     const raw = Array.isArray(value) ? value[0] : value;
     const validRange = { min: earliestValidDateTime, max: latestValidDateTime };
 
-    // A click outside the animation range moves the range there, as in range mode.
-    if (displayLimitedRange && limitedRange && e.type !== 'mousemove') {
+    // A click or tap outside the animation range moves the range there, as in
+    // range mode. A drag or arrow key past its edge stops at the edge instead.
+    const isPress = e.type === 'mousedown' || e.type === 'touchstart';
+    if (displayLimitedRange && limitedRange && isPress) {
       const limitStart = DateTime.toEpochMillis(displayLimitedRange.start);
       const limitEnd = DateTime.toEpochMillis(displayLimitedRange.end);
       const edt = earliestValidDateTime ? DateTime.toEpochMillis(earliestValidDateTime) : -Infinity;
@@ -585,7 +587,8 @@ export const HorizontalCalendar = ({
     if (displayLimitedRange) {
       const first = ceilToGrid(DateTime.toEpochMillis(displayLimitedRange.start), stepMs);
       const last = floorToGrid(DateTime.toEpochMillis(displayLimitedRange.end), stepMs);
-      ms = Math.min(Math.max(ms, first), last);
+      // A range shorter than a step may hold no grid point; then there is nothing to keep it in.
+      if (first <= last) ms = Math.min(Math.max(ms, first), last);
     }
     primaryRange.set({ start: snapInstant(DateTime.unsafeMake(ms), stepMs, 'nearest', validRange) });
   };
